@@ -51,6 +51,8 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnExit(ExitEventArgs e)
         {
+            ThemeManager.Shutdown();
+
             if (_serviceProvider is IDisposable disposable)
             {
                 disposable.Dispose();

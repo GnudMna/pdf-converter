@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Win32;
 using PdfConverter.Models;
 using PdfConverter.Themes;
 using Xunit;
@@ -32,6 +33,22 @@ namespace PdfConverter.Tests.Themes
         public void ParseThemeMode_InvalidValue_ReturnsSystem(string input)
         {
             ThemeManager.ParseThemeMode(input).Should().Be(ThemeMode.System);
+        }
+
+        /// <summary>
+        /// システム追従モードかつ一般設定変更時のみテーマ再適用対象になることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(ThemeMode.System, UserPreferenceCategory.General, true)]
+        [InlineData(ThemeMode.Light, UserPreferenceCategory.General, false)]
+        [InlineData(ThemeMode.Dark, UserPreferenceCategory.General, false)]
+        [InlineData(ThemeMode.System, UserPreferenceCategory.Color, false)]
+        public void ShouldReactToUserPreferenceChange_ReturnsExpected(
+            ThemeMode selectedMode,
+            UserPreferenceCategory category,
+            bool expected)
+        {
+            ThemeManager.ShouldReactToUserPreferenceChange(selectedMode, category).Should().Be(expected);
         }
     }
 }
