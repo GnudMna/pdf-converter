@@ -263,6 +263,40 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 小さい PDF では CPU コア数と上限 4 の小さい方で並列度が決まることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(8, 1 * 1024 * 1024, 4)]
+        [InlineData(2, 1 * 1024 * 1024, 2)]
+        [InlineData(1, 1 * 1024 * 1024, 1)]
+        public void ResolveSaveParallelism_SmallPdf_UsesCpuBoundCap(int processorCount, long fileSizeBytes, int expected)
+        {
+            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+        }
+
+        /// <summary>
+        /// 中サイズ PDF では並列度が最大 2 に制限されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(8, 16L * 1024 * 1024, 2)]
+        [InlineData(2, 16L * 1024 * 1024, 2)]
+        public void ResolveSaveParallelism_MediumPdf_CapsAtTwo(int processorCount, long fileSizeBytes, int expected)
+        {
+            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+        }
+
+        /// <summary>
+        /// 大きい PDF では並列度が 1 に制限されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(8, 48L * 1024 * 1024, 1)]
+        [InlineData(8, 100L * 1024 * 1024, 1)]
+        public void ResolveSaveParallelism_LargePdf_IsSequential(int processorCount, long fileSizeBytes, int expected)
+        {
+            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+        }
+
+        /// <summary>
         /// キャンセル済みトークンでは保存処理が早期終了し、出力ファイルを作成しないことを検証する
         /// </summary>
         [Fact]
