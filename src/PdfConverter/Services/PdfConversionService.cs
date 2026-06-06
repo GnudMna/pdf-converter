@@ -1,0 +1,365 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using Docnet.Core;
+using Docnet.Core.Models;
+using Docnet.Core.Readers;
+using PdfConverter.Models;
+
+namespace PdfConverter.Services
+{
+    /// <summary>
+    /// Docnet.Core(PDFium)を使用して PDFページをPNG画像に変換・保存するサービス
+    /// </summary>
+    /// <remarks>
+    /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
+    /// 一定サイズ以下の PDF のみメモリキャッシュする
+    /// </remarks>
+    public class PdfConversionService : IPdfConversionService
+    {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
+        /// <summary>メモリキャッシュの上限(バイト)</summary>
+        private const long MaxCacheableFileSizeBytes = 64L * 1024 * 1024;
+
+        /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
+        private readonly object _cacheLock = new object();
+
+        /// <summary>現在キャッシュされているファイルのパス</summary>
+        private string _cachedFilePath;
+
+        /// <summary>キャッシュされたファイルの生バイト列</summary>
+        private byte[] _cachedFileBytes;
+
+        /// <summary>キャッシュ取得時点のファイル最終更新日時(UTC)</summary>
+        private DateTime _cachedFileLastWrite;
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
+        /// <inheritdoc/>
+        public async Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+            }
+
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+
+            return await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                {
+                    int pageCount = docReader.GetPageCount();
+
+                    if (pageIndex < 0 || pageIndex >= pageCount)
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
+                    }
+
+                    return RenderScaledPage(docReader, pageIndex, mode, value, cancellationToken);
+                }
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task<int> GetPdfPageCountAsync(string filePath, CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+            }
+
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+
+            return await Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                {
+                    return docReader.GetPageCount();
+                }
+            }, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default)
+        {
+            if (!File.Exists(filePath))
+            {
+                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+            }
+
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+
+            int pageCount;
+            using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+            {
+                pageCount = docReader.GetPageCount();
+            }
+
+            List<int> pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
+            int total = pagesToSave.Count;
+            int completedCount = 0;
+
+            // ワーカーごとに1つのDocReaderを再利用し、ページごとの生成コストを削減する
+            int maxParallelism = Math.Max(1, Environment.ProcessorCount);
+            IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
+
+            var tasks = partitions
+                .Where(partition => partition.Count > 0)
+                .Select(partition => Task.Run(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                    {
+                        foreach (int pageIndex in partition)
+                        {
+                            cancellationToken.ThrowIfCancellationRequested();
+                            SavePageToFile(docReader, pageIndex, folderPath, mode, value);
+                            int completed = Interlocked.Increment(ref completedCount);
+                            progress?.Report(new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ"));
+                        }
+                    }
+                }, cancellationToken));
+
+            await Task.WhenAll(tasks);
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>
+        /// 保存対象ページ一覧を解決する
+        /// </summary>
+        private static List<int> ResolvePagesToSave(IEnumerable<int> pageIndexes, bool saveAllPages, int pageCount)
+        {
+            if (saveAllPages)
+            {
+                return Enumerable.Range(0, pageCount).ToList();
+            }
+
+            if (pageIndexes == null)
+            {
+                throw new ArgumentException("有効なページインデックス一覧または'全ページを保存'を選択してください。");
+            }
+
+            List<int> pagesToSave = pageIndexes.Distinct().OrderBy(x => x).ToList();
+            if (pagesToSave.Count == 0)
+            {
+                throw new ArgumentException("保存対象のページが指定されていません。", nameof(pageIndexes));
+            }
+
+            if (pagesToSave.Any(index => index < 0 || index >= pageCount))
+            {
+                throw new ArgumentOutOfRangeException(nameof(pageIndexes), "範囲外のページインデックスが含まれています。PDFのページ数内で指定してください。");
+            }
+
+            return pagesToSave;
+        }
+
+        /// <summary>
+        /// ページ一覧を並列ワーカー数に応じて分割する
+        /// </summary>
+        private static IReadOnlyList<IReadOnlyList<int>> PartitionPages(IReadOnlyList<int> pages, int partitionCount)
+        {
+            var partitions = Enumerable.Range(0, partitionCount)
+                .Select(_ => new List<int>())
+                .ToList();
+
+            for (int i = 0; i < pages.Count; i++)
+            {
+                partitions[i % partitionCount].Add(pages[i]);
+            }
+
+            return partitions;
+        }
+
+        /// <summary>
+        /// ファイルパスと最終更新日時をキーにしたメモリキャッシュから読み込む<br/>
+        /// <see cref="MaxCacheableFileSizeBytes"/>を超えるPDFはキャッシュせず、都度ディスクから読み込む
+        /// </summary>
+        private async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
+        {
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists)
+            {
+                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+            }
+
+            DateTime lastWrite = fileInfo.LastWriteTimeUtc;
+            long fileSize = fileInfo.Length;
+            bool canCache = fileSize <= MaxCacheableFileSizeBytes;
+
+            lock (_cacheLock)
+            {
+                if (canCache
+                    && _cachedFilePath == filePath
+                    && _cachedFileLastWrite == lastWrite
+                    && _cachedFileBytes != null)
+                {
+                    return _cachedFileBytes;
+                }
+            }
+
+            byte[] fileBytes = await Task.Run(() => File.ReadAllBytes(filePath), cancellationToken);
+            ValidatePdfHeader(fileBytes);
+
+            lock (_cacheLock)
+            {
+                if (canCache)
+                {
+                    _cachedFilePath = filePath;
+                    _cachedFileBytes = fileBytes;
+                    _cachedFileLastWrite = lastWrite;
+                }
+                else
+                {
+                    InvalidateCacheUnsafe();
+                }
+            }
+
+            return fileBytes;
+        }
+
+        /// <summary>メモリキャッシュを破棄する</summary>
+        private void InvalidateCacheUnsafe()
+        {
+            _cachedFilePath = null;
+            _cachedFileBytes = null;
+            _cachedFileLastWrite = default;
+        }
+
+        /// <summary>
+        /// 指定ページをスケーリング済みビットマップとして描画する
+        /// </summary>
+        private static BitmapSource RenderScaledPage(IDocReader docReader, int pageIndex, ResolutionMode mode, double value, CancellationToken cancellationToken)
+        {
+            using (var pageReader = docReader.GetPageReader(pageIndex))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                BitmapSource source = CreateBitmapFromPageReader(pageReader);
+                BitmapSource scaled = ScaleBitmap(source, mode, value);
+                if (scaled.CanFreeze)
+                {
+                    scaled.Freeze();
+                }
+
+                return scaled;
+            }
+        }
+
+        /// <summary>
+        /// <see cref="IPageReader"/>のピクセルデータからビットマップを生成する
+        /// </summary>
+        private static BitmapSource CreateBitmapFromPageReader(IPageReader pageReader)
+        {
+            int width = pageReader.GetPageWidth();
+            int height = pageReader.GetPageHeight();
+            byte[] imageBytes = pageReader.GetImage();
+
+            // Docnet.CoreはBGRA32形式でピクセルデータを返す(stride = width * 4 bytes)
+            var source = BitmapSource.Create(
+                width,
+                height,
+                96,
+                96,
+                PixelFormats.Bgra32,
+                null,
+                imageBytes,
+                width * 4);
+            source.Freeze();
+            return source;
+        }
+
+        /// <summary>
+        /// 指定ページをPNGファイルとして保存する
+        /// </summary>
+        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value)
+        {
+            using (var pageReader = docReader.GetPageReader(pageIndex))
+            {
+                BitmapSource source = CreateBitmapFromPageReader(pageReader);
+                BitmapSource scaled = ScaleBitmap(source, mode, value);
+                string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}.png");
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(scaled));
+
+                using (var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
+                {
+                    encoder.Save(fs);
+                }
+            }
+        }
+
+        /// <summary>
+        /// ファイルの先頭4バイトがPDFマジックナンバー(<c>%PDF</c>)であることを検証する
+        /// </summary>
+        private static void ValidatePdfHeader(byte[] fileBytes)
+        {
+            if (fileBytes == null || fileBytes.Length < 4)
+            {
+                throw new InvalidDataException("PDFファイルではありません。ファイルが破損している可能性があります。");
+            }
+
+            if (fileBytes[0] != '%'
+                || fileBytes[1] != 'P'
+                || fileBytes[2] != 'D'
+                || fileBytes[3] != 'F')
+            {
+                throw new InvalidDataException("PDFファイルではありません。ファイルが破損している可能性があります。");
+            }
+        }
+
+        /// <summary>
+        /// <see cref="ResolutionMode"/> に基づいて <paramref name="source"/> をスケーリングする
+        /// </summary>
+        private static BitmapSource ScaleBitmap(BitmapSource source, ResolutionMode mode, double value)
+        {
+            if (mode == ResolutionMode.Default || value <= 0)
+            {
+                return source;
+            }
+
+            double targetWidth = source.PixelWidth;
+            double targetHeight = source.PixelHeight;
+            double aspectRatio = (double)source.PixelWidth / source.PixelHeight;
+
+            if (mode == ResolutionMode.Width)
+            {
+                targetWidth = value;
+                targetHeight = value / aspectRatio;
+            }
+            else if (mode == ResolutionMode.Height)
+            {
+                targetHeight = value;
+                targetWidth = value * aspectRatio;
+            }
+            else if (mode == ResolutionMode.Dpi)
+            {
+                double scale = value / source.DpiX;
+                targetWidth = source.PixelWidth * scale;
+                targetHeight = source.PixelHeight * scale;
+            }
+
+            var scaled = new TransformedBitmap(source, new ScaleTransform(targetWidth / source.PixelWidth, targetHeight / source.PixelHeight));
+            if (scaled.CanFreeze)
+            {
+                scaled.Freeze();
+            }
+
+            return scaled;
+        }
+    }
+}
