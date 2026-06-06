@@ -33,7 +33,7 @@ namespace PdfConverter.Views
         /// </summary>
         private void FilePathTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
-            if (DataContext is MainViewModel viewModel)
+            if (DataContext is MainViewModel viewModel && !viewModel.IsBusy)
             {
                 viewModel.LoadPdfFromPath();
             }
@@ -83,6 +83,14 @@ namespace PdfConverter.Views
         /// </summary>
         private void UpdateDragFeedback(DragEventArgs e)
         {
+            if (DataContext is MainViewModel viewModel && viewModel.IsBusy)
+            {
+                DropOverlay.Visibility = Visibility.Collapsed;
+                e.Effects = DragDropEffects.None;
+                e.Handled = true;
+                return;
+            }
+
             bool acceptable = ContainsPdf(e.Data);
             DropOverlay.Visibility = acceptable ? Visibility.Visible : Visibility.Collapsed;
             e.Effects = acceptable ? DragDropEffects.Copy : DragDropEffects.None;
@@ -97,12 +105,17 @@ namespace PdfConverter.Views
         {
             DropOverlay.Visibility = Visibility.Collapsed;
 
+            if (!(DataContext is MainViewModel viewModel) || viewModel.IsBusy)
+            {
+                return;
+            }
+
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
                 string filePath = files?
                     .FirstOrDefault(f => Path.GetExtension(f).Equals(".pdf", System.StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrEmpty(filePath) && DataContext is MainViewModel viewModel)
+                if (!string.IsNullOrEmpty(filePath))
                 {
                     viewModel.FilePath = filePath;
                     viewModel.LoadPdfFromPath(forceReload: true);

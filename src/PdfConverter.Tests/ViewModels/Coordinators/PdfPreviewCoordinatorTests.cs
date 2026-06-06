@@ -93,6 +93,75 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
+        /// 処理中（IsBusy）のときに新しい読み込みが開始されないことを検証する
+        /// </summary>
+        [Fact]
+        public void LoadFromPath_WhenBusy_DoesNotStartLoad()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out _);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                IsBusy = true,
+            };
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+
+                pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// ページ数取得中に IsBusy が true になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task LoadFromPath_DuringPageCountFetch_IsBusy()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out _);
+            string path = CreateTempPdfPath();
+            var pageCountGate = new TaskCompletionSource<int>();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+            };
+
+            pdf.Setup(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>())).Returns(pageCountGate.Task);
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((System.Windows.Media.Imaging.BitmapSource)null);
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+                await Task.Delay(50);
+
+                host.IsBusy.Should().BeTrue();
+
+                pageCountGate.SetResult(1);
+                await WaitForAsyncOperations();
+
+                host.IsBusy.Should().BeFalse();
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        /// <summary>
         /// 有効な PDF パスでページ数取得とプレビュー生成が完了し、IsBusy が false に戻ることを検証する
         /// </summary>
         [Fact]

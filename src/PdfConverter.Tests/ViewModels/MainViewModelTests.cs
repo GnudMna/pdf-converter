@@ -212,6 +212,19 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
+        /// 処理中（IsBusy）のときに BrowseCommand が実行不可能であることを検証する
+        /// </summary>
+        [Fact]
+        public void BrowseCommand_WhenBusy_CannotExecute()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.IsBusy = true;
+
+            ((IRelayCommand)viewModel.BrowseCommand).RaiseCanExecuteChanged();
+            viewModel.BrowseCommand.CanExecute(null).Should().BeFalse();
+        }
+
+        /// <summary>
         /// 処理中（IsBusy）のときに CancelCommand が実行可能であることを検証する
         /// </summary>
         [Fact]

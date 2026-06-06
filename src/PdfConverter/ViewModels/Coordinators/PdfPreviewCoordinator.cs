@@ -43,6 +43,11 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
         public void LoadFromPath(IMainViewModelHost host, bool forceReload = false)
         {
+            if (host.IsBusy)
+            {
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(host.FilePath))
             {
                 return;
@@ -152,39 +157,49 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
+            host.ProgressValue = 0;
             host.PrepareCancellation();
+            host.IsBusy = true;
             CancellationToken cancellationToken = host.GetCancellationToken();
             string loadingPath = host.FilePath;
 
             try
             {
-                host.PageCount = await _pdfService.GetPdfPageCountAsync(loadingPath, cancellationToken);
-                cancellationToken.ThrowIfCancellationRequested();
-            }
-            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
-            {
-                return;
-            }
-            catch (Exception ex)
-            {
-                host.PageCount = 0;
-                host.PreviewImage = null;
-                host.LoadedFilePath = null;
-                host.StatusMessage = $"PDFの読み込みに失敗しました: {ex.Message}";
-                return;
-            }
+                try
+                {
+                    host.PageCount = await _pdfService.GetPdfPageCountAsync(loadingPath, cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    host.PageCount = 0;
+                    host.PreviewImage = null;
+                    host.LoadedFilePath = null;
+                    host.StatusMessage = $"PDFの読み込みに失敗しました: {ex.Message}";
+                    return;
+                }
 
-            if (!string.Equals(host.FilePath, loadingPath, StringComparison.OrdinalIgnoreCase))
-            {
-                return;
-            }
+                if (!string.Equals(host.FilePath, loadingPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
 
-            if (host.PageCount > 0 && (!int.TryParse(host.PageNumber, out int current) || current < 1 || current > host.PageCount))
-            {
-                host.PageNumber = "1";
-            }
+                if (host.PageCount > 0 && (!int.TryParse(host.PageNumber, out int current) || current < 1 || current > host.PageCount))
+                {
+                    host.PageNumber = "1";
+                }
 
-            await ConvertAsync(host, showResolutionDialog: true);
+                await ConvertAsync(host, showResolutionDialog: true, manageBusyState: false);
+            }
+            finally
+            {
+                host.IsBusy = false;
+                host.DisposeCancellation();
+            }
         }
 
         /// <summary>
@@ -192,8 +207,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="showResolutionDialog">解像度ダイアログを表示するかどうか</param>
+        /// <param name="manageBusyState">処理中フラグとキャンセルソースのライフサイクルをこのメソッドで管理するかどうか</param>
         /// <returns>非同期操作のタスク</returns>
-        private async Task ConvertAsync(IMainViewModelHost host, bool showResolutionDialog = false)
+        private async Task ConvertAsync(IMainViewModelHost host, bool showResolutionDialog = false, bool manageBusyState = true)
         {
             if (string.IsNullOrEmpty(host.FilePath))
             {
@@ -203,7 +219,11 @@ namespace PdfConverter.ViewModels.Coordinators
             host.ProgressValue = 0;
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
-            host.IsBusy = true;
+            if (manageBusyState)
+            {
+                host.IsBusy = true;
+            }
+
             host.StatusMessage = "プレビュー生成中...";
 
             try
@@ -241,8 +261,11 @@ namespace PdfConverter.ViewModels.Coordinators
             }
             finally
             {
-                host.IsBusy = false;
-                host.DisposeCancellation();
+                if (manageBusyState)
+                {
+                    host.IsBusy = false;
+                    host.DisposeCancellation();
+                }
             }
         }
     }

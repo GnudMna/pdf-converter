@@ -186,6 +186,7 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
+                RaiseCanExecuteChanged(BrowseCommand);
                 RaiseCanExecuteChanged(SaveCommand);
                 RaiseCanExecuteChanged(CancelCommand);
                 RaiseNavigationCanExecuteChanged();
@@ -375,7 +376,7 @@ namespace PdfConverter.ViewModels
             _saveCoordinator = new PdfSaveCoordinator(pdfService, dialogService);
 
             // コマンド初期化
-            BrowseCommand = new RelayCommand(OnBrowse);
+            BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
             SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
             CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
