@@ -22,7 +22,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public void LoadFromPath_EmptyPath_DoesNothing()
         {
-            var coordinator = CreateCoordinator(out _, out _);
+            var coordinator = CreateCoordinator(out _);
             var host = new TestMainViewModelHost();
 
             coordinator.LoadFromPath(host);
@@ -36,7 +36,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public void LoadFromPath_MissingFile_SetsErrorStatus()
         {
-            var coordinator = CreateCoordinator(out _, out _);
+            var coordinator = CreateCoordinator(out _);
             var host = new TestMainViewModelHost
             {
                 FilePath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}.pdf"),
@@ -56,7 +56,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public void LoadFromPath_NonPdfExtension_SetsErrorStatus()
         {
-            var coordinator = CreateCoordinator(out _, out _);
+            var coordinator = CreateCoordinator(out _);
             string path = Path.GetTempFileName();
             var host = new TestMainViewModelHost { FilePath = path };
 
@@ -78,7 +78,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public void LoadFromPath_SamePathWithoutForce_DoesNotReload()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             var host = new TestMainViewModelHost
             {
                 FilePath = CreateTempPdfPath(),
@@ -98,7 +98,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public void LoadFromPath_WhenSaving_DoesNotStartLoad()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             var host = new TestMainViewModelHost
             {
                 FilePath = CreateTempPdfPath(),
@@ -123,7 +123,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public async Task LoadFromPath_DuringPageCountFetch_IsBusy()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             string path = CreateTempPdfPath();
             var pageCountGate = new TaskCompletionSource<int>();
             var host = new TestMainViewModelHost
@@ -167,7 +167,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public async Task LoadFromPath_ValidPdf_LoadsPageCountAndPreview()
         {
-            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            var coordinator = CreateCoordinator(out var pdf);
             string path = CreateTempPdfPath();
             System.Windows.Media.Imaging.BitmapSource bitmap = null;
             StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
@@ -204,7 +204,6 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 File.Delete(path);
             }
 
-            dialog.Verify(d => d.ShowMessage(It.IsAny<string>()), Times.Never);
         }
 
         /// <summary>
@@ -213,7 +212,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public async Task GoToPreviousPageAsync_OnSecondPage_DecrementsPageNumber()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             var host = new TestMainViewModelHost
             {
                 FilePath = CreateTempPdfPath(),
@@ -250,7 +249,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public async Task RefreshIfLoadedAsync_RapidRequests_AppliesLatestResolutionOnly()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             string path = CreateTempPdfPath();
             var firstConvertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
             System.Windows.Media.Imaging.BitmapSource firstBitmap = null;
@@ -311,7 +310,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         [Fact]
         public async Task RefreshIfLoadedAsync_WhenNotLoaded_DoesNothing()
         {
-            var coordinator = CreateCoordinator(out var pdf, out _);
+            var coordinator = CreateCoordinator(out var pdf);
             var host = new TestMainViewModelHost { PageCount = 0 };
 
             await coordinator.RefreshIfLoadedAsync(host);
@@ -325,11 +324,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<CancellationToken>()), Times.Never);
         }
 
-        private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf, out Mock<IDialogService> dialog)
+        private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf)
         {
             pdf = new Mock<IPdfConversionService>();
-            dialog = new Mock<IDialogService>();
-            return new PdfPreviewCoordinator(pdf.Object, dialog.Object);
+            return new PdfPreviewCoordinator(pdf.Object);
         }
 
         private static string CreateTempPdfPath()

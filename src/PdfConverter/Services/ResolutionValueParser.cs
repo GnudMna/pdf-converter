@@ -8,9 +8,14 @@ namespace PdfConverter.Services
     /// </summary>
     public static class ResolutionValueParser
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 解像度モードごとのデフォルト値を返す
         /// </summary>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <returns>デフォルト値</returns>
         public static string GetDefaultValue(ResolutionMode mode)
         {
             switch (mode)
@@ -33,7 +38,7 @@ namespace PdfConverter.Services
         /// <param name="resolutionValue">数値の文字列表現</param>
         /// <param name="value">解析された数値</param>
         /// <param name="errorMessage">検証失敗時のメッセージ</param>
-        /// <returns>検証に成功した場合は <c>true</c></returns>
+        /// <returns>true: 検証に成功した / false: 検証に失敗した</returns>
         public static bool TryParse(ResolutionMode mode, string resolutionValue, out double value, out string errorMessage)
         {
             value = 0;
@@ -78,9 +83,15 @@ namespace PdfConverter.Services
             return true;
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         /// <summary>
-        /// モードに応じた必須入力メッセージを返す
+        /// 解像度の指定方法に応じた入力メッセージを返す
         /// </summary>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <returns>入力メッセージ</returns>
         private static string GetRequiredMessage(ResolutionMode mode)
         {
             switch (mode)

@@ -15,12 +15,18 @@ namespace PdfConverter.Themes
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>テーママーカーキー</summary>
         private const string ThemeMarkerKey = "ThemeMarker";
 
+        /// <summary>選択されたテーマモード</summary>
         private static ThemeMode _selectedThemeMode = ThemeMode.System;
+
+        /// <summary>最後に適用された有効なテーマモード</summary>
         private static ThemeMode? _lastAppliedEffectiveMode;
+
+        /// <summary>システムテーマ監視フラグ</summary>
         private static bool _isMonitoringSystemTheme;
-        
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -63,7 +69,7 @@ namespace PdfConverter.Themes
         /// <summary>
         /// Windowsのアプリテーマ設定がダークかどうかを返す
         /// </summary>
-        /// <returns>true: ダークテーマ, false: ライトテーマ</returns>
+        /// <returns>true: ダークテーマ / false: ライトテーマ</returns>
         public static bool IsSystemDarkMode()
         {
             using (var key = Registry.CurrentUser.OpenSubKey(
@@ -103,7 +109,7 @@ namespace PdfConverter.Themes
         /// </summary>
         /// <param name="selectedMode">ユーザーが選択したテーマモード</param>
         /// <param name="category">変更されたユーザー設定のカテゴリ</param>
-        /// <returns>テーマの再適用が必要ならtrue</returns>
+        /// <returns>true: 反応すべき / false: 反応しない</returns>
         internal static bool ShouldReactToUserPreferenceChange(ThemeMode selectedMode, UserPreferenceCategory category)
         {
             return selectedMode == ThemeMode.System && category == UserPreferenceCategory.General;

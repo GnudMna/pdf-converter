@@ -55,6 +55,22 @@
     <!-- ステータスバー -->
     <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#FFFFFFFF" />
     <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FF374151" />
+    <SolidColorBrush x:Key="StatusInfoBackgroundBrush" Color="#FFEEF2FF" />
+    <SolidColorBrush x:Key="StatusInfoBorderBrush" Color="#FFC7D2FE" />
+    <SolidColorBrush x:Key="StatusInfoForegroundBrush" Color="#FF4338CA" />
+    <SolidColorBrush x:Key="StatusProgressBackgroundBrush" Color="#FFEEF2FF" />
+    <SolidColorBrush x:Key="StatusProgressBorderBrush" Color="#FFC7D2FE" />
+    <SolidColorBrush x:Key="StatusProgressForegroundBrush" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="StatusSuccessBackgroundBrush" Color="#FFECFDF5" />
+    <SolidColorBrush x:Key="StatusSuccessBorderBrush" Color="#FFA7F3D0" />
+    <SolidColorBrush x:Key="StatusSuccessForegroundBrush" Color="#FF047857" />
+    <SolidColorBrush x:Key="StatusWarningBackgroundBrush" Color="#FFFFFBEB" />
+    <SolidColorBrush x:Key="StatusWarningBorderBrush" Color="#FFFDE68A" />
+    <SolidColorBrush x:Key="StatusWarningForegroundBrush" Color="#FFB45309" />
+    <SolidColorBrush x:Key="StatusErrorBackgroundBrush" Color="#FFFEF2F2" />
+    <SolidColorBrush x:Key="StatusErrorBorderBrush" Color="#FFFECACA" />
+    <SolidColorBrush x:Key="StatusErrorForegroundBrush" Color="#FFB91C1C" />
+    <SolidColorBrush x:Key="ValidationMessageForegroundBrush" Color="#FFB91C1C" />
 
     <!-- プログレスバー -->
     <SolidColorBrush x:Key="ProgressBarBackgroundBrush" Color="#FFE5E7EB" />

@@ -25,7 +25,7 @@ namespace PdfConverter.ViewModels.Coordinators
         Task RefreshIfLoadedAsync(IMainViewModelHost host);
 
         /// <summary>
-        /// 読み込み済み PDF のプレビュー再生成をスケジュールする
+        /// 読み込み済みPDFのプレビュー再生成をスケジュールする
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         void RequestRefreshIfLoaded(IMainViewModelHost host);

@@ -18,6 +18,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>
         /// サービスを登録して<see cref="IServiceProvider"/>を構築する
         /// </summary>
+        /// <returns><see cref="IServiceProvider"/></returns>
         public static IServiceProvider Configure()
         {
             var services = new ServiceCollection();
