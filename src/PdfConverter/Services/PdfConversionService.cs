@@ -18,7 +18,9 @@ namespace PdfConverter.Services
     /// </summary>
     /// <remarks>
     /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
-    /// 一定サイズ以下の PDF のみメモリキャッシュする
+    /// 一定サイズ以下のPDFのみメモリキャッシュする<br/>
+    /// 並列保存時はワーカーごとにDocReaderがPDFを保持するため、
+    /// ファイルサイズに応じて並列度を制限しメモリピークを抑える
     /// </remarks>
     public class PdfConversionService : IPdfConversionService
     {
@@ -27,6 +29,15 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /// <summary>メモリキャッシュの上限(バイト)</summary>
         private const long MaxCacheableFileSizeBytes = 64L * 1024 * 1024;
+
+        /// <summary>保存処理の並列ワーカー数の上限</summary>
+        private const int MaxSaveParallelism = 4;
+
+        /// <summary>フル並列を許可するPDFサイズの上限(バイト)</summary>
+        private const long SmallPdfThresholdBytes = 8L * 1024 * 1024;
+
+        /// <summary>並列度を2に制限するPDFサイズの上限(バイト)</summary>
+        private const long MediumPdfThresholdBytes = 32L * 1024 * 1024;
 
         /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
         private readonly object _cacheLock = new object();
@@ -116,7 +127,8 @@ namespace PdfConverter.Services
             int completedCount = 0;
 
             // ワーカーごとに1つのDocReaderを再利用し、ページごとの生成コストを削減する
-            int maxParallelism = Math.Max(1, Environment.ProcessorCount);
+            // 大容量PDFではDocReaderごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
+            int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length);
             IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
             var tasks = partitions
@@ -183,6 +195,34 @@ namespace PdfConverter.Services
             }
 
             return pagesToSave;
+        }
+
+        /// <summary>
+        /// 保存処理の並列ワーカー数をCPUコア数とPDFサイズから決定する
+        /// </summary>
+        /// <param name="processorCount">利用可能な論理プロセッサ数</param>
+        /// <param name="fileSizeBytes">PDFファイルサイズ(バイト)</param>
+        /// <returns>1以上の並列ワーカー数</returns>
+        internal static int ResolveSaveParallelism(int processorCount, long fileSizeBytes)
+        {
+            int cpuBound = Math.Max(1, Math.Min(processorCount, MaxSaveParallelism));
+
+            if (fileSizeBytes <= SmallPdfThresholdBytes)
+            {
+                return cpuBound;
+            }
+
+            if (fileSizeBytes <= MediumPdfThresholdBytes)
+            {
+                return Math.Min(cpuBound, 2);
+            }
+
+            if (fileSizeBytes <= MaxCacheableFileSizeBytes)
+            {
+                return 1;
+            }
+
+            return 1;
         }
 
         /// <summary>
