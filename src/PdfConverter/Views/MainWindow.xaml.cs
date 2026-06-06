@@ -40,11 +40,63 @@ namespace PdfConverter.Views
         }
 
         /// <summary>
+        /// ドラッグ中のデータに PDF ファイルが含まれるかどうかを判定する
+        /// </summary>
+        private static bool ContainsPdf(IDataObject data)
+        {
+            if (data == null || !data.GetDataPresent(DataFormats.FileDrop))
+            {
+                return false;
+            }
+
+            string[] files = (string[])data.GetData(DataFormats.FileDrop);
+            return files != null && files.Any(f =>
+                Path.GetExtension(f).Equals(".pdf", System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// ドラッグがウィンドウに入ったときにオーバーレイ表示とドロップ可否を更新する
+        /// </summary>
+        private void MainWindow_DragEnter(object sender, DragEventArgs e)
+        {
+            UpdateDragFeedback(e);
+        }
+
+        /// <summary>
+        /// ドラッグ中の継続的なフィードバック（カーソル効果）を更新する
+        /// </summary>
+        private void MainWindow_DragOver(object sender, DragEventArgs e)
+        {
+            UpdateDragFeedback(e);
+        }
+
+        /// <summary>
+        /// ドラッグがウィンドウから外れたときにオーバーレイを非表示にする
+        /// </summary>
+        private void MainWindow_DragLeave(object sender, DragEventArgs e)
+        {
+            DropOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// ドラッグ内容に応じてオーバーレイの表示とドロップ効果を設定する
+        /// </summary>
+        private void UpdateDragFeedback(DragEventArgs e)
+        {
+            bool acceptable = ContainsPdf(e.Data);
+            DropOverlay.Visibility = acceptable ? Visibility.Visible : Visibility.Collapsed;
+            e.Effects = acceptable ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+
+        /// <summary>
         /// ウィンドウへのファイルドロップを処理する<br/>
         /// 複数ファイルがドロップされた場合は先頭の<c>.pdf</c>ファイルのみを<see cref="MainViewModel"/>に渡す
         /// </summary>
         private void MainWindow_Drop(object sender, DragEventArgs e)
         {
+            DropOverlay.Visibility = Visibility.Collapsed;
+
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
