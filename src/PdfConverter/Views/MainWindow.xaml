@@ -6,6 +6,7 @@
         xmlns:conv="clr-namespace:PdfConverter.Converters"
         mc:Ignorable="d"
         Title="PDF Converter"
+        Icon="/Assets/app.ico"
         Height="845"
         Width="990"
         MinHeight="845"
@@ -37,21 +38,12 @@
             </Grid.ColumnDefinitions>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="44"
-                        Height="44"
-                        CornerRadius="12"
-                        Background="{DynamicResource PrimaryButtonBackgroundBrush}"
-                        Margin="0,0,14,0">
-                    <Viewbox Width="24" Height="24">
-                        <Path Data="M 5 2 L 13 2 L 17 6 L 17 18 L 5 18 Z M 13 2 L 13 6 L 17 6 M 8 10 L 14 10 M 8 13 L 14 13 M 8 16 L 12 16"
-                              Fill="Transparent"
-                              Stroke="{DynamicResource PrimaryButtonForegroundBrush}"
-                              StrokeThickness="1.4"
-                              StrokeLineJoin="Round"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round" />
-                    </Viewbox>
-                </Border>
+                <Image Source="/Assets/app-icon.png"
+                       Width="44"
+                       Height="44"
+                       Margin="0,0,14,0"
+                       Stretch="Uniform"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
                 <StackPanel VerticalAlignment="Center">
                     <TextBlock Text="PDF Converter"
                                FontSize="22"
