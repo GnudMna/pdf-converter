@@ -105,6 +105,8 @@
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Compile Include="ViewModels\IMainViewModelHost.cs" />
     <Compile Include="ViewModels\Coordinators\CoordinatorHelpers.cs" />
+    <Compile Include="ViewModels\Coordinators\IPdfPreviewCoordinator.cs" />
+    <Compile Include="ViewModels\Coordinators\IPdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PdfPreviewCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />

@@ -1,6 +1,7 @@
 using Moq;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
+using PdfConverter.ViewModels.Coordinators;
 
 namespace PdfConverter.Tests.Helpers
 {
@@ -14,7 +15,11 @@ namespace PdfConverter.Tests.Helpers
             var pdf = new Mock<IPdfConversionService>();
             var dialog = new Mock<IDialogService>();
             var clipboard = new Mock<IClipboardService>();
-            var viewModel = new MainViewModel(pdf.Object, dialog.Object, clipboard.Object);
+            var viewModel = new MainViewModel(
+                dialog.Object,
+                clipboard.Object,
+                new PdfPreviewCoordinator(pdf.Object, dialog.Object),
+                new PdfSaveCoordinator(pdf.Object, dialog.Object));
             return (viewModel, pdf, dialog, clipboard);
         }
     }

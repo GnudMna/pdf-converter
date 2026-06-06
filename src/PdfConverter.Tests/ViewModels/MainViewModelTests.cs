@@ -178,6 +178,8 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
             System.Windows.Media.Imaging.BitmapSource image = null;
             StaTestHelper.Run(() => image = BitmapTestHelper.CreateBitmap());
+            viewModel.OutputImageFormat = OutputImageFormat.Png;
+            viewModel.PreserveTransparency = true;
             viewModel.PreviewImage = image;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
