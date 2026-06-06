@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace PdfConverter.Tests.Helpers
 {
@@ -13,12 +14,24 @@ namespace PdfConverter.Tests.Helpers
         /// </summary>
         public static void Run(Action action)
         {
+            Run(() =>
+            {
+                action();
+                return Task.CompletedTask;
+            });
+        }
+
+        /// <summary>
+        /// 指定した非同期アクションを STA スレッド上で実行する
+        /// </summary>
+        public static void Run(Func<Task> action)
+        {
             Exception captured = null;
             var thread = new Thread(() =>
             {
                 try
                 {
-                    action();
+                    action().GetAwaiter().GetResult();
                 }
                 catch (Exception ex)
                 {
