@@ -361,12 +361,12 @@ namespace PdfConverter.ViewModels
 
             // コマンド初期化
             BrowseCommand = new RelayCommand(OnBrowse);
-            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy);
+            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
             CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
-            GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage);
-            PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious);
-            NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext);
+            GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage, OnAsyncCommandException);
+            PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious, OnAsyncCommandException);
+            NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext, OnAsyncCommandException);
         }
 
 
@@ -482,6 +482,13 @@ namespace PdfConverter.ViewModels
                 _cancelTokenSource.Cancel();
                 StatusMessage = "処理をキャンセルしています...";
             }
+        }
+
+        /// <summary>非同期コマンドで捕捉した未処理例外をステータスに反映する</summary>
+        private void OnAsyncCommandException(Exception ex)
+        {
+            IsBusy = false;
+            StatusMessage = $"処理中にエラーが発生しました: {ex.Message}";
         }
 
         /// <summary>プレビュー画像をクリップボードにコピーする</summary>

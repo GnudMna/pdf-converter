@@ -100,6 +100,10 @@ namespace PdfConverter.Services
             }
 
             byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
 
             int pageCount;
             using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
@@ -119,20 +123,33 @@ namespace PdfConverter.Services
                 .Where(partition => partition.Count > 0)
                 .Select(partition => Task.Run(() =>
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
                     using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
                     {
                         foreach (int pageIndex in partition)
                         {
-                            cancellationToken.ThrowIfCancellationRequested();
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                return;
+                            }
+
                             SavePageToFile(docReader, pageIndex, folderPath, mode, value, format, preserveTransparency);
                             int completed = Interlocked.Increment(ref completedCount);
                             progress?.Report(new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ"));
                         }
                     }
-                }, cancellationToken));
+                }));
 
             await Task.WhenAll(tasks);
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
         }
 
 
@@ -212,7 +229,7 @@ namespace PdfConverter.Services
                 }
             }
 
-            byte[] fileBytes = await Task.Run(() => File.ReadAllBytes(filePath), cancellationToken);
+            byte[] fileBytes = await Task.Run(() => File.ReadAllBytes(filePath));
             ValidatePdfHeader(fileBytes);
 
             lock (_cacheLock)

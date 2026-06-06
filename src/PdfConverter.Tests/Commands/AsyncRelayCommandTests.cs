@@ -67,6 +67,52 @@ namespace PdfConverter.Tests.Commands
         }
 
         /// <summary>
+        /// キャンセル例外の場合は例外ハンドラが呼ばれないことを検証する
+        /// </summary>
+        [Fact]
+        public void Execute_WhenCanceled_DoesNotInvokeExceptionHandler()
+        {
+            StaTestHelper.Run(() =>
+            {
+                var handlerInvoked = false;
+                var command = new AsyncRelayCommand(
+                    () => throw new OperationCanceledException(),
+                    onException: _ => handlerInvoked = true);
+
+                command.Execute(null);
+                Task.Delay(100).GetAwaiter().GetResult();
+
+                handlerInvoked.Should().BeFalse();
+                command.CanExecute(null).Should().BeTrue();
+            });
+        }
+
+        /// <summary>
+        /// 非同期アクションが例外をスローした場合にハンドラが呼ばれ、実行状態がリセットされることを検証する
+        /// </summary>
+        [Fact]
+        public void Execute_WhenActionThrows_InvokesExceptionHandlerAndResetsExecuting()
+        {
+            StaTestHelper.Run(() =>
+            {
+                Exception caught = null;
+                var command = new AsyncRelayCommand(
+                    async () =>
+                    {
+                        await Task.CompletedTask;
+                        throw new InvalidOperationException("test");
+                    },
+                    onException: ex => caught = ex);
+
+                command.Execute(null);
+                Task.Delay(100).GetAwaiter().GetResult();
+
+                caught.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Be("test");
+                command.CanExecute(null).Should().BeTrue();
+            });
+        }
+
+        /// <summary>
         /// 非同期アクションに null を渡した場合に ArgumentNullException がスローされることを検証する
         /// </summary>
         [Fact]

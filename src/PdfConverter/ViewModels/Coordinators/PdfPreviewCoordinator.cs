@@ -161,7 +161,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 host.PageCount = await _pdfService.GetPdfPageCountAsync(loadingPath, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
                 return;
             }
@@ -230,7 +230,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     cancellationToken);
                 host.StatusMessage = "プレビューを更新しました。";
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
                 host.StatusMessage = "プレビュー変換をキャンセルしました。";
             }

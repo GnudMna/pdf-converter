@@ -1,4 +1,6 @@
-﻿using System.Windows;
+﻿using System.IO;
+using System.Linq;
+using System.Windows;
 using PdfConverter.ViewModels;
 
 namespace PdfConverter.Views
@@ -46,17 +48,12 @@ namespace PdfConverter.Views
             if (e.Data.GetDataPresent(DataFormats.FileDrop))
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                if (files != null && files.Length > 0)
+                string filePath = files?
+                    .FirstOrDefault(f => Path.GetExtension(f).Equals(".pdf", System.StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrEmpty(filePath) && DataContext is MainViewModel viewModel)
                 {
-                    string filePath = files[0];
-                    if (System.IO.Path.GetExtension(filePath).Equals(".pdf", System.StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (DataContext is MainViewModel viewModel)
-                        {
-                            viewModel.FilePath = filePath;
-                            viewModel.LoadPdfFromPath(forceReload: true);
-                        }
-                    }
+                    viewModel.FilePath = filePath;
+                    viewModel.LoadPdfFromPath(forceReload: true);
                 }
             }
         }

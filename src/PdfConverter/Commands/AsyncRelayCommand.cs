@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using PdfConverter.Services;
 
 namespace PdfConverter.Commands
 {
@@ -16,8 +17,17 @@ namespace PdfConverter.Commands
         /// <summary>コマンド実行時に呼び出される非同期アクション</summary>
         private readonly Func<Task> _execute;
 
-        /// <summary>実行可否を判定する述語<br/><c>null</c>の場合は常に実行可能</summary>
+        /// <summary>
+        /// 実行可否を判定する述語<br/>
+        /// <c>null</c>の場合は常に実行可能
+        /// </summary>
         private readonly Func<bool> _canExecute;
+
+        /// <summary>
+        /// 非同期処理で発生した未処理例外を受け取るコールバック<br/>
+        /// <c>null</c>の場合は無視する
+        /// </summary>
+        private readonly Action<Exception> _onException;
 
         /// <summary>非同期処理が実行中かどうか</summary>
         private bool _isExecuting;
@@ -31,10 +41,12 @@ namespace PdfConverter.Commands
         /// </summary>
         /// <param name="execute">コマンド実行時に呼び出される非同期アクション</param>
         /// <param name="canExecute">実行可否を判定する述語<br/><c>null</c>の場合は常に実行可能</param>
-        public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null)
+        /// <param name="onException">非同期処理で発生した未処理例外を受け取るコールバック<br/><c>null</c>の場合は無視する</param>
+        public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null, Action<Exception> onException = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
+            _onException = onException;
             CommandManager.RequerySuggested += OnCommandManagerRequerySuggested;
         }
 
@@ -86,6 +98,13 @@ namespace PdfConverter.Commands
             try
             {
                 await _execute();
+            }
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
+            {
+            }
+            catch (Exception ex)
+            {
+                _onException?.Invoke(ex);
             }
             finally
             {
