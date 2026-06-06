@@ -42,8 +42,8 @@ namespace PdfConverter.ViewModels
         private int _pageCount;
         private string _statusMessage = "ファイルを選択して開始してください。";
         private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
-        private OutputImageFormat _outputImageFormat = OutputImageFormat.Jpeg;
-        private bool _preserveTransparency = true;
+        private OutputImageFormat _outputImageFormat = OutputImageFormat.Png;
+        private bool _preserveTransparency = false;
 
         private static readonly IReadOnlyList<ResolutionModeOption> ResolutionModeOptionsList =
             new List<ResolutionModeOption>
@@ -64,8 +64,8 @@ namespace PdfConverter.ViewModels
         private static readonly IReadOnlyList<OutputImageFormatOption> OutputImageFormatOptionsList =
             new List<OutputImageFormatOption>
             {
-                new OutputImageFormatOption(OutputImageFormat.Jpeg, "JPEG"),
                 new OutputImageFormatOption(OutputImageFormat.Png, "PNG"),
+                new OutputImageFormatOption(OutputImageFormat.Jpeg, "JPEG"),
                 new OutputImageFormatOption(OutputImageFormat.Bmp, "BMP"),
             };
 
@@ -141,7 +141,7 @@ namespace PdfConverter.ViewModels
 
                 _resolutionValue = ResolutionValueParser.GetDefaultValue(value);
                 OnPropertyChanged(nameof(ResolutionValue));
-                _ = _previewCoordinator.RefreshIfLoadedAsync(this);
+                _previewCoordinator.RequestRefreshIfLoaded(this);
             }
         }
 
@@ -156,7 +156,7 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
-                _ = _previewCoordinator.RefreshIfLoadedAsync(this);
+                _previewCoordinator.RequestRefreshIfLoaded(this);
             }
         }
 
@@ -294,7 +294,7 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
-                _ = _previewCoordinator.RefreshIfLoadedAsync(this);
+                _previewCoordinator.RequestRefreshIfLoaded(this);
             }
         }
 
