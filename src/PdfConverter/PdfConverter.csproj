@@ -8,6 +8,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>PdfConverter</RootNamespace>
     <AssemblyName>PDF Converter</AssemblyName>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{60dc8134-eba5-43b8-bcc9-bb4bc16c2548};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -142,6 +143,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\app-icon.png" />
+    <None Include="Assets\app.png" />
+    <None Include="Assets\make-icon.ps1" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="Themes\DarkTheme.xaml">
