@@ -8,11 +8,11 @@ using System.Windows;
 // アセンブリに関連付けられている情報を変更するには、
 // これらの属性値を変更してください。
 [assembly: AssemblyTitle("PDF Converter")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("PDFのページを高品質な画像（PNG / JPEG / BMP）へ変換するWindowsアプリ")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("y_hirata")]
 [assembly: AssemblyProduct("PDF Converter")]
-[assembly: AssemblyCopyright("Copyright ©  2026")]
+[assembly: AssemblyCopyright("Copyright © 2026 y_hirata")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -50,4 +50,5 @@ using System.Windows;
 //
 [assembly: AssemblyVersion("0.0.1.0")]
 [assembly: AssemblyFileVersion("0.0.1.0")]
+[assembly: AssemblyInformationalVersion("0.0.1")]
 [assembly: InternalsVisibleTo("PdfConverter.Tests")]
