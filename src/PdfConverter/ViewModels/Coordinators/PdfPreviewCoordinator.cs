@@ -9,7 +9,7 @@ namespace PdfConverter.ViewModels.Coordinators
     /// <summary>
     /// PDF 読み込み・プレビュー生成・ページナビゲーションを担当する
     /// </summary>
-    internal sealed class PdfPreviewCoordinator
+    internal sealed class PdfPreviewCoordinator : IPdfPreviewCoordinator
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */

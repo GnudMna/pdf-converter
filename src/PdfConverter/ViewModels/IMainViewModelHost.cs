@@ -5,9 +5,9 @@ using PdfConverter.Models;
 namespace PdfConverter.ViewModels
 {
     /// <summary>
-    /// CoordinatorがMainViewModelの状態を読み書きするための内部インターフェース
+    /// CoordinatorがMainViewModelの状態を読み書きするためのインターフェース
     /// </summary>
-    internal interface IMainViewModelHost
+    public interface IMainViewModelHost
     {
         /********************************************************************************/
         /*                                  プロパティ                                  */

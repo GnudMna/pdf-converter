@@ -12,7 +12,7 @@ namespace PdfConverter.ViewModels.Coordinators
     /// <summary>
     /// PDFページの一括保存と上書き確認を担当する
     /// </summary>
-    internal sealed class PdfSaveCoordinator
+    internal sealed class PdfSaveCoordinator : IPdfSaveCoordinator
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */

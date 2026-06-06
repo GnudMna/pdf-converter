@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
+using PdfConverter.ViewModels.Coordinators;
 using PdfConverter.Views;
 
 namespace PdfConverter.Infrastructure
@@ -23,6 +24,8 @@ namespace PdfConverter.Infrastructure
             services.AddSingleton<IPdfConversionService, PdfConversionService>();
             services.AddSingleton<IDialogService, WpfDialogService>();
             services.AddSingleton<IClipboardService, WpfClipboardService>();
+            services.AddTransient<IPdfPreviewCoordinator, PdfPreviewCoordinator>();
+            services.AddTransient<IPdfSaveCoordinator, PdfSaveCoordinator>();
             services.AddTransient<MainViewModel>();
             services.AddTransient<MainWindow>();
             return services.BuildServiceProvider();

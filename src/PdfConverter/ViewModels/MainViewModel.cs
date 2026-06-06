@@ -24,8 +24,8 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         private readonly IDialogService _dialogService;
         private readonly IClipboardService _clipboardService;
-        private readonly PdfPreviewCoordinator _previewCoordinator;
-        private readonly PdfSaveCoordinator _saveCoordinator;
+        private readonly IPdfPreviewCoordinator _previewCoordinator;
+        private readonly IPdfSaveCoordinator _saveCoordinator;
         private CancellationTokenSource _cancelTokenSource;
 
         private string _filePath;
@@ -365,15 +365,15 @@ namespace PdfConverter.ViewModels
         /*                                コンストラクタ                                */
         /********************************************************************************/
         public MainViewModel(
-            IPdfConversionService pdfService,
             IDialogService dialogService,
-            IClipboardService clipboardService)
+            IClipboardService clipboardService,
+            IPdfPreviewCoordinator previewCoordinator,
+            IPdfSaveCoordinator saveCoordinator)
         {
-            // 依存性注入
             _dialogService = dialogService;
             _clipboardService = clipboardService;
-            _previewCoordinator = new PdfPreviewCoordinator(pdfService, dialogService);
-            _saveCoordinator = new PdfSaveCoordinator(pdfService, dialogService);
+            _previewCoordinator = previewCoordinator;
+            _saveCoordinator = saveCoordinator;
 
             // コマンド初期化
             BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
