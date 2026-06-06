@@ -93,16 +93,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 処理中（IsBusy）のときに新しい読み込みが開始されないことを検証する
+        /// 保存処理中（IsSaving）のときに新しい読み込みが開始されないことを検証する
         /// </summary>
         [Fact]
-        public void LoadFromPath_WhenBusy_DoesNotStartLoad()
+        public void LoadFromPath_WhenSaving_DoesNotStartLoad()
         {
             var coordinator = CreateCoordinator(out var pdf, out _);
             var host = new TestMainViewModelHost
             {
                 FilePath = CreateTempPdfPath(),
-                IsBusy = true,
+                IsSaving = true,
             };
 
             try
@@ -241,6 +241,67 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             finally
             {
                 File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 連続したプレビュー再生成では最後の解像度設定だけが反映されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task RefreshIfLoadedAsync_RapidRequests_AppliesLatestResolutionOnly()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out _);
+            string path = CreateTempPdfPath();
+            var firstConvertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
+            System.Windows.Media.Imaging.BitmapSource firstBitmap = null;
+            System.Windows.Media.Imaging.BitmapSource secondBitmap = null;
+            StaTestHelper.Run(() =>
+            {
+                firstBitmap = BitmapTestHelper.CreateBitmap();
+                secondBitmap = BitmapTestHelper.CreateBitmap();
+            });
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageCount = 1,
+                PageNumber = "1",
+                ResolutionMode = Models.ResolutionMode.Width,
+                ResolutionValue = "1080",
+            };
+
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    path,
+                    0,
+                    Models.ResolutionMode.Width,
+                    1080,
+                    true,
+                    It.IsAny<CancellationToken>()))
+                .Returns(firstConvertGate.Task);
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    path,
+                    0,
+                    Models.ResolutionMode.Width,
+                    800,
+                    true,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(secondBitmap);
+
+            try
+            {
+                coordinator.RequestRefreshIfLoaded(host);
+                await Task.Delay(50);
+                host.ResolutionValue = "800";
+                coordinator.RequestRefreshIfLoaded(host);
+
+                firstConvertGate.SetResult(firstBitmap);
+                await WaitForAsyncOperations();
+
+                host.PreviewImage.Should().BeSameAs(secondBitmap);
+                host.IsBusy.Should().BeFalse();
+            }
+            finally
+            {
+                File.Delete(path);
             }
         }
 
