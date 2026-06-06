@@ -8,148 +8,76 @@
         Title="PDF Converter"
         Height="720"
         Width="980"
-        Background="#FFF2F5FB"
+        Background="{DynamicResource WindowBackgroundBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
         AllowDrop="True"
         Drop="MainWindow_Drop">
 
     <Window.Resources>
-        <!-- コンバーター -->
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
         <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
-
-        <!-- テキストスタイル -->
-        <Style x:Key="SectionTitle" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FF1E3A5F" />
-        </Style>
-        <Style x:Key="FieldLabel" TargetType="TextBlock">
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Foreground" Value="#FF334155" />
-        </Style>
-        <Style x:Key="HintText" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Foreground" Value="#FF64748B" />
-            <Setter Property="TextWrapping" Value="Wrap" />
-        </Style>
-        <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#FF64748B" />
-        </Style>
-
-        <!-- レイアウトスタイル -->
-        <Style x:Key="CardBorder" TargetType="Border">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="CornerRadius" Value="16" />
-            <Setter Property="BorderBrush" Value="#FFE2E8F0" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect BlurRadius="12" Opacity="0.08" ShadowDepth="2" />
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <!-- ボタンスタイル -->
-        <Style x:Key="PrimaryButton" TargetType="Button">
-            <Setter Property="Background" Value="#FF2563EB" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                                CornerRadius="8"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="SecondaryButton"
-               TargetType="Button"
-               BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="Background" Value="#FFF1F5F9" />
-            <Setter Property="Foreground" Value="#FF1E3A5F" />
-        </Style>
-        <Style x:Key="SaveButton"
-               TargetType="Button"
-               BasedOn="{StaticResource PrimaryButton}">
-            <Setter Property="MinWidth" Value="120" />
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Background" Value="#FF2563EB" />
-            <Setter Property="Foreground" Value="White" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#FFCBD5E1" />
-                    <Setter Property="Foreground" Value="#FF94A3B8" />
-                    <Setter Property="Cursor" Value="Arrow" />
-                </Trigger>
-                <DataTrigger Binding="{Binding IsBusy}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="CopyButton"
-               TargetType="Button"
-               BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="MinWidth" Value="120" />
-            <Setter Property="MinHeight" Value="32" />
-            <Style.Triggers>
-                <Trigger Property="IsEnabled" Value="False">
-                    <Setter Property="Background" Value="#FFCBD5E1" />
-                    <Setter Property="Foreground" Value="#FF94A3B8" />
-                    <Setter Property="Cursor" Value="Arrow" />
-                </Trigger>
-                <DataTrigger Binding="{Binding IsBusy}" Value="True">
-                    <Setter Property="Visibility" Value="Collapsed" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-        <Style x:Key="CancelButton"
-               TargetType="Button"
-               BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="MinWidth" Value="120" />
-            <Setter Property="MinHeight" Value="32" />
-            <Setter Property="Background" Value="#FFE2E8F0" />
-            <Setter Property="BorderBrush" Value="#FFCBD5E1" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#FF334155" />
-        </Style>
-
-        <!-- 入力スタイル -->
-        <Style TargetType="TextBox">
-            <Setter Property="Height" Value="30" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-            <Setter Property="Margin" Value="0" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="BorderBrush" Value="#FFCBD5E1" />
-            <Setter Property="Padding" Value="6,0" />
-            <Setter Property="SnapsToDevicePixels" Value="True" />
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Height" Value="30" />
-            <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
     </Window.Resources>
 
     <Grid Margin="20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
+        <!-- ヘッダー -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Border Width="44"
+                        Height="44"
+                        CornerRadius="12"
+                        Background="{DynamicResource PrimaryButtonBackgroundBrush}"
+                        Margin="0,0,14,0">
+                    <Viewbox Width="24" Height="24">
+                        <Path Data="M 5 2 L 13 2 L 17 6 L 17 18 L 5 18 Z M 13 2 L 13 6 L 17 6 M 8 10 L 14 10 M 8 13 L 14 13 M 8 16 L 12 16"
+                              Fill="Transparent"
+                              Stroke="{DynamicResource PrimaryButtonForegroundBrush}"
+                              StrokeThickness="1.4"
+                              StrokeLineJoin="Round"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round" />
+                    </Viewbox>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="PDF Converter"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource SectionTitleForegroundBrush}" />
+                    <TextBlock Text="PDF を画像としてエクスポート"
+                               Margin="0,3,0,0"
+                               Style="{StaticResource HintText}" />
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center">
+                <TextBlock Text="外観"
+                           VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Style="{StaticResource FieldLabel}" />
+                <ComboBox Width="180"
+                          ItemsSource="{Binding ThemeModeOptions}"
+                          SelectedValue="{Binding ThemeMode}"
+                          SelectedValuePath="Mode"
+                          DisplayMemberPath="DisplayName" />
+            </StackPanel>
+        </Grid>
+
         <!-- 設定パネル・プレビュー -->
-        <Grid Grid.Row="0">
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="360" />
                 <ColumnDefinition Width="*" />
@@ -325,10 +253,10 @@
 
                     <!-- プレビュー画像 -->
                     <Border Grid.Row="1"
-                            Background="#FFF8FAFC"
+                            Background="{DynamicResource PreviewAreaBackgroundBrush}"
                             CornerRadius="12"
                             BorderThickness="1"
-                            BorderBrush="#FFDDE5ED"
+                            BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
                             Margin="0,14,0,0"
                             Padding="12"
                             VerticalAlignment="Stretch">
@@ -353,7 +281,7 @@
         </Grid>
 
         <!-- ステータスバー -->
-        <StackPanel Grid.Row="1"
+        <StackPanel Grid.Row="2"
                     Margin="0,18,0,0">
             <ProgressBar Minimum="0"
                          Maximum="100"
@@ -362,12 +290,12 @@
                          Value="{Binding ProgressValue}"
                          Visibility="{Binding IsSaving, Converter={StaticResource BoolToVis}}" />
             <Border Padding="14"
-                    Background="White"
+                    Background="{DynamicResource StatusBarBackgroundBrush}"
                     CornerRadius="14"
-                    BorderBrush="#FFE2E8F0"
+                    BorderBrush="{DynamicResource CardBorderBrush}"
                     BorderThickness="1">
                 <TextBlock Text="{Binding StatusMessage}"
-                           Foreground="#FF334155"
+                           Foreground="{DynamicResource StatusBarForegroundBrush}"
                            VerticalAlignment="Center" />
             </Border>
         </StackPanel>
