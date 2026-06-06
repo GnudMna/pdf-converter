@@ -117,11 +117,18 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PreserveTransparency,
                     progress,
                     cancellationToken);
+
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    host.StatusMessage = "保存処理はキャンセルされました。";
+                    return;
+                }
+
                 host.ProgressValue = 100;
                 _dialogService.ShowMessage("画像の保存が完了しました。");
                 host.StatusMessage = "画像の保存が完了しました。";
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
                 host.StatusMessage = "保存処理はキャンセルされました。";
             }

@@ -81,6 +81,7 @@
       <SubType>Designer</SubType>
     </ApplicationDefinition>
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
+    <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
     <Compile Include="Services\PdfConversionService.cs" />
     <Compile Include="Services\IPdfConversionService.cs" />

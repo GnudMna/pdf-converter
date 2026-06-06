@@ -136,6 +136,43 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
+        /// 保存処理中にキャンセルされた場合、完了メッセージを表示せずキャンセル文言を設定することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_CancellationRequested_SetsCancelledStatus()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "1-2",
+                ResolutionValue = "1080",
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            pdf.Setup(p => p.SavePdfPagesToImagesAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IEnumerable<int>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<OutputImageFormat>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IProgress<SaveProgressReport>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => host.Cancel())
+                .Returns(Task.CompletedTask);
+
+            await coordinator.SaveAsync(host);
+
+            host.StatusMessage.Should().Contain("キャンセル");
+            dialog.Verify(d => d.ShowMessage("画像の保存が完了しました。"), Times.Never);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
         /// 正常な保存リクエストでページ保存が実行され、進捗 100% と完了メッセージが設定されることを検証する
         /// </summary>
         [Fact]

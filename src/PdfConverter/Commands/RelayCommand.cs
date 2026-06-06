@@ -20,7 +20,8 @@ namespace PdfConverter.Commands
         private readonly Action _execute;
         
         /// <summary>
-        /// 実行可否を判定する述語<br/><c>null</c>の場合は常に実行可能
+        /// 実行可否を判定する述語<br/>
+        /// <c>null</c>の場合は常に実行可能
         /// </summary>
         private readonly Func<bool> _canExecute;
 
