@@ -1,0 +1,227 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using FluentAssertions;
+using Moq;
+using PdfConverter.Models;
+using PdfConverter.Services;
+using PdfConverter.Tests.Helpers;
+using PdfConverter.ViewModels.Coordinators;
+using Xunit;
+
+namespace PdfConverter.Tests.ViewModels.Coordinators
+{
+    /// <summary>
+    /// <see cref="PdfSaveCoordinator"/> の一括保存フローと上書き確認を検証する
+    /// </summary>
+    public class PdfSaveCoordinatorTests
+    {
+        /// <summary>
+        /// ファイルパスが空の場合に保存処理が開始されないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_EmptyFilePath_DoesNothing()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out _);
+            var host = new TestMainViewModelHost();
+
+            await coordinator.SaveAsync(host);
+
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<int>>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<OutputImageFormat>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// フォルダー選択ダイアログがキャンセルされた場合にステータスが更新され、Busy/Saving が false に戻ることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_FolderDialogCancelled_SetsStatusMessage()
+        {
+            var coordinator = CreateCoordinator(out _, out var dialog);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                ResolutionValue = "1080",
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns((string)null);
+
+            await coordinator.SaveAsync(host);
+
+            host.StatusMessage.Should().Contain("キャンセル");
+            host.IsBusy.Should().BeFalse();
+            host.IsSaving.Should().BeFalse();
+        }
+
+        /// <summary>
+        /// 不正なページ範囲指定時にエラーダイアログが表示され、保存が実行されないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_InvalidPageRange_ShowsDialogAndStops()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "invalid",
+                ResolutionValue = "1080",
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+
+            await coordinator.SaveAsync(host);
+
+            dialog.Verify(d => d.ShowMessage(It.Is<string>(m => m.Contains("不正"))), Times.Once);
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<int>>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<OutputImageFormat>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
+        /// 既存ファイルの上書き確認で「いいえ」が選択された場合に保存が実行されないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_OverwriteDeclined_DoesNotSave()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            File.WriteAllText(Path.Combine(folder, "page_1.png"), "existing");
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 1,
+                PageRange = "1",
+                ResolutionValue = "1080",
+                OutputImageFormat = OutputImageFormat.Png,
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            dialog.Setup(d => d.ShowYesNo(It.IsAny<string>(), It.IsAny<string>(), DialogIcon.Warning)).Returns(false);
+
+            await coordinator.SaveAsync(host);
+
+            host.StatusMessage.Should().Contain("キャンセル");
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<int>>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<OutputImageFormat>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
+        /// 保存処理中にキャンセルされた場合、完了メッセージを表示せずキャンセル文言を設定することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_CancellationRequested_SetsCancelledStatus()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "1-2",
+                ResolutionValue = "1080",
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            pdf.Setup(p => p.SavePdfPagesToImagesAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IEnumerable<int>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<OutputImageFormat>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IProgress<SaveProgressReport>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback(() => host.Cancel())
+                .Returns(Task.CompletedTask);
+
+            await coordinator.SaveAsync(host);
+
+            host.StatusMessage.Should().Contain("キャンセル");
+            dialog.Verify(d => d.ShowMessage("画像の保存が完了しました。"), Times.Never);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
+        /// 正常な保存リクエストでページ保存が実行され、進捗 100% と完了メッセージが設定されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_ValidRequest_SavesPages()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "1-2",
+                ResolutionValue = "1080",
+                OutputImageFormat = OutputImageFormat.Png,
+            };
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            pdf.Setup(p => p.SavePdfPagesToImagesAsync(
+                    host.FilePath,
+                    It.IsAny<IEnumerable<int>>(),
+                    folder,
+                    false,
+                    host.ResolutionMode,
+                    1080,
+                    host.OutputImageFormat,
+                    true,
+                    It.IsAny<IProgress<SaveProgressReport>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(Task.CompletedTask);
+
+            await coordinator.SaveAsync(host);
+
+            host.ProgressValue.Should().Be(100);
+            host.StatusMessage.Should().Contain("完了");
+            dialog.Verify(d => d.ShowMessage("画像の保存が完了しました。"), Times.Once);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        private static PdfSaveCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf, out Mock<IDialogService> dialog)
+        {
+            pdf = new Mock<IPdfConversionService>();
+            dialog = new Mock<IDialogService>();
+            return new PdfSaveCoordinator(pdf.Object, dialog.Object);
+        }
+
+        private static string CreateTempDirectory()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(path);
+            return path;
+        }
+    }
+}
