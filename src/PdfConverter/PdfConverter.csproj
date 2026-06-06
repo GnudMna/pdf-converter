@@ -90,11 +90,14 @@
     <Compile Include="Commands\IRelayCommand.cs" />
     <Compile Include="Commands\AsyncRelayCommand.cs" />
     <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="Models\OutputImageFormat.cs" />
+    <Compile Include="Models\OutputImageFormatOption.cs" />
     <Compile Include="Models\ResolutionMode.cs" />
     <Compile Include="Models\ResolutionModeOption.cs" />
     <Compile Include="Models\ThemeMode.cs" />
     <Compile Include="Models\ThemeModeOption.cs" />
     <Compile Include="Themes\ThemeManager.cs" />
+    <Compile Include="Services\ImageBitmapHelper.cs" />
     <Compile Include="Services\ResolutionValueParser.cs" />
     <Compile Include="Models\SaveProgressReport.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />

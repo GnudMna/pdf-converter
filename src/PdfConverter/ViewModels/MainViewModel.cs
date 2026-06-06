@@ -77,6 +77,18 @@ namespace PdfConverter.ViewModels
             };
         /// <summary>選択中の外観テーマ</summary>
         private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
+        /// <summary>出力画像ファイルの形式</summary>
+        private OutputImageFormat _outputImageFormat = OutputImageFormat.Jpeg;
+        /// <summary>透明度を保持するかどうかを表すフラグ</summary>
+        private bool _preserveTransparency = true;
+        /// <summary>UI・ComboBoxに表示する出力形式の選択肢</summary>
+        private static readonly IReadOnlyList<OutputImageFormatOption> _outputImageFormatOptions =
+            new List<OutputImageFormatOption>
+            {
+                new OutputImageFormatOption(OutputImageFormat.Jpeg, "JPEG"),
+                new OutputImageFormatOption(OutputImageFormat.Png, "PNG"),
+                new OutputImageFormatOption(OutputImageFormat.Bmp, "BMP"),
+            };
 
 
         /********************************************************************************/
@@ -309,6 +321,51 @@ namespace PdfConverter.ViewModels
         /// <summary>テーマの選択肢リスト</summary>
         public IReadOnlyList<ThemeModeOption> ThemeModeOptions => _themeModeOptions;
 
+        /// <summary>出力形式の選択肢リスト</summary>
+        public IReadOnlyList<OutputImageFormatOption> OutputImageFormatOptions => _outputImageFormatOptions;
+
+        /// <summary>出力画像ファイルの形式</summary>
+        public OutputImageFormat OutputImageFormat
+        {
+            get => _outputImageFormat;
+            set
+            {
+                if (_outputImageFormat == value)
+                {
+                    return;
+                }
+
+                _outputImageFormat = value;
+                if (!ImageBitmapHelper.SupportsTransparency(value))
+                {
+                    PreserveTransparency = false;
+                }
+
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(IsTransparencySelectable));
+            }
+        }
+
+        /// <summary>透明度を保持するかどうか</summary>
+        public bool PreserveTransparency
+        {
+            get => _preserveTransparency;
+            set
+            {
+                if (_preserveTransparency == value)
+                {
+                    return;
+                }
+
+                _preserveTransparency = value;
+                OnPropertyChanged();
+                _ = RefreshPreviewIfLoadedAsync();
+            }
+        }
+
+        /// <summary>透明度の保持が選択可能かどうか(JPEG では非対応)</summary>
+        public bool IsTransparencySelectable => ImageBitmapHelper.SupportsTransparency(OutputImageFormat);
+
         /// <summary>選択中の外観テーマ</summary>
         public ThemeMode ThemeMode
         {
@@ -329,7 +386,7 @@ namespace PdfConverter.ViewModels
         /// <summary>ファイル選択ダイアログを開くコマンド</summary>
         public ICommand BrowseCommand { get; }
 
-        /// <summary>指定ページを PNG として保存するコマンド</summary>
+        /// <summary>指定ページを画像として保存するコマンド</summary>
         public ICommand SaveCommand { get; }
 
         /// <summary>実行中の非同期処理をキャンセルするコマンド</summary>
@@ -577,9 +634,8 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>
-        /// プレビュー画像を白背景でフラット化してクリップボードにコピーする<br/>
-        /// PDF ページが透明チャンネルを持つ場合、クリップボードの互換性を確保するために
-        /// <see cref="DrawingVisual"/>で白背景を合成する
+        /// プレビュー画像をクリップボードにコピーする<br/>
+        /// <see cref="PreserveTransparency"/>の設定に応じて透明度を保持するか白背景で合成する
         /// </summary>
         private void OnCopyToClipboard()
         {
@@ -591,7 +647,7 @@ namespace PdfConverter.ViewModels
 
             try
             {
-                _clipboardService.CopyImage(PreviewImage);
+                _clipboardService.CopyImage(PreviewImage, PreserveTransparency);
                 StatusMessage = "プレビュー画像をクリップボードにコピーしました。";
             }
             catch (Exception ex)
@@ -639,7 +695,7 @@ namespace PdfConverter.ViewModels
                 }
 
                 int pageIndex = pageNumber - 1;
-                PreviewImage = await _pdfService.ConvertPdfPageToImageAsync(FilePath, pageIndex, ResolutionMode, val, cancellationToken);
+                PreviewImage = await _pdfService.ConvertPdfPageToImageAsync(FilePath, pageIndex, ResolutionMode, val, PreserveTransparency, cancellationToken);
                 StatusMessage = "プレビューを更新しました。";
             }
             catch (OperationCanceledException)
@@ -660,8 +716,8 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>
-        /// <see cref="PageRange"/>(または全ページ)をPNGファイルとして保存する非同期処理<br/>
-        /// フォルダー選択ダイアログを表示し、選択されたフォルダーに<c>page_N.png</c>として出力する
+        /// <see cref="PageRange"/>(または全ページ)を画像ファイルとして保存する非同期処理<br/>
+        /// フォルダー選択ダイアログを表示し、選択されたフォルダーに<c>page_N</c>として出力する
         /// </summary>
         private async Task OnSave()
         {
@@ -709,7 +765,7 @@ namespace PdfConverter.ViewModels
                     }
                 }
 
-                if (!ConfirmOverwriteExistingFiles(folderPath, pageIndexes, IsAllPagesSelected))
+                if (!ConfirmOverwriteExistingFiles(folderPath, pageIndexes, IsAllPagesSelected, OutputImageFormat))
                 {
                     StatusMessage = "保存処理はキャンセルされました。";
                     return;
@@ -721,7 +777,7 @@ namespace PdfConverter.ViewModels
                     StatusMessage = report.Message;
                 });
 
-                await _pdfService.SavePdfPagesToImagesAsync(FilePath, pageIndexes, folderPath, IsAllPagesSelected, ResolutionMode, resolutionValue, progress, cancellationToken);
+                await _pdfService.SavePdfPagesToImagesAsync(FilePath, pageIndexes, folderPath, IsAllPagesSelected, ResolutionMode, resolutionValue, OutputImageFormat, PreserveTransparency, progress, cancellationToken);
                 ProgressValue = 100;
                 _dialogService.ShowMessage("画像の保存が完了しました。");
                 StatusMessage = "画像の保存が完了しました。";
@@ -767,20 +823,22 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>
-        /// 保存先に同名の<c>PNG</c>が存在する場合、上書きの確認ダイアログを表示する
+        /// 保存先に同名の画像ファイルが存在する場合、上書きの確認ダイアログを表示する
         /// </summary>
         /// <param name="folderPath">保存先フォルダーの絶対パス</param>
         /// <param name="pageIndexes">保存対象のページインデックス一覧(0 始まり)</param>
         /// <param name="saveAllPages">全ページ保存かどうか</param>
+        /// <param name="format">出力画像形式</param>
         /// <returns>上書きして続行する場合は <c>true</c>、キャンセル時は <c>false</c></returns>
-        private bool ConfirmOverwriteExistingFiles(string folderPath, IEnumerable<int> pageIndexes, bool saveAllPages)
+        private bool ConfirmOverwriteExistingFiles(string folderPath, IEnumerable<int> pageIndexes, bool saveAllPages, OutputImageFormat format)
         {
+            string extension = ImageBitmapHelper.GetFileExtension(format);
             IEnumerable<int> pagesToSave = saveAllPages
                 ? Enumerable.Range(0, PageCount)
                 : pageIndexes;
 
             var existingFiles = pagesToSave
-                .Select(index => Path.Combine(folderPath, $"page_{index + 1}.png"))
+                .Select(index => Path.Combine(folderPath, $"page_{index + 1}{extension}"))
                 .Where(File.Exists)
                 .Select(Path.GetFileName)
                 .ToList();

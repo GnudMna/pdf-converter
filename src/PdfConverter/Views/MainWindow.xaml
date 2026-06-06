@@ -6,8 +6,10 @@
         xmlns:conv="clr-namespace:PdfConverter.Converters"
         mc:Ignorable="d"
         Title="PDF Converter"
-        Height="720"
-        Width="980"
+        Height="845"
+        Width="990"
+        MinHeight="845"
+        MinWidth="990"
         Background="{DynamicResource WindowBackgroundBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
@@ -79,7 +81,8 @@
         <!-- 設定パネル・プレビュー -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="360" />
+                <ColumnDefinition Width="380" />
+                <ColumnDefinition Width="18" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -116,6 +119,28 @@
                 <Border Style="{StaticResource CardBorder}" Padding="18" MinWidth="340">
                     <StackPanel>
                         <TextBlock Text="変換設定" Style="{StaticResource SectionTitle}" />
+
+                        <!-- 出力形式 -->
+                        <StackPanel Margin="0,18,0,0">
+                            <TextBlock Text="出力ファイル形式" Style="{StaticResource FieldLabel}" />
+                            <ComboBox Width="140"
+                                      Margin="0,8,0,0"
+                                      HorizontalAlignment="Left"
+                                      ItemsSource="{Binding OutputImageFormatOptions}"
+                                      SelectedValue="{Binding OutputImageFormat}"
+                                      SelectedValuePath="Format"
+                                      DisplayMemberPath="DisplayName" />
+                        </StackPanel>
+
+                        <!-- 透明度 -->
+                        <StackPanel Margin="0,18,0,0">
+                            <CheckBox Content="透明度を保持"
+                                      IsChecked="{Binding PreserveTransparency}"
+                                      IsEnabled="{Binding IsTransparencySelectable}" />
+                            <TextBlock Margin="0,8,0,0"
+                                       Style="{StaticResource HintText}"
+                                       Text="オフの場合は白背景で合成します。JPEG では透明度を保持できません。" />
+                        </StackPanel>
 
                         <!-- 出力解像度 -->
                         <StackPanel Margin="0,18,0,0">
@@ -198,7 +223,7 @@
             </StackPanel>
 
             <!-- プレビュー -->
-            <Border Grid.Column="1"
+            <Border Grid.Column="2"
                     Style="{StaticResource CardBorder}"
                     Padding="18"
                     VerticalAlignment="Stretch">
