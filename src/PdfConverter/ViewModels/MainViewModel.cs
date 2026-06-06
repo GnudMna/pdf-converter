@@ -58,7 +58,7 @@ namespace PdfConverter.ViewModels
             {
                 new ThemeModeOption(ThemeMode.Light, "ライト"),
                 new ThemeModeOption(ThemeMode.Dark, "ダーク"),
-                new ThemeModeOption(ThemeMode.System, "システム設定に従う"),
+                new ThemeModeOption(ThemeMode.System, "システム"),
             };
 
         private static readonly IReadOnlyList<OutputImageFormatOption> OutputImageFormatOptionsList =
@@ -190,6 +190,7 @@ namespace PdfConverter.ViewModels
                 RaiseCanExecuteChanged(CancelCommand);
                 RaiseNavigationCanExecuteChanged();
                 RaiseActionCanExecuteChanged();
+                OnPropertyChanged(nameof(IsProgressIndeterminate));
             }
         }
 
@@ -204,8 +205,22 @@ namespace PdfConverter.ViewModels
         public bool IsSaving
         {
             get => _isSaving;
-            set => SetProperty(ref _isSaving, value);
+            set
+            {
+                if (!SetProperty(ref _isSaving, value))
+                {
+                    return;
+                }
+
+                OnPropertyChanged(nameof(IsProgressIndeterminate));
+            }
         }
+
+        /// <summary>
+        /// 進捗を不確定（マーキー）表示にするかどうか<br/>
+        /// 保存以外の処理（プレビュー生成・読み込み・ページ移動）中は具体的な進捗値を持たないため不確定表示にする
+        /// </summary>
+        public bool IsProgressIndeterminate => IsBusy && !IsSaving;
 
         /// <summary>進捗値</summary>
         public double ProgressValue
