@@ -33,14 +33,15 @@ namespace PdfConverter.Services
         /// <param name="pageIndex">変換対象のページインデックス(0 始まり)</param>
         /// <param name="mode">解像度の指定方法</param>
         /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>変換されたページのビットマップ</returns>
         /// <exception cref="System.IO.FileNotFoundException">ファイルが存在しない場合</exception>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageIndex"/>がページ数の範囲外の場合</exception>
-        Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, CancellationToken cancellationToken = default);
+        Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, bool preserveTransparency = true, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// 指定したページ群をPNGファイルとしてフォルダーへ一括保存する
+        /// 指定したページ群を画像ファイルとしてフォルダーへ一括保存する
         /// </summary>
         /// <remarks>
         /// CPUコア数に応じた並列処理で保存し、進捗を<paramref name="progress"/>で報告する
@@ -51,10 +52,12 @@ namespace PdfConverter.Services
         /// <param name="saveAllPages"><c>true</c>の場合は全ページを保存する</param>
         /// <param name="mode">解像度の指定方法</param>
         /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="format">出力画像形式</param>
+        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <param name="progress">進捗通知用コールバック<br/><c>null</c>の場合は通知しない</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <exception cref="System.IO.FileNotFoundException">ファイルが存在しない場合</exception>
         /// <exception cref="ArgumentException"><paramref name="pageIndexes"/>が空、または指定が不正な場合</exception>
-        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default);
+        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default);
     }
 }

@@ -14,7 +14,7 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// Docnet.Core(PDFium)を使用して PDFページをPNG画像に変換・保存するサービス
+    /// Docnet.Core(PDFium)を使用して PDFページを画像に変換・保存するサービス
     /// </summary>
     /// <remarks>
     /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
@@ -45,7 +45,7 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
-        public async Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, CancellationToken cancellationToken = default)
+        public async Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, bool preserveTransparency = true, CancellationToken cancellationToken = default)
         {
             if (!File.Exists(filePath))
             {
@@ -66,7 +66,7 @@ namespace PdfConverter.Services
                         throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
                     }
 
-                    return RenderScaledPage(docReader, pageIndex, mode, value, cancellationToken);
+                    return RenderScaledPage(docReader, pageIndex, mode, value, preserveTransparency, cancellationToken);
                 }
             }, cancellationToken);
         }
@@ -92,7 +92,7 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
-        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default)
+        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default)
         {
             if (!File.Exists(filePath))
             {
@@ -125,7 +125,7 @@ namespace PdfConverter.Services
                         foreach (int pageIndex in partition)
                         {
                             cancellationToken.ThrowIfCancellationRequested();
-                            SavePageToFile(docReader, pageIndex, folderPath, mode, value);
+                            SavePageToFile(docReader, pageIndex, folderPath, mode, value, format, preserveTransparency);
                             int completed = Interlocked.Increment(ref completedCount);
                             progress?.Report(new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ"));
                         }
@@ -243,19 +243,20 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定ページをスケーリング済みビットマップとして描画する
         /// </summary>
-        private static BitmapSource RenderScaledPage(IDocReader docReader, int pageIndex, ResolutionMode mode, double value, CancellationToken cancellationToken)
+        private static BitmapSource RenderScaledPage(IDocReader docReader, int pageIndex, ResolutionMode mode, double value, bool preserveTransparency, CancellationToken cancellationToken)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 BitmapSource source = CreateBitmapFromPageReader(pageReader);
                 BitmapSource scaled = ScaleBitmap(source, mode, value);
-                if (scaled.CanFreeze)
+                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(scaled, preserveTransparency);
+                if (processed.CanFreeze)
                 {
-                    scaled.Freeze();
+                    processed.Freeze();
                 }
 
-                return scaled;
+                return processed;
             }
         }
 
@@ -283,23 +284,19 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 指定ページをPNGファイルとして保存する
+        /// 指定ページを画像ファイルとして保存する
         /// </summary>
-        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value)
+        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value, OutputImageFormat format, bool preserveTransparency)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
             {
                 BitmapSource source = CreateBitmapFromPageReader(pageReader);
                 BitmapSource scaled = ScaleBitmap(source, mode, value);
-                string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}.png");
-
-                var encoder = new PngBitmapEncoder();
-                encoder.Frames.Add(BitmapFrame.Create(scaled));
-
-                using (var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
-                {
-                    encoder.Save(fs);
-                }
+                bool effectivePreserveTransparency = preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
+                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(scaled, effectivePreserveTransparency);
+                string extension = ImageBitmapHelper.GetFileExtension(format);
+                string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}{extension}");
+                ImageBitmapHelper.SaveToFile(processed, outputPath, format);
             }
         }
 
