@@ -9,6 +9,24 @@ namespace PdfConverter.Services
     public static class ResolutionValueParser
     {
         /// <summary>
+        /// 解像度モードごとのデフォルト値を返す
+        /// </summary>
+        public static string GetDefaultValue(ResolutionMode mode)
+        {
+            switch (mode)
+            {
+                case ResolutionMode.Width:
+                    return "1080";
+                case ResolutionMode.Height:
+                    return "1920";
+                case ResolutionMode.Dpi:
+                    return "150";
+                default:
+                    return "";
+            }
+        }
+
+        /// <summary>
         /// 解像度の数値入力を検証して解析する
         /// </summary>
         /// <param name="mode">解像度の指定方法</param>

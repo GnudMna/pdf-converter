@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
+using PdfConverter.Themes;
 using PdfConverter.Views;
 
 namespace PdfConverter
@@ -39,6 +40,8 @@ namespace PdfConverter
             SetDllDirectory(Path.Combine(exeDir, "lib"));
 
             base.OnStartup(e);
+
+            ThemeManager.Initialize();
 
             _serviceProvider = ServiceConfigurator.Configure();
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();

@@ -11,6 +11,7 @@ using System.Windows.Media.Imaging;
 using PdfConverter.Commands;
 using PdfConverter.Models;
 using PdfConverter.Services;
+using PdfConverter.Themes;
 
 namespace PdfConverter.ViewModels
 {
@@ -45,7 +46,7 @@ namespace PdfConverter.ViewModels
         /// <summary>画像変換時の解像度指定方法</summary>
         private ResolutionMode _resolutionMode = ResolutionMode.Width;
         /// <summary><see cref="ResolutionMode"/> に対応する数値(幅・高さ・DPI)の文字列表現</summary>
-        private string _resolutionValue = "";
+        private string _resolutionValue = ResolutionValueParser.GetDefaultValue(ResolutionMode.Width);
         /// <summary>非同期処理(プレビュー生成・保存)が実行中かどうかを示すフラグ</summary>
         private bool _isBusy;
         /// <summary>保存処理が実行中かどうかを示すフラグ</summary>
@@ -66,6 +67,16 @@ namespace PdfConverter.ViewModels
                 new ResolutionModeOption(ResolutionMode.Height, "高さ (px)"),
                 new ResolutionModeOption(ResolutionMode.Dpi, "DPI"),
             };
+        /// <summary>UI・ComboBoxに表示するテーマの選択肢</summary>
+        private static readonly IReadOnlyList<ThemeModeOption> _themeModeOptions =
+            new List<ThemeModeOption>
+            {
+                new ThemeModeOption(ThemeMode.Light, "ライト"),
+                new ThemeModeOption(ThemeMode.Dark, "ダーク"),
+                new ThemeModeOption(ThemeMode.System, "システム設定に従う"),
+            };
+        /// <summary>選択中の外観テーマ</summary>
+        private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
 
 
         /********************************************************************************/
@@ -147,7 +158,9 @@ namespace PdfConverter.ViewModels
                 }
 
                 _resolutionMode = value;
+                _resolutionValue = ResolutionValueParser.GetDefaultValue(value);
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(ResolutionValue));
                 _ = RefreshPreviewIfLoadedAsync();
             }
         }
@@ -292,6 +305,26 @@ namespace PdfConverter.ViewModels
 
         /// <summary>解像度モードの選択肢リスト</summary>
         public IReadOnlyList<ResolutionModeOption> ResolutionModeOptions => _resolutionModeOptions;
+
+        /// <summary>テーマの選択肢リスト</summary>
+        public IReadOnlyList<ThemeModeOption> ThemeModeOptions => _themeModeOptions;
+
+        /// <summary>選択中の外観テーマ</summary>
+        public ThemeMode ThemeMode
+        {
+            get => _themeMode;
+            set
+            {
+                if (_themeMode == value)
+                {
+                    return;
+                }
+
+                _themeMode = value;
+                OnPropertyChanged();
+                ThemeManager.Apply(value);
+            }
+        }
 
         /// <summary>ファイル選択ダイアログを開くコマンド</summary>
         public ICommand BrowseCommand { get; }

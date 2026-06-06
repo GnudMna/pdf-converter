@@ -92,6 +92,9 @@
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="Models\ResolutionMode.cs" />
     <Compile Include="Models\ResolutionModeOption.cs" />
+    <Compile Include="Models\ThemeMode.cs" />
+    <Compile Include="Models\ThemeModeOption.cs" />
+    <Compile Include="Themes\ThemeManager.cs" />
     <Compile Include="Services\ResolutionValueParser.cs" />
     <Compile Include="Models\SaveProgressReport.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
@@ -133,6 +136,18 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <Page Include="Themes\DarkTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Themes\LightTheme.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Themes\SharedStyles.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
