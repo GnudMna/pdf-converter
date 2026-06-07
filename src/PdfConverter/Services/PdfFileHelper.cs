@@ -17,21 +17,14 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="path">ファイルパス</param>
         /// <returns>true: PDFファイル / false: PDFファイルではない</returns>
-        public static bool IsPdfFile(string path)
-        {
-            return !string.IsNullOrEmpty(path)
-                && string.Equals(System.IO.Path.GetExtension(path), ".pdf", StringComparison.OrdinalIgnoreCase);
-        }
+        public static bool IsPdfFile(string path) => DocumentFileHelper.IsPdfFile(path);
 
         /// <summary>
         /// ドラッグ中のデータにPDFファイルが含まれるかどうかを判定する
         /// </summary>
         /// <param name="data">ドラッグ中のデータ</param>
         /// <returns>true: PDFファイルが含まれている / false: PDFファイルが含まれていない</returns>
-        public static bool ContainsPdfFile(IDataObject data)
-        {
-            return TryGetFirstPdfPath(data, out _);
-        }
+        public static bool ContainsPdfFile(IDataObject data) => DocumentFileHelper.ContainsSupportedDocument(data);
 
         /// <summary>
         /// ドラッグ中のデータから先頭のPDFファイルパスを取得する
@@ -53,7 +46,7 @@ namespace PdfConverter.Services
                 return false;
             }
 
-            filePath = files.FirstOrDefault(IsPdfFile);
+            filePath = files.FirstOrDefault(DocumentFileHelper.IsSupportedDocument);
             return !string.IsNullOrEmpty(filePath);
         }
     }

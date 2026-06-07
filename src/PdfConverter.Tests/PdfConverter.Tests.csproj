@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\xunit.runner.visualstudio.2.8.2\build\net462\xunit.runner.visualstudio.props" Condition="Exists('..\packages\xunit.runner.visualstudio.2.8.2\build\net462\xunit.runner.visualstudio.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -90,6 +91,8 @@
     <Compile Include="Converters\InverseBooleanConverterTests.cs" />
     <Compile Include="Converters\NullToVisibilityConverterTests.cs" />
     <Compile Include="Helpers\BitmapTestHelper.cs" />
+    <Compile Include="Helpers\DocumentPdfSourceTestHelper.cs" />
+    <Compile Include="Helpers\WordToPdfConversionSettingsTestHelper.cs" />
     <Compile Include="Helpers\MainViewModelTestFactory.cs" />
     <Compile Include="Helpers\NativeDependencyBootstrap.cs" />
     <Compile Include="Helpers\PdfTestAssetFactory.cs" />
@@ -102,7 +105,12 @@
     <Compile Include="Services\ImageBitmapHelperTests.cs" />
     <Compile Include="Services\PageRangeParserTests.cs" />
     <Compile Include="Services\PdfConversionServiceTests.cs" />
+    <Compile Include="Services\DocumentFileHelperTests.cs" />
+    <Compile Include="Services\DocumentPdfSourceServiceTests.cs" />
+    <Compile Include="Services\LibreOfficePathHelperTests.cs" />
     <Compile Include="Services\PdfFileHelperTests.cs" />
+    <Compile Include="Services\SelectableWordToPdfConversionServiceTests.cs" />
+    <Compile Include="Services\WordToPdfBackendParserTests.cs" />
     <Compile Include="Services\ResolutionValueParserTests.cs" />
     <Compile Include="Themes\ThemeManagerTests.cs" />
     <Compile Include="ViewModels\Coordinators\CoordinatorHelpersTests.cs" />
@@ -129,6 +137,7 @@
       <ErrorText>このプロジェクトは、このコンピューター上にない NuGet パッケージを参照しています。それらのパッケージをダウンロードするには、[NuGet パッケージの復元] を使用します。詳細については、http://go.microsoft.com/fwlink/?LinkID=322105 を参照してください。見つからないファイルは {0} です。</ErrorText>
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\xunit.core.2.9.2\build\xunit.core.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\xunit.core.2.9.2\build\xunit.core.targets'))" />
+    <Error Condition="!Exists('..\packages\xunit.runner.visualstudio.2.8.2\build\net462\xunit.runner.visualstudio.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\xunit.runner.visualstudio.2.8.2\build\net462\xunit.runner.visualstudio.props'))" />
     <Error Condition="!Exists('..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets'))" />
   </Target>
 </Project>

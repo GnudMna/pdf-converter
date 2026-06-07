@@ -24,9 +24,9 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                                 抽象メソッド                                 */
         /********************************************************************************/
-        /// <summary>ドロップされたPDFファイルを読み込む</summary>
-        /// <param name="filePath">PDF ファイルのパス</param>
-        void HandleDroppedPdf(string filePath);
+        /// <summary>ドロップされたドキュメントファイルを読み込む</summary>
+        /// <param name="filePath">ドキュメントファイルのパス</param>
+        void HandleDroppedDocument(string filePath);
 
         /// <summary>ステータスメッセージと表示種類をまとめて設定する</summary>
         /// <param name="message">表示するメッセージ</param>

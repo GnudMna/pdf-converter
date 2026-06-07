@@ -19,8 +19,8 @@
 
 ## ✨ 概要
 
-**PDF Converter**は、PDFの各ページを**PNG / JPEG / BMP**の画像として書き出せるWPFデスクトップアプリです。
-レンダリングには[PDFium](https://pdfium.googlesource.com/pdfium/)（[Docnet.Core](https://github.com/GowenGit/docnet)）を採用し、変換前にプレビューを確認しながら、解像度や出力範囲を細かく指定できます。
+**PDF Converter**は、PDF または Word 文書の各ページを**PNG / JPEG / BMP**の画像として書き出せるWPFデスクトップアプリです。
+Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レンダリングには[PDFium](https://pdfium.googlesource.com/pdfium/)（[Docnet.Core](https://github.com/GowenGit/docnet)）を採用します。変換前にプレビューを確認しながら、解像度や出力範囲を細かく指定できます。
 
 ---
 
@@ -35,7 +35,8 @@
 | 🫧 | **透過の保持** | PNG 出力時に背景の透明度を保持 |
 | ⚡ | **並列処理** | CPU コア数に応じてページを並列レンダリングし高速保存 |
 | 📋 | **クリップボードコピー** | プレビュー画像をワンクリックでコピー |
-| 🖱️ | **ドラッグ＆ドロップ** | PDF をウィンドウへドロップするだけで読み込み |
+| 📄 | **Word 対応** | `.doc` / `.docx` を Word または LibreOffice 経由で PDF 化し、画像へ変換 |
+| 🖱️ | **ドラッグ＆ドロップ** | PDF / Word をウィンドウへドロップするだけで読み込み |
 | 🌗 | **テーマ切替** | ライト / ダーク / システム設定に追従 |
 | 🧠 | **メモリキャッシュ** | 一定サイズ以下の PDF をキャッシュし、I/O を削減 |
 | 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
@@ -56,6 +57,7 @@
 - **アーキテクチャ**: MVVM（View / ViewModel / Coordinator / Service の責務分離）
 - **DI コンテナ**: `Microsoft.Extensions.DependencyInjection`
 - **PDF レンダリング**: `Docnet.Core` (PDFium)
+- **Word → PDF 変換**: Microsoft Word COM または LibreOffice headless（設定で切り替え）
 - **ダイアログ**: `Ookii.Dialogs.Wpf`
 - **テスト**: 単体テストプロジェクト `PdfConverter.Tests` を同梱
 
@@ -65,6 +67,8 @@
 
 - Windows 10 / 11
 - [.NET Framework 4.8.1](https://dotnet.microsoft.com/download/dotnet-framework/net481)
+- Word ファイルを変換する場合: **Microsoft Word**（デスクトップ版）または **LibreOffice** のいずれか
+- LibreOffice 使用時: 一般的なインストール先から `soffice.exe` を自動検出（必要に応じてアプリ内でパス指定可能）
 - ビルドする場合: Visual Studio 2022 など（NuGet パッケージの復元が必要）
 
 ---
@@ -89,7 +93,7 @@ msbuild src/PdfConverter.slnx /p:Configuration=Release
 
 ## 📖 使い方
 
-1. **PDF を開く** — `参照` ボタンから選択するか、ウィンドウへ **ドラッグ＆ドロップ**
+1. **ファイルを開く** — `参照` ボタンから PDF / Word を選択するか、ウィンドウへ **ドラッグ＆ドロップ**
 2. **プレビュー確認** — ページを移動しながら出力内容をチェック
 3. **出力設定** — 画像形式・解像度・透過の有無を指定
 4. **範囲を選ぶ** — 単一ページ / 範囲指定 / 全ページから選択

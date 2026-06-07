@@ -21,6 +21,8 @@ namespace PdfConverter.Tests.Infrastructure
             var provider = ServiceConfigurator.Configure();
 
             provider.GetService(typeof(IPdfConversionService)).Should().NotBeNull();
+            provider.GetService(typeof(IWordToPdfConversionService)).Should().NotBeNull();
+            provider.GetService(typeof(IDocumentPdfSourceService)).Should().NotBeNull();
             provider.GetService(typeof(IDialogService)).Should().NotBeNull();
             provider.GetService(typeof(IClipboardService)).Should().NotBeNull();
         }
