@@ -38,7 +38,7 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public Task<string> ConvertToPdfAsync(string wordFilePath, CancellationToken cancellationToken = default)
         {
-            ValidateWordFilePath(wordFilePath);
+            DocumentFileHelper.ValidateWordFilePath(wordFilePath);
             return Task.Run(() => ConvertInternal(wordFilePath, cancellationToken), cancellationToken);
         }
 
@@ -46,28 +46,6 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>
-        /// Wordファイルパスを検証する
-        /// </summary>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
-        private static void ValidateWordFilePath(string wordFilePath)
-        {
-            if (string.IsNullOrWhiteSpace(wordFilePath))
-            {
-                throw new ArgumentException("Word ファイルのパスが指定されていません。", nameof(wordFilePath));
-            }
-
-            if (!File.Exists(wordFilePath))
-            {
-                throw new FileNotFoundException("Word ファイルが見つかりません。", wordFilePath);
-            }
-
-            if (!DocumentFileHelper.IsWordFile(wordFilePath))
-            {
-                throw new ArgumentException("Word ファイル (.doc / .docx) を指定してください。", nameof(wordFilePath));
-            }
-        }
-
         /// <summary>
         /// LibreOfficeを起動してPDFを生成する
         /// </summary>

@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Linq;
 using System.Windows;
 
@@ -40,6 +41,30 @@ namespace PdfConverter.Services
         public static bool IsSupportedDocument(string path)
         {
             return IsPdfFile(path) || IsWordFile(path);
+        }
+
+        /// <summary>
+        /// Word → PDF変換用のファイルパスを検証する
+        /// </summary>
+        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <exception cref="ArgumentException">パスが空、またはWordファイルではない場合</exception>
+        /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
+        public static void ValidateWordFilePath(string wordFilePath)
+        {
+            if (string.IsNullOrWhiteSpace(wordFilePath))
+            {
+                throw new ArgumentException("Word ファイルのパスが指定されていません。", nameof(wordFilePath));
+            }
+
+            if (!File.Exists(wordFilePath))
+            {
+                throw new FileNotFoundException("Word ファイルが見つかりません。", wordFilePath);
+            }
+
+            if (!IsWordFile(wordFilePath))
+            {
+                throw new ArgumentException("Word ファイル (.doc / .docx) を指定してください。", nameof(wordFilePath));
+            }
         }
 
         /// <summary>
