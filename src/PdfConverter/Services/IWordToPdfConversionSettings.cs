@@ -1,0 +1,34 @@
+using System;
+using PdfConverter.Models;
+
+namespace PdfConverter.Services
+{
+    /// <summary>
+    /// Word → PDF変換エンジンの設定
+    /// </summary>
+    public interface IWordToPdfConversionSettings
+    {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
+        /// <summary>使用する変換エンジン</summary>
+        WordToPdfBackend Backend { get; set; }
+
+        /// <summary>LibreOfficeの<c>soffice.exe</c>のパス（空の場合は自動検出）</summary>
+        string LibreOfficePath { get; set; }
+
+
+        /********************************************************************************/
+        /*                                    イベント                                    */
+        /********************************************************************************/
+        /// <summary>設定が変更されたときに発生する</summary>
+        event EventHandler SettingsChanged;
+
+
+        /********************************************************************************/
+        /*                                 抽象メソッド                                 */
+        /********************************************************************************/
+        /// <summary>現在の設定を永続化する</summary>
+        void Save();
+    }
+}

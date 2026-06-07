@@ -1,4 +1,4 @@
 <Solution>
   <Project Path="PdfConverter/PdfConverter.csproj" Id="2965b4a6-6475-4822-ac0e-cc4c5f563cdc" />
-  <Project Path="PdfConverter.Tests/PdfConverter.Tests.csproj" />
+  <Project Path="PdfConverter.Tests/PdfConverter.Tests.csproj" Id="a8f3e2b1-4c5d-6e7f-8091-a2b3c4d5e6f7" />
 </Solution>

@@ -19,6 +19,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>PDF変換サービス</summary>
         private readonly IPdfConversionService _pdfService;
 
+        /// <summary>入力ドキュメントからPDFソースを提供するサービス</summary>
+        private readonly IDocumentPdfSourceService _documentPdfSourceService;
+
         /// <summary>プレビュータスクの排他制御用オブジェクト</summary>
         private readonly object _previewTaskLock = new object();
 
@@ -36,9 +39,13 @@ namespace PdfConverter.ViewModels.Coordinators
         /// 指定したサービスを使用してPDF読み込み・プレビュー生成・ページナビゲーションを担当する
         /// </summary>
         /// <param name="pdfService">PDF変換サービス</param>
-        public PdfPreviewCoordinator(IPdfConversionService pdfService)
+        /// <param name="documentPdfSourceService">入力ドキュメントからPDFソースを提供するサービス</param>
+        public PdfPreviewCoordinator(
+            IPdfConversionService pdfService,
+            IDocumentPdfSourceService documentPdfSourceService)
         {
             _pdfService = pdfService;
+            _documentPdfSourceService = documentPdfSourceService;
         }
 
 
@@ -71,15 +78,21 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            if (!Path.GetExtension(host.FilePath).Equals(".pdf", StringComparison.OrdinalIgnoreCase))
+            if (!_documentPdfSourceService.IsSupportedDocument(host.FilePath))
             {
-                host.SetStatus("PDFファイル (.pdf) を指定してください。", StatusKind.Warning);
+                host.SetStatus("PDF (.pdf) または Word (.doc / .docx) ファイルを指定してください。", StatusKind.Warning);
                 return;
             }
 
             if (!forceReload && string.Equals(host.FilePath, host.LoadedFilePath, StringComparison.OrdinalIgnoreCase))
             {
                 return;
+            }
+
+            if (!string.IsNullOrEmpty(host.LoadedFilePath)
+                && !string.Equals(host.FilePath, host.LoadedFilePath, StringComparison.OrdinalIgnoreCase))
+            {
+                _documentPdfSourceService.Invalidate(host.LoadedFilePath);
             }
 
             host.LoadedFilePath = host.FilePath;
@@ -253,7 +266,13 @@ namespace PdfConverter.ViewModels.Coordinators
             {
                 try
                 {
-                    int pageCount = await _pdfService.GetPdfPageCountAsync(loadingPath, cancellationToken);
+                    string pdfPath = await ResolvePdfPathAsync(host, loadingPath, operationGeneration, cancellationToken);
+                    if (pdfPath == null)
+                    {
+                        return;
+                    }
+
+                    int pageCount = await _pdfService.GetPdfPageCountAsync(pdfPath, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
 
                     if (!IsCurrentPreviewOperation(operationGeneration))
@@ -362,9 +381,15 @@ namespace PdfConverter.ViewModels.Coordinators
                     return;
                 }
 
+                string pdfPath = await ResolvePdfPathAsync(host, host.FilePath, operationGeneration, cancellationToken);
+                if (pdfPath == null)
+                {
+                    return;
+                }
+
                 int pageIndex = pageNumber - 1;
                 var previewImage = await _pdfService.ConvertPdfPageToImageAsync(
-                    host.FilePath,
+                    pdfPath,
                     pageIndex,
                     host.ResolutionMode,
                     val,
@@ -402,6 +427,61 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.IsBusy = false;
                     host.DisposeCancellation();
                 }
+            }
+        }
+
+        /// <summary>
+        /// 入力ドキュメントからPDFレンダリング用のパスを取得する
+        /// </summary>
+        /// <param name="host">メインビューモデル</param>
+        /// <param name="sourcePath">入力ファイルの絶対パス</param>
+        /// <param name="operationGeneration">操作世代番号</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <returns>PDFレンダリング用の絶対パス。失敗時は <c>null</c></returns>
+        private async Task<string> ResolvePdfPathAsync(
+            IMainViewModelHost host,
+            string sourcePath,
+            long operationGeneration,
+            CancellationToken cancellationToken)
+        {
+            bool isWordDocument = DocumentFileHelper.IsWordFile(sourcePath);
+            if (isWordDocument)
+            {
+                host.SetStatus("WordをPDFに変換中...", StatusKind.Progress);
+            }
+
+            try
+            {
+                string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(sourcePath, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (!IsCurrentPreviewOperation(operationGeneration))
+                {
+                    return null;
+                }
+
+                return pdfPath;
+            }
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (!IsCurrentPreviewOperation(operationGeneration))
+                {
+                    return null;
+                }
+
+                host.PageCount = 0;
+                host.PreviewImage = null;
+                host.LoadedFilePath = null;
+                host.SetStatus(
+                    isWordDocument
+                        ? $"WordをPDFに変換に失敗しました: {ex.Message}"
+                        : $"PDFの読み込みに失敗しました: {ex.Message}",
+                    StatusKind.Error);
+                return null;
             }
         }
     }

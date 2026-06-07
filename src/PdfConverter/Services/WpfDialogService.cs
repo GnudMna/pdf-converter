@@ -14,11 +14,11 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
-        public string ShowOpenPdfFileDialog()
+        public string ShowOpenDocumentFileDialog()
         {
             var dialog = new OpenFileDialog
             {
-                Filter = "PDFファイル (*.pdf)|*.pdf",
+                Filter = "対応ドキュメント (*.pdf;*.doc;*.docx)|*.pdf;*.doc;*.docx|PDF (*.pdf)|*.pdf|Word (*.doc;*.docx)|*.doc;*.docx",
             };
 
             return dialog.ShowDialog() == true ? dialog.FileName : null;
@@ -29,6 +29,19 @@ namespace PdfConverter.Services
         {
             var dialog = new VistaFolderBrowserDialog();
             return dialog.ShowDialog() == true ? dialog.SelectedPath : null;
+        }
+
+        /// <inheritdoc/>
+        public string ShowSavePdfFileDialog(string suggestedFileName)
+        {
+            var dialog = new SaveFileDialog
+            {
+                Filter = "PDFファイル (*.pdf)|*.pdf",
+                FileName = suggestedFileName,
+                DefaultExt = ".pdf",
+            };
+
+            return dialog.ShowDialog() == true ? dialog.FileName : null;
         }
 
         /// <inheritdoc/>

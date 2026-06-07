@@ -6,10 +6,11 @@
         xmlns:conv="clr-namespace:PdfConverter.Converters"
         xmlns:behaviors="clr-namespace:PdfConverter.Views.Behaviors"
         xmlns:models="clr-namespace:PdfConverter.Models"
+        xmlns:views="clr-namespace:PdfConverter.Views"
         mc:Ignorable="d"
         Title="PDF Converter"
         Icon="/Assets/app.ico"
-        Height="1100"
+        Height="1160"
         Width="1070"
         MinHeight="780"
         MinWidth="800"
@@ -54,7 +55,7 @@
                                    FontSize="22"
                                    FontWeight="SemiBold"
                                    Foreground="{DynamicResource SectionTitleForegroundBrush}" />
-                        <TextBlock Text="PDF を画像としてエクスポート"
+                        <TextBlock Text="PDF / Word を画像としてエクスポート"
                                    Margin="0,3,0,0"
                                    Style="{StaticResource HintText}" />
                     </StackPanel>
@@ -101,7 +102,7 @@
                             <StackPanel>
                                 <TextBlock Text="入力情報" Style="{StaticResource SectionTitle}" />
                                 <StackPanel Margin="0,18,0,0">
-                                    <TextBlock Text="PDF ファイル" Style="{StaticResource FieldLabel}" />
+                                    <TextBlock Text="ファイル (PDF / Word)" Style="{StaticResource FieldLabel}" />
                                     <Grid Margin="0,8,0,0">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -133,12 +134,51 @@
                                                   Stretch="Uniform"
                                                   Fill="{DynamicResource MutedForegroundBrush}"
                                                   Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16" />
-                                            <TextBlock Text="ここに PDF ファイルをドラッグ&amp;ドロップ"
+                                            <TextBlock Text="ここに PDF / Word ファイルをドラッグ&amp;ドロップ"
                                                        VerticalAlignment="Center"
                                                        Style="{StaticResource HintText}" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
+
+                                <Expander Margin="0,18,0,0"
+                                          Style="{StaticResource OptionalSectionExpander}"
+                                          IsExpanded="{Binding IsWordSettingsExpanded}">
+                                    <Expander.Header>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Word 設定"
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource FieldLabelForegroundBrush}" />
+                                            <TextBlock Text="（Word ファイル利用時）"
+                                                       Margin="8,0,0,0"
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource HintText}" />
+                                        </StackPanel>
+                                    </Expander.Header>
+                                    <StackPanel>
+                                        <TextBlock Text="Word → PDF 変換" Style="{StaticResource FieldLabel}" />
+                                        <ComboBox Width="180"
+                                                  Margin="0,8,0,0"
+                                                  HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding WordToPdfBackendOptions}"
+                                                  SelectedValue="{Binding WordToPdfBackend}"
+                                                  SelectedValuePath="Backend"
+                                                  DisplayMemberPath="DisplayName" />
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Style="{StaticResource HintText}"
+                                                   Text="Word ファイルを PDF 化する際に使用するエンジンを選択します。" />
+                                        <StackPanel Margin="0,12,0,0"
+                                                    Visibility="{Binding IsLibreOfficePathVisible, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="LibreOffice 実行ファイル"
+                                                       Style="{StaticResource FieldLabel}" />
+                                            <TextBox Margin="0,8,0,0"
+                                                     Text="{Binding LibreOfficePath, UpdateSourceTrigger=PropertyChanged}" />
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Style="{StaticResource HintText}"
+                                                       Text="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Expander>
                             </StackPanel>
                         </Border>
 
@@ -265,6 +305,11 @@
                             <Button Content="画像として保存"
                                     Command="{Binding SaveCommand}"
                                     Style="{StaticResource SaveButton}" />
+                            <Button Content="PDFとして保存"
+                                    Margin="12,0,0,0"
+                                    Command="{Binding SavePdfCommand}"
+                                    Style="{StaticResource SecondaryButton}"
+                                    Visibility="{Binding IsSavePdfVisible, Converter={StaticResource BoolToVis}}" />
                             <Button Content="プレビューをコピー"
                                     Margin="12,0,0,0"
                                     Command="{Binding CopyToClipboardCommand}"
@@ -373,7 +418,7 @@
                                                TextAlignment="Center"
                                                HorizontalAlignment="Center"
                                                Style="{StaticResource MutedText}" />
-                                    <TextBlock Text="PDF を選択またはドラッグ&amp;ドロップすると自動で表示されます"
+                                    <TextBlock Text="ファイルを選択またはドラッグ&amp;ドロップすると自動で表示されます"
                                                FontSize="12"
                                                Margin="0,6,0,0"
                                                TextAlignment="Center"
@@ -547,37 +592,9 @@
             </StackPanel>
         </Grid>
 
-        <!-- ドラッグ&ドロップ オーバーレイ -->
-        <Border Visibility="{Binding IsDropOverlayVisible, Converter={StaticResource BoolToVis}}"
-                Background="{DynamicResource DropOverlayBackgroundBrush}"
-                IsHitTestVisible="False">
-            <Border Margin="24"
-                    BorderBrush="{DynamicResource DropOverlayBorderBrush}"
-                    BorderThickness="2"
-                    CornerRadius="18"
-                    Background="Transparent">
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Path Width="64"
-                          Height="64"
-                          Margin="0,0,0,18"
-                          HorizontalAlignment="Center"
-                          Stretch="Uniform"
-                          Fill="{DynamicResource DropOverlayForegroundBrush}"
-                          Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16" />
-                    <TextBlock Text="ここに PDF をドロップ"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               TextAlignment="Center"
-                               Foreground="{DynamicResource DropOverlayForegroundBrush}" />
-                    <TextBlock Text="ファイルを離すと読み込みます"
-                               FontSize="13"
-                               Margin="0,8,0,0"
-                               TextAlignment="Center"
-                               Foreground="{DynamicResource DropOverlayForegroundBrush}"
-                               Opacity="0.85" />
-                </StackPanel>
-            </Border>
-        </Border>
+        <!-- ドラッグ&ドロップ オーバーレイ（デザイナーでは非表示。プレビューは DropOverlay.xaml を参照） -->
+        <views:DropOverlay d:Visibility="Collapsed"
+                           Visibility="{Binding IsDropOverlayVisible, Converter={StaticResource BoolToVis}}" />
 
     </Grid>
 </Window>

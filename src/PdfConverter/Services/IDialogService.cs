@@ -27,16 +27,23 @@ namespace PdfConverter.Services
         /*                                 抽象メソッド                                 */
         /********************************************************************************/
         /// <summary>
-        /// PDFファイル選択ダイアログを表示する
+        /// ドキュメントファイル選択ダイアログを表示する
         /// </summary>
         /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は<c>null</c></returns>
-        string ShowOpenPdfFileDialog();
+        string ShowOpenDocumentFileDialog();
 
         /// <summary>
         /// フォルダー選択ダイアログを表示する
         /// </summary>
         /// <returns>選択されたフォルダーの絶対パス<br/>キャンセル時は<c>null</c></returns>
         string ShowFolderBrowserDialog();
+
+        /// <summary>
+        /// PDFファイル保存ダイアログを表示する
+        /// </summary>
+        /// <param name="suggestedFileName">初期表示するファイル名</param>
+        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は<c>null</c></returns>
+        string ShowSavePdfFileDialog(string suggestedFileName);
 
         /// <summary>
         /// はい/いいえの確認ダイアログを表示する
