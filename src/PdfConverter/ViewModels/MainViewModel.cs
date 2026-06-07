@@ -15,7 +15,7 @@ namespace PdfConverter.ViewModels
     /// メインウィンドウの ViewModel<br/>
     /// UI バインディングとコマンドを公開し、処理はCoordinatorに委譲する
     /// </summary>
-    public class MainViewModel : ViewModelBase, IMainViewModelHost
+    public class MainViewModel : ViewModelBase, IMainViewModelHost, IMainWindowViewModel
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -112,6 +112,10 @@ namespace PdfConverter.ViewModels
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
         private string _pageNumberValidationMessage;
 
+        /* ----------------------------- オーバーレイ関連 ----------------------------- */
+        /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
+        private bool _isDropOverlayVisible;
+
 
         /********************************************************************************/
         /*                                  プロパティ                                  */
@@ -131,6 +135,7 @@ namespace PdfConverter.ViewModels
                 RaiseCanExecuteChanged(BrowseCommand);
                 RaiseCanExecuteChanged(SaveCommand);
                 RaiseCanExecuteChanged(CancelCommand);
+                RaiseCanExecuteChanged(LoadPdfFromPathCommand);
                 RaiseNavigationCanExecuteChanged();
                 RaiseActionCanExecuteChanged();
                 OnPropertyChanged(nameof(IsProgressIndeterminate));
@@ -422,6 +427,14 @@ namespace PdfConverter.ViewModels
             ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
             : 1;
 
+        /* ----------------------------- オーバーレイ関連 ----------------------------- */
+        /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
+        public bool IsDropOverlayVisible
+        {
+            get => _isDropOverlayVisible;
+            set => SetProperty(ref _isDropOverlayVisible, value);
+        }
+
 
         /********************************************************************************/
         /*                                   コマンド                                   */
@@ -447,6 +460,9 @@ namespace PdfConverter.ViewModels
         /// <summary>キャンセルするコマンド</summary>
         public ICommand CancelCommand { get; }
 
+        /// <summary>パス入力欄のフォーカス喪失時に PDF を読み込むコマンド</summary>
+        public ICommand LoadPdfFromPathCommand { get; }
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -470,6 +486,7 @@ namespace PdfConverter.ViewModels
             GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage, OnAsyncCommandException);
             PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious, OnAsyncCommandException);
             NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext, OnAsyncCommandException);
+            LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
         }
 
 
@@ -481,6 +498,18 @@ namespace PdfConverter.ViewModels
         /// </summary>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
         public void LoadPdfFromPath(bool forceReload = false) => _previewCoordinator.LoadFromPath(this, forceReload);
+
+        /// <inheritdoc/>
+        public void HandleDroppedPdf(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath) || IsBusy)
+            {
+                return;
+            }
+
+            FilePath = filePath;
+            LoadPdfFromPath(forceReload: true);
+        }
 
 
         /********************************************************************************/

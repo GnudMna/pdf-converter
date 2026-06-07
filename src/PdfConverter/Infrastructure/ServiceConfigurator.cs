@@ -28,6 +28,7 @@ namespace PdfConverter.Infrastructure
             services.AddTransient<IPdfPreviewCoordinator, PdfPreviewCoordinator>();
             services.AddTransient<IPdfSaveCoordinator, PdfSaveCoordinator>();
             services.AddTransient<MainViewModel>();
+            services.AddTransient<IMainWindowViewModel, MainViewModel>();
             services.AddTransient<MainWindow>();
             return services.BuildServiceProvider();
         }

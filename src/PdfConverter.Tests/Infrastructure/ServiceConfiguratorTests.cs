@@ -71,5 +71,16 @@ namespace PdfConverter.Tests.Infrastructure
 
             service1.Should().BeSameAs(service2);
         }
+
+        /// <summary>
+        /// IMainWindowViewModel が解決できることを検証する
+        /// </summary>
+        [Fact]
+        public void Configure_ResolvesIMainWindowViewModel()
+        {
+            var provider = ServiceConfigurator.Configure();
+
+            provider.GetService(typeof(IMainWindowViewModel)).Should().NotBeNull();
+        }
     }
 }
