@@ -5,9 +5,9 @@ using PdfConverter.Models;
 namespace PdfConverter.ViewModels
 {
     /// <summary>
-    /// CoordinatorがMainViewModelの状態を読み書きするための内部インターフェース
+    /// CoordinatorがMainViewModelの状態を読み書きするためのインターフェース
     /// </summary>
-    internal interface IMainViewModelHost
+    public interface IMainViewModelHost
     {
         /********************************************************************************/
         /*                                  プロパティ                                  */
@@ -54,6 +54,18 @@ namespace PdfConverter.ViewModels
         /// <summary>ステータスメッセージ</summary>
         string StatusMessage { get; set; }
 
+        /// <summary>ステータスバーの表示種類</summary>
+        StatusKind StatusKind { get; set; }
+
+        /// <summary>出力解像度の入力エラーメッセージ</summary>
+        string ResolutionValidationMessage { get; set; }
+
+        /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
+        string PageRangeValidationMessage { get; set; }
+
+        /// <summary>表示ページ番号の入力エラーメッセージ</summary>
+        string PageNumberValidationMessage { get; set; }
+
         /// <summary>進捗値</summary>
         double ProgressValue { get; set; }
 
@@ -78,5 +90,13 @@ namespace PdfConverter.ViewModels
 
         /// <summary>アクション可能なコマンドの実行可能状態を更新する</summary>
         void RaiseActionCanExecuteChanged();
+
+        /// <summary>ステータスメッセージと表示種類をまとめて設定する</summary>
+        /// <param name="message">表示するメッセージ</param>
+        /// <param name="kind">表示種類</param>
+        void SetStatus(string message, StatusKind kind = StatusKind.Info);
+
+        /// <summary>フィールド検証メッセージをクリアする</summary>
+        void ClearFieldValidationMessages();
     }
 }

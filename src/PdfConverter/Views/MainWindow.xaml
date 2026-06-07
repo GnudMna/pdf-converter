@@ -4,198 +4,264 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:PdfConverter.Converters"
+        xmlns:behaviors="clr-namespace:PdfConverter.Views.Behaviors"
+        xmlns:models="clr-namespace:PdfConverter.Models"
         mc:Ignorable="d"
         Title="PDF Converter"
         Icon="/Assets/app.ico"
-        Height="845"
-        Width="990"
-        MinHeight="845"
-        MinWidth="990"
+        Height="1100"
+        Width="1070"
+        MinHeight="780"
+        MinWidth="800"
         Background="{DynamicResource WindowBackgroundBrush}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        AllowDrop="True"
-        Drop="MainWindow_Drop">
+        TextOptions.TextFormattingMode="Display"
+        behaviors:FileDropBehavior.IsEnabled="True">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
     </Window.Resources>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <Grid>
+        <!-- メインコンテンツ -->
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <!-- ヘッダー -->
-        <Grid Grid.Row="0" Margin="0,0,0,16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+            <!-- ヘッダー -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Image Source="/Assets/app-icon.png"
-                       Width="44"
-                       Height="44"
-                       Margin="0,0,14,0"
-                       Stretch="Uniform"
-                       RenderOptions.BitmapScalingMode="HighQuality" />
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="PDF Converter"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource SectionTitleForegroundBrush}" />
-                    <TextBlock Text="PDF を画像としてエクスポート"
-                               Margin="0,3,0,0"
-                               Style="{StaticResource HintText}" />
-                </StackPanel>
-            </StackPanel>
-
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <TextBlock Text="外観"
-                           VerticalAlignment="Center"
-                           Margin="0,0,8,0"
-                           Style="{StaticResource FieldLabel}" />
-                <ComboBox Width="180"
-                          ItemsSource="{Binding ThemeModeOptions}"
-                          SelectedValue="{Binding ThemeMode}"
-                          SelectedValuePath="Mode"
-                          DisplayMemberPath="DisplayName" />
-            </StackPanel>
-        </Grid>
-
-        <!-- 設定パネル・プレビュー -->
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="380" />
-                <ColumnDefinition Width="18" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-
-            <!-- 入力・変換設定 -->
-            <StackPanel Grid.Column="0">
-
-                <!-- 入力情報 -->
-                <Border Style="{StaticResource CardBorder}" Padding="18" Margin="0,0,0,18" MinWidth="340">
-                    <StackPanel>
-                        <TextBlock Text="入力情報" Style="{StaticResource SectionTitle}" />
-                        <StackPanel Margin="0,18,0,0">
-                            <TextBlock Text="PDF ファイル" Style="{StaticResource FieldLabel}" />
-                            <Grid Margin="0,8,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0"
-                                         Text="{Binding FilePath}"
-                                         LostFocus="FilePathTextBox_LostFocus"
-                                         MinWidth="250"
-                                         Margin="1,0,12,0" />
-                                <Button Grid.Column="1"
-                                        Content="参照"
-                                        Width="50"
-                                        Command="{Binding BrowseCommand}"
-                                        Style="{StaticResource PrimaryButton}" />
-                            </Grid>
-                        </StackPanel>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image Source="/Assets/app-icon.png"
+                           Width="44"
+                           Height="44"
+                           Margin="0,0,14,0"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="PDF Converter"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{DynamicResource SectionTitleForegroundBrush}" />
+                        <TextBlock Text="PDF を画像としてエクスポート"
+                                   Margin="0,3,0,0"
+                                   Style="{StaticResource HintText}" />
                     </StackPanel>
-                </Border>
+                </StackPanel>
 
-                <!-- 変換設定 -->
-                <Border Style="{StaticResource CardBorder}" Padding="18" MinWidth="340">
-                    <StackPanel>
-                        <TextBlock Text="変換設定" Style="{StaticResource SectionTitle}" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="外観"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               Style="{StaticResource FieldLabel}" />
+                    <ComboBox Width="75"
+                              ItemsSource="{Binding ThemeModeOptions}"
+                              SelectedValue="{Binding ThemeMode}"
+                              SelectedValuePath="Mode"
+                              DisplayMemberPath="DisplayName" />
+                </StackPanel>
+            </Grid>
 
-                        <!-- 出力形式 -->
-                        <StackPanel Margin="0,18,0,0">
-                            <TextBlock Text="出力ファイル形式" Style="{StaticResource FieldLabel}" />
-                            <ComboBox Width="140"
-                                      Margin="0,8,0,0"
-                                      HorizontalAlignment="Left"
-                                      ItemsSource="{Binding OutputImageFormatOptions}"
-                                      SelectedValue="{Binding OutputImageFormat}"
-                                      SelectedValuePath="Format"
-                                      DisplayMemberPath="DisplayName" />
-                        </StackPanel>
+            <!-- 設定パネル・プレビュー -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="380" />
+                    <ColumnDefinition Width="18" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
 
-                        <!-- 透明度 -->
-                        <StackPanel Margin="0,18,0,0">
-                            <CheckBox Content="透明度を保持"
-                                      IsChecked="{Binding PreserveTransparency}"
-                                      IsEnabled="{Binding IsTransparencySelectable}" />
-                            <TextBlock Margin="0,8,0,0"
-                                       Style="{StaticResource HintText}"
-                                       Text="オフの場合は白背景で合成します。JPEG では透明度を保持できません。" />
-                        </StackPanel>
+                <!-- 入力・変換設定 -->
+                <Grid Grid.Column="0">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
 
-                        <!-- 出力解像度 -->
-                        <StackPanel Margin="0,18,0,0">
-                            <TextBlock Text="出力解像度" Style="{StaticResource FieldLabel}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" VerticalAlignment="Center">
-                                <ComboBox Width="140"
-                                          Margin="0,0,8,0"
-                                          ItemsSource="{Binding ResolutionModeOptions}"
-                                          SelectedValue="{Binding ResolutionMode}"
-                                          SelectedValuePath="Mode"
-                                          DisplayMemberPath="DisplayName" />
-                                <TextBox Width="100"
-                                         Margin="0,0,8,0"
-                                         Text="{Binding ResolutionValue}" />
-                                <TextBlock Text="px / DPI"
-                                           VerticalAlignment="Center"
-                                           Style="{StaticResource MutedText}" />
+                    <ScrollViewer Grid.Row="0"
+                                  VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled"
+                                  Padding="0,0,6,0">
+                        <StackPanel>
+
+                        <!-- 入力情報 -->
+                        <Border Style="{StaticResource CardBorder}" Padding="18" Margin="0,0,0,18" MinWidth="340">
+                            <StackPanel>
+                                <TextBlock Text="入力情報" Style="{StaticResource SectionTitle}" />
+                                <StackPanel Margin="0,18,0,0">
+                                    <TextBlock Text="PDF ファイル" Style="{StaticResource FieldLabel}" />
+                                    <Grid Margin="0,8,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox Grid.Column="0"
+                                                 Text="{Binding FilePath}"
+                                                 behaviors:InvokeCommandBehavior.LostFocusCommand="{Binding LoadPdfFromPathCommand}"
+                                                 IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                                 MinWidth="230"
+                                                 Margin="1,0,12,0" />
+                                        <Button Grid.Column="1"
+                                                Content="参照"
+                                                MinWidth="64"
+                                                Command="{Binding BrowseCommand}"
+                                                Style="{StaticResource PrimaryButton}" />
+                                    </Grid>
+                                    <Border Margin="1,12,1,0"
+                                            Background="{DynamicResource PreviewAreaBackgroundBrush}"
+                                            BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
+                                            BorderThickness="1"
+                                            CornerRadius="10"
+                                            Padding="12,10">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Path Width="18"
+                                                  Height="18"
+                                                  Margin="0,0,10,0"
+                                                  VerticalAlignment="Center"
+                                                  Stretch="Uniform"
+                                                  Fill="{DynamicResource MutedForegroundBrush}"
+                                                  Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16" />
+                                            <TextBlock Text="ここに PDF ファイルをドラッグ&amp;ドロップ"
+                                                       VerticalAlignment="Center"
+                                                       Style="{StaticResource HintText}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
                             </StackPanel>
-                            <TextBlock Margin="0,8,0,0"
-                                       Style="{StaticResource HintText}"
-                                       Text="選択したモードに応じて、幅・高さ (px) または DPI を入力してください。" />
-                        </StackPanel>
+                        </Border>
 
-                        <!-- ページ情報 -->
-                        <StackPanel Margin="0,18,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="Auto" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="ページ情報" Style="{StaticResource FieldLabel}" />
-                                <CheckBox Grid.Column="1"
-                                          Content="全ページ保存"
-                                          VerticalAlignment="Center"
-                                          IsChecked="{Binding IsAllPagesSelected}" />
-                            </Grid>
-                            <TextBlock Margin="0,8,0,0"
-                                       Style="{StaticResource HintText}"
-                                       Text="保存するページを番号または範囲で指定できます。" />
-                            <Grid Margin="0,10,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Text="対象ページ"
-                                           VerticalAlignment="Center"
-                                           Margin="0,0,8,0"
-                                           Style="{StaticResource FieldLabel}" />
-                                <TextBox Grid.Column="1"
-                                         Width="160"
-                                         Text="{Binding PageRange, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding IsAllPagesSelected, Converter={StaticResource InverseBooleanConverter}}" />
-                            </Grid>
-                            <TextBlock Margin="0,8,0,0"
-                                       Style="{StaticResource HintText}"
-                                       Text="例: 1,3-5"
-                                       TextWrapping="NoWrap" />
-                        </StackPanel>
+                        <!-- 変換設定 -->
+                        <Border Style="{StaticResource CardBorder}" Padding="18" MinWidth="340">
+                            <StackPanel>
+                                <TextBlock Text="変換設定" Style="{StaticResource SectionTitle}" />
 
-                        <!-- アクションボタン -->
+                                <!-- 出力形式 -->
+                                <StackPanel Margin="0,18,0,0">
+                                    <TextBlock Text="出力形式" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource SettingValueBorder}">
+                                        <StackPanel>
+                                            <ComboBox Width="120"
+                                                      HorizontalAlignment="Left"
+                                                      ItemsSource="{Binding OutputImageFormatOptions}"
+                                                      SelectedValue="{Binding OutputImageFormat}"
+                                                      SelectedValuePath="Format"
+                                                      DisplayMemberPath="DisplayName" />
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Style="{StaticResource HintText}"
+                                                       Text="JPEG / PNG / BMP から選択します。" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- 透明度 -->
+                                <StackPanel Margin="0,18,0,0">
+                                    <TextBlock Text="透明度" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource SettingValueBorder}">
+                                        <StackPanel>
+                                            <CheckBox Content="透明度を保持"
+                                                      IsChecked="{Binding PreserveTransparency}"
+                                                      IsEnabled="{Binding IsTransparencySelectable}" />
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Style="{StaticResource HintText}">
+                                                オフの場合は白背景で合成します。<LineBreak/>
+                                                JPEG では透明度を保持できません。
+                                            </TextBlock>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- 出力解像度 -->
+                                <StackPanel Margin="0,18,0,0">
+                                    <TextBlock Text="出力解像度" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource SettingValueBorder}">
+                                        <StackPanel>
+                                            <StackPanel Orientation="Horizontal"
+                                                        VerticalAlignment="Center">
+                                                <ComboBox Width="90"
+                                                          Margin="0,0,8,0"
+                                                          ItemsSource="{Binding ResolutionModeOptions}"
+                                                          SelectedValue="{Binding ResolutionMode}"
+                                                          SelectedValuePath="Mode"
+                                                          DisplayMemberPath="DisplayName" />
+                                                <TextBox Width="80"
+                                                         Margin="0,0,8,0"
+                                                         Text="{Binding ResolutionValue}" />
+                                                <TextBlock Text="px / DPI"
+                                                           VerticalAlignment="Center"
+                                                           Style="{StaticResource MutedText}" />
+                                            </StackPanel>
+                                            <TextBlock Margin="0,6,0,0"
+                                                       Style="{StaticResource HintText}"
+                                                       Text="選択したモードに応じて、幅・高さ (px) または DPI を入力してください。" />
+                                            <TextBlock Text="{Binding ResolutionValidationMessage}"
+                                                       Style="{StaticResource ValidationMessage}"
+                                                       Visibility="{Binding ResolutionValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- 保存ページ -->
+                                <StackPanel Margin="0,18,0,0">
+                                    <TextBlock Text="保存ページ" Style="{StaticResource FieldLabel}" />
+                                    <Border Style="{StaticResource SettingValueBorder}">
+                                        <StackPanel>
+                                            <CheckBox Content="全ページを保存"
+                                                      IsChecked="{Binding IsAllPagesSelected}" />
+                                            <TextBlock Margin="0,10,0,0"
+                                                       Style="{StaticResource HintText}"
+                                                       Text="すべてのページを保存します。"
+                                                       Visibility="{Binding IsAllPagesSelected, Converter={StaticResource BoolToVis}}" />
+                                            <StackPanel Margin="0,10,0,0">
+                                                <StackPanel.Style>
+                                                    <Style TargetType="StackPanel">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsAllPagesSelected}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </StackPanel.Style>
+                                                <TextBlock Text="ページ番号または範囲"
+                                                           Style="{StaticResource FieldLabel}" />
+                                                <TextBox Margin="0,6,0,0"
+                                                         Text="{Binding PageRange, UpdateSourceTrigger=PropertyChanged}" />
+                                                <TextBlock Margin="0,6,0,0"
+                                                           Style="{StaticResource HintText}"
+                                                           Text="例: 1,3-5" />
+                                                <TextBlock Text="{Binding PageRangeValidationMessage}"
+                                                           Style="{StaticResource ValidationMessage}"
+                                                           Visibility="{Binding PageRangeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- アクションボタン（常に表示） -->
+                    <Border Grid.Row="1"
+                            Margin="0,12,6,0"
+                            Padding="0,12,0,0"
+                            BorderBrush="{DynamicResource CardBorderBrush}"
+                            BorderThickness="0,1,0,0">
                         <StackPanel Orientation="Horizontal"
-                                    HorizontalAlignment="Left"
-                                    Margin="0,24,0,0">
+                                    HorizontalAlignment="Left">
                             <Button Content="画像として保存"
                                     Command="{Binding SaveCommand}"
                                     Style="{StaticResource SaveButton}" />
@@ -209,113 +275,309 @@
                                     Style="{StaticResource CancelButton}"
                                     Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
                         </StackPanel>
-                    </StackPanel>
-                </Border>
-
-            </StackPanel>
-
-            <!-- プレビュー -->
-            <Border Grid.Column="2"
-                    Style="{StaticResource CardBorder}"
-                    Padding="18"
-                    VerticalAlignment="Stretch">
-                <Grid VerticalAlignment="Stretch">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-
-                    <!-- プレビューヘッダー -->
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel>
-                            <TextBlock Text="プレビュー"
-                                       Style="{StaticResource SectionTitle}" />
-                            <TextBlock Text="{Binding PageIndicator}"
-                                       FontSize="12"
-                                       Margin="0,4,0,0"
-                                       Style="{StaticResource MutedText}" />
-                        </StackPanel>
-                        <StackPanel Grid.Column="1"
-                                    Orientation="Horizontal"
-                                    VerticalAlignment="Center">
-                            <TextBlock Text="表示ページ"
-                                       VerticalAlignment="Center"
-                                       Margin="0,0,8,0"
-                                       Style="{StaticResource FieldLabel}" />
-                            <TextBox Width="72"
-                                     Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
-                                     IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}" />
-                            <Button Content="表示"
-                                    Width="80"
-                                    Margin="8,0,16,0"
-                                    Command="{Binding GoToPageCommand}"
-                                    Style="{StaticResource SecondaryButton}" />
-                            <Button Content="＜"
-                                    Width="32"
-                                    Margin="0,0,8,0"
-                                    ToolTip="前のページに移動"
-                                    Command="{Binding PreviousPageCommand}"
-                                    Style="{StaticResource SecondaryButton}" />
-                            <Button Content="＞"
-                                    Width="32"
-                                    ToolTip="次のページに移動"
-                                    Command="{Binding NextPageCommand}"
-                                    Style="{StaticResource SecondaryButton}" />
-                        </StackPanel>
-                    </Grid>
-
-                    <!-- プレビュー画像 -->
-                    <Border Grid.Row="1"
-                            Background="{DynamicResource PreviewAreaBackgroundBrush}"
-                            CornerRadius="12"
-                            BorderThickness="1"
-                            BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
-                            Margin="0,14,0,0"
-                            Padding="12"
-                            VerticalAlignment="Stretch">
-                        <Grid VerticalAlignment="Stretch">
-                            <Image Source="{Binding PreviewImage}"
-                                   Stretch="Uniform"
-                                   HorizontalAlignment="Stretch"
-                                   VerticalAlignment="Stretch" />
-                            <TextBlock Text="プレビュー画像がここに表示されます。PDFを選択すると自動でプレビューが表示されます。"
-                                       FontSize="14"
-                                       Padding="24"
-                                       TextAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       Style="{StaticResource MutedText}"
-                                       Visibility="{Binding PreviewImage, Converter={StaticResource NullToVisibilityConverter}}" />
-                        </Grid>
                     </Border>
                 </Grid>
-            </Border>
 
+                <!-- プレビュー -->
+                <Border Grid.Column="2"
+                        Style="{StaticResource CardBorder}"
+                        Padding="18"
+                        VerticalAlignment="Stretch">
+                    <Grid VerticalAlignment="Stretch">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- プレビューヘッダー -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="プレビュー"
+                                           Style="{StaticResource SectionTitle}" />
+                                <TextBlock Text="{Binding PageIndicator}"
+                                           FontSize="12"
+                                           Margin="0,4,0,0"
+                                           Style="{StaticResource MutedText}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1"
+                                        Orientation="Horizontal"
+                                        VerticalAlignment="Center">
+                                <TextBlock Text="表示ページ"
+                                           VerticalAlignment="Center"
+                                           Margin="0,0,8,0"
+                                           Style="{StaticResource FieldLabel}" />
+                                <StackPanel>
+                                    <TextBox Width="72"
+                                             Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}" />
+                                    <TextBlock Text="{Binding PageNumberValidationMessage}"
+                                               Style="{StaticResource ValidationMessage}"
+                                               MaxWidth="160"
+                                               Visibility="{Binding PageNumberValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                </StackPanel>
+                                <Button Content="表示"
+                                        Width="72"
+                                        Padding="0"
+                                        Margin="8,0,16,0"
+                                        Command="{Binding GoToPageCommand}"
+                                        Style="{StaticResource SecondaryButton}" />
+                                <Button Content="＜"
+                                        Width="36"
+                                        Padding="0"
+                                        Margin="0,0,8,0"
+                                        ToolTip="前のページに移動"
+                                        Command="{Binding PreviousPageCommand}"
+                                        Style="{StaticResource SecondaryButton}" />
+                                <Button Content="＞"
+                                        Width="36"
+                                        Padding="0"
+                                        ToolTip="次のページに移動"
+                                        Command="{Binding NextPageCommand}"
+                                        Style="{StaticResource SecondaryButton}" />
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- プレビュー画像 -->
+                        <Border Grid.Row="1"
+                                Background="{DynamicResource PreviewAreaBackgroundBrush}"
+                                CornerRadius="12"
+                                BorderThickness="1"
+                                BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
+                                Margin="0,14,0,0"
+                                Padding="12"
+                                VerticalAlignment="Stretch">
+                            <Grid VerticalAlignment="Stretch">
+                                <Image Source="{Binding PreviewImage}"
+                                       Stretch="Uniform"
+                                       HorizontalAlignment="Stretch"
+                                       VerticalAlignment="Stretch"
+                                       RenderOptions.BitmapScalingMode="HighQuality" />
+                                <StackPanel HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Visibility="{Binding PreviewImage, Converter={StaticResource NullToVisibilityConverter}}">
+                                    <Path Width="48"
+                                          Height="48"
+                                          Margin="0,0,0,14"
+                                          HorizontalAlignment="Center"
+                                          Stretch="Uniform"
+                                          Fill="{DynamicResource MutedForegroundBrush}"
+                                          Opacity="0.7"
+                                          Data="M6 2 L14 2 L20 8 L20 22 L6 22 Z M14 2 L14 8 L20 8" />
+                                    <TextBlock Text="プレビュー画像がここに表示されます"
+                                               FontSize="15"
+                                               FontWeight="SemiBold"
+                                               TextAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               Style="{StaticResource MutedText}" />
+                                    <TextBlock Text="PDF を選択またはドラッグ&amp;ドロップすると自動で表示されます"
+                                               FontSize="12"
+                                               Margin="0,6,0,0"
+                                               TextAlignment="Center"
+                                               HorizontalAlignment="Center"
+                                               Style="{StaticResource HintText}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </Grid>
+                </Border>
+
+            </Grid>
+
+            <!-- ステータスバー -->
+            <StackPanel Grid.Row="2"
+                        Margin="0,18,0,0">
+                <ProgressBar Minimum="0"
+                             Maximum="100"
+                             Height="14"
+                             Margin="0,0,0,10"
+                             Value="{Binding ProgressValue}"
+                             IsIndeterminate="{Binding IsProgressIndeterminate}" />
+                <Border Padding="14,12"
+                        CornerRadius="14"
+                        BorderThickness="1">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource StatusInfoBackgroundBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBorderBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusProgressBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusProgressBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusSuccessBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusSuccessBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusWarningBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusWarningBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusErrorBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusErrorBorderBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox Grid.Column="0"
+                                 Width="18"
+                                 Height="18"
+                                 Margin="0,0,12,0"
+                                 VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M12 10 L12 11 M12 14 L12 16"
+                                      Fill="{DynamicResource StatusInfoForegroundBrush}">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M7 12 L11 16 L17 9"
+                                      Stroke="{DynamicResource StatusSuccessForegroundBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 L22 20 L2 20 Z M12 9 L12 14 M12 17 L12 17"
+                                      Fill="{DynamicResource StatusWarningForegroundBrush}"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M8 8 L16 16 M16 8 L8 16"
+                                      Stroke="{DynamicResource StatusErrorForegroundBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Ellipse Width="8"
+                                         Height="8"
+                                         Fill="{DynamicResource StatusProgressForegroundBrush}"
+                                         Visibility="Collapsed">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Grid>
+                        </Viewbox>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StatusMessage}"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource StatusInfoForegroundBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusProgressForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusSuccessForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusWarningForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusErrorForegroundBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Border>
+            </StackPanel>
         </Grid>
 
-        <!-- ステータスバー -->
-        <StackPanel Grid.Row="2"
-                    Margin="0,18,0,0">
-            <ProgressBar Minimum="0"
-                         Maximum="100"
-                         Height="14"
-                         Margin="0,0,0,10"
-                         Value="{Binding ProgressValue}"
-                         Visibility="{Binding IsSaving, Converter={StaticResource BoolToVis}}" />
-            <Border Padding="14"
-                    Background="{DynamicResource StatusBarBackgroundBrush}"
-                    CornerRadius="14"
-                    BorderBrush="{DynamicResource CardBorderBrush}"
-                    BorderThickness="1">
-                <TextBlock Text="{Binding StatusMessage}"
-                           Foreground="{DynamicResource StatusBarForegroundBrush}"
-                           VerticalAlignment="Center" />
+        <!-- ドラッグ&ドロップ オーバーレイ -->
+        <Border Visibility="{Binding IsDropOverlayVisible, Converter={StaticResource BoolToVis}}"
+                Background="{DynamicResource DropOverlayBackgroundBrush}"
+                IsHitTestVisible="False">
+            <Border Margin="24"
+                    BorderBrush="{DynamicResource DropOverlayBorderBrush}"
+                    BorderThickness="2"
+                    CornerRadius="18"
+                    Background="Transparent">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Path Width="64"
+                          Height="64"
+                          Margin="0,0,0,18"
+                          HorizontalAlignment="Center"
+                          Stretch="Uniform"
+                          Fill="{DynamicResource DropOverlayForegroundBrush}"
+                          Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16" />
+                    <TextBlock Text="ここに PDF をドロップ"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource DropOverlayForegroundBrush}" />
+                    <TextBlock Text="ファイルを離すと読み込みます"
+                               FontSize="13"
+                               Margin="0,8,0,0"
+                               TextAlignment="Center"
+                               Foreground="{DynamicResource DropOverlayForegroundBrush}"
+                               Opacity="0.85" />
+                </StackPanel>
             </Border>
-        </StackPanel>
+        </Border>
 
     </Grid>
 </Window>

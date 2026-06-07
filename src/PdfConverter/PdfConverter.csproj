@@ -80,9 +80,11 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Infrastructure\GlobalExceptionHandler.cs" />
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
+    <Compile Include="Services\PdfFileHelper.cs" />
     <Compile Include="Services\PdfConversionService.cs" />
     <Compile Include="Services\IPdfConversionService.cs" />
     <Compile Include="Services\IDialogService.cs" />
@@ -102,9 +104,13 @@
     <Compile Include="Services\ImageBitmapHelper.cs" />
     <Compile Include="Services\ResolutionValueParser.cs" />
     <Compile Include="Models\SaveProgressReport.cs" />
+    <Compile Include="Models\StatusKind.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Compile Include="ViewModels\IMainViewModelHost.cs" />
+    <Compile Include="ViewModels\IMainWindowViewModel.cs" />
     <Compile Include="ViewModels\Coordinators\CoordinatorHelpers.cs" />
+    <Compile Include="ViewModels\Coordinators\IPdfPreviewCoordinator.cs" />
+    <Compile Include="ViewModels\Coordinators\IPdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PdfPreviewCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
@@ -114,9 +120,12 @@
     </Compile>
     <Compile Include="Converters\InverseBooleanConverter.cs" />
     <Compile Include="Converters\NullToVisibilityConverter.cs" />
+    <Compile Include="Converters\StringToVisibilityConverter.cs" />
     <Compile Include="Views\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Behaviors\FileDropBehavior.cs" />
+    <Compile Include="Views\Behaviors\InvokeCommandBehavior.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">
@@ -162,10 +171,17 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\ConfirmDialog.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Compile Include="Views\ConfirmDialog.xaml.cs">
+      <DependentUpon>ConfirmDialog.xaml</DependentUpon>
+    </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

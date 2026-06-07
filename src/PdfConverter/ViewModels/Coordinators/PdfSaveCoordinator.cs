@@ -12,12 +12,15 @@ namespace PdfConverter.ViewModels.Coordinators
     /// <summary>
     /// PDFページの一括保存と上書き確認を担当する
     /// </summary>
-    internal sealed class PdfSaveCoordinator
+    internal sealed class PdfSaveCoordinator : IPdfSaveCoordinator
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>PDF変換サービス</summary>
         private readonly IPdfConversionService _pdfService;
+
+        /// <summary>ダイアログサービス</summary>
         private readonly IDialogService _dialogService;
 
 
@@ -25,9 +28,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 指定したサービスを使用して PDF ページの一括保存と上書き確認を担当する
+        /// 指定したサービスを使用してPDFページの一括保存と上書き確認を担当する
         /// </summary>
-        /// <param name="pdfService">PDF 変換サービス</param>
+        /// <param name="pdfService">PDF変換サービス</param>
         /// <param name="dialogService">ダイアログサービス</param>
         public PdfSaveCoordinator(IPdfConversionService pdfService, IDialogService dialogService)
         {
@@ -51,7 +54,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            if (!CoordinatorHelpers.TryGetResolutionValue(host, _dialogService, out double resolutionValue, showDialog: true))
+            if (!CoordinatorHelpers.TryGetResolutionValue(host, out double resolutionValue, showFieldValidation: true))
             {
                 return;
             }
@@ -61,14 +64,14 @@ namespace PdfConverter.ViewModels.Coordinators
             CancellationToken cancellationToken = host.GetCancellationToken();
             host.IsBusy = true;
             host.IsSaving = true;
-            host.StatusMessage = "保存処理を開始しています...";
+            host.SetStatus("保存処理を開始しています...", StatusKind.Progress);
 
             try
             {
                 string folderPath = _dialogService.ShowFolderBrowserDialog();
                 if (folderPath == null)
                 {
-                    host.StatusMessage = "保存先フォルダーの選択がキャンセルされました。";
+                    host.SetStatus("保存先フォルダーの選択がキャンセルされました。", StatusKind.Info);
                     return;
                 }
 
@@ -77,33 +80,38 @@ namespace PdfConverter.ViewModels.Coordinators
                 {
                     if (string.IsNullOrWhiteSpace(host.PageRange))
                     {
-                        _dialogService.ShowMessage("保存対象のページ番号または範囲を入力してください。");
-                        host.StatusMessage = "保存対象のページ番号または範囲を指定してください。";
+                        host.PageRangeValidationMessage = "保存対象のページ番号または範囲を入力してください。";
+                        host.SetStatus("保存対象のページ番号または範囲を指定してください。", StatusKind.Warning);
                         return;
                     }
 
                     try
                     {
                         pageIndexes = PageRangeParser.Parse(host.PageRange, host.PageCount);
+                        host.PageRangeValidationMessage = null;
                     }
                     catch (Exception ex)
                     {
-                        _dialogService.ShowMessage($"ページ範囲の指定が不正です: {ex.Message}");
-                        host.StatusMessage = "有効なページ範囲を入力してください。";
+                        host.PageRangeValidationMessage = ex.Message;
+                        host.SetStatus($"ページ範囲の指定が不正です: {ex.Message}", StatusKind.Warning);
                         return;
                     }
+                }
+                else
+                {
+                    host.PageRangeValidationMessage = null;
                 }
 
                 if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes))
                 {
-                    host.StatusMessage = "保存処理はキャンセルされました。";
+                    host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
                     return;
                 }
 
                 var progress = new Progress<SaveProgressReport>(report =>
                 {
                     host.ProgressValue = report.Percentage;
-                    host.StatusMessage = report.Message;
+                    host.SetStatus(report.Message, StatusKind.Progress);
                 });
 
                 await _pdfService.SavePdfPagesToImagesAsync(
@@ -120,22 +128,20 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    host.StatusMessage = "保存処理はキャンセルされました。";
+                    host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
                     return;
                 }
 
                 host.ProgressValue = 100;
-                _dialogService.ShowMessage("画像の保存が完了しました。");
-                host.StatusMessage = "画像の保存が完了しました。";
+                host.SetStatus("画像の保存が完了しました。", StatusKind.Success);
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
-                host.StatusMessage = "保存処理はキャンセルされました。";
+                host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
             }
             catch (Exception ex)
             {
-                _dialogService.ShowMessage($"画像保存エラー: {ex.Message}");
-                host.StatusMessage = "保存処理中にエラーが発生しました。";
+                host.SetStatus($"保存処理中にエラーが発生しました: {ex.Message}", StatusKind.Error);
             }
             finally
             {
@@ -155,7 +161,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="host">メインビューモデル</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
-        /// <returns>上書き確認の結果</returns>
+        /// <returns>true: 上書き確認を行う / false: 上書き確認を行わない / キャンセルされた場合は<c>null</c></returns>
         private bool ConfirmOverwriteExistingFiles(IMainViewModelHost host, string folderPath, IEnumerable<int> pageIndexes)
         {
             string extension = ImageBitmapHelper.GetFileExtension(host.OutputImageFormat);
@@ -178,7 +184,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 ? $"以下のファイルは既に存在します。上書きしますか？\n\n{string.Join("\n", existingFiles)}"
                 : $"{existingFiles.Count} 件のファイルが既に存在します。上書きしますか？";
 
-            return _dialogService.ShowYesNo(message, "上書きの確認", DialogIcon.Warning);
+            return _dialogService.ShowYesNo(message, "上書きの確認", DialogIcon.Warning, "上書きする", "キャンセル");
         }
     }
 }

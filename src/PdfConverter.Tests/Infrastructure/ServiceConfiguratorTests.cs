@@ -2,6 +2,7 @@ using FluentAssertions;
 using PdfConverter.Infrastructure;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
+using PdfConverter.ViewModels.Coordinators;
 using Xunit;
 
 namespace PdfConverter.Tests.Infrastructure
@@ -22,6 +23,25 @@ namespace PdfConverter.Tests.Infrastructure
             provider.GetService(typeof(IPdfConversionService)).Should().NotBeNull();
             provider.GetService(typeof(IDialogService)).Should().NotBeNull();
             provider.GetService(typeof(IClipboardService)).Should().NotBeNull();
+        }
+
+        /// <summary>
+        /// Coordinator が DI コンテナに Transient 登録されることを検証する
+        /// </summary>
+        [Fact]
+        public void Configure_RegistersTransientCoordinators()
+        {
+            var provider = ServiceConfigurator.Configure();
+
+            var previewCoordinator1 = provider.GetService(typeof(IPdfPreviewCoordinator));
+            var previewCoordinator2 = provider.GetService(typeof(IPdfPreviewCoordinator));
+            var saveCoordinator1 = provider.GetService(typeof(IPdfSaveCoordinator));
+            var saveCoordinator2 = provider.GetService(typeof(IPdfSaveCoordinator));
+
+            previewCoordinator1.Should().NotBeNull();
+            saveCoordinator1.Should().NotBeNull();
+            previewCoordinator1.Should().NotBeSameAs(previewCoordinator2);
+            saveCoordinator1.Should().NotBeSameAs(saveCoordinator2);
         }
 
         /// <summary>
@@ -50,6 +70,17 @@ namespace PdfConverter.Tests.Infrastructure
             var service2 = provider.GetService(typeof(IPdfConversionService));
 
             service1.Should().BeSameAs(service2);
+        }
+
+        /// <summary>
+        /// IMainWindowViewModel が解決できることを検証する
+        /// </summary>
+        [Fact]
+        public void Configure_ResolvesIMainWindowViewModel()
+        {
+            var provider = ServiceConfigurator.Configure();
+
+            provider.GetService(typeof(IMainWindowViewModel)).Should().NotBeNull();
         }
     }
 }

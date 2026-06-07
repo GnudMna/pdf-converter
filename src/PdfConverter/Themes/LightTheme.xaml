@@ -3,30 +3,88 @@
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <sys:String x:Key="ThemeMarker">Light</sys:String>
 
-    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFF2F5FB" />
+    <!-- 背景・サーフェス -->
+    <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#FFF4F6FB" />
     <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="CardBorderBrush" Color="#FFE2E8F0" />
-    <SolidColorBrush x:Key="SectionTitleForegroundBrush" Color="#FF1E3A5F" />
-    <SolidColorBrush x:Key="FieldLabelForegroundBrush" Color="#FF334155" />
-    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#FF64748B" />
-    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#FF2563EB" />
+    <SolidColorBrush x:Key="CardBorderBrush" Color="#FFE6EAF2" />
+
+    <!-- テキスト -->
+    <SolidColorBrush x:Key="SectionTitleForegroundBrush" Color="#FF111827" />
+    <SolidColorBrush x:Key="FieldLabelForegroundBrush" Color="#FF374151" />
+    <SolidColorBrush x:Key="MutedForegroundBrush" Color="#FF6B7280" />
+    <SolidColorBrush x:Key="ControlForegroundBrush" Color="#FF374151" />
+
+    <!-- アクセント -->
+    <SolidColorBrush x:Key="AccentBrush" Color="#FF4F46E5" />
+
+    <!-- プライマリボタン -->
+    <SolidColorBrush x:Key="PrimaryButtonBackgroundBrush" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="PrimaryButtonHoverBrush" Color="#FF4338CA" />
+    <SolidColorBrush x:Key="PrimaryButtonPressedBrush" Color="#FF3730A3" />
     <SolidColorBrush x:Key="PrimaryButtonForegroundBrush" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFF1F5F9" />
-    <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#FF1E3A5F" />
-    <SolidColorBrush x:Key="DisabledButtonBackgroundBrush" Color="#FFCBD5E1" />
-    <SolidColorBrush x:Key="DisabledButtonForegroundBrush" Color="#FF94A3B8" />
-    <SolidColorBrush x:Key="CancelButtonBackgroundBrush" Color="#FFE2E8F0" />
-    <SolidColorBrush x:Key="CancelButtonBorderBrush" Color="#FFCBD5E1" />
-    <SolidColorBrush x:Key="CancelButtonForegroundBrush" Color="#FF334155" />
+
+    <!-- セカンダリボタン -->
+    <SolidColorBrush x:Key="SecondaryButtonBackgroundBrush" Color="#FFEEF1F6" />
+    <SolidColorBrush x:Key="SecondaryButtonHoverBrush" Color="#FFE2E7F0" />
+    <SolidColorBrush x:Key="SecondaryButtonPressedBrush" Color="#FFD5DCE8" />
+    <SolidColorBrush x:Key="SecondaryButtonForegroundBrush" Color="#FF1F2937" />
+
+    <!-- 無効ボタン -->
+    <SolidColorBrush x:Key="DisabledButtonBackgroundBrush" Color="#FFE5E7EB" />
+    <SolidColorBrush x:Key="DisabledButtonForegroundBrush" Color="#FF9CA3AF" />
+
+    <!-- キャンセルボタン -->
+    <SolidColorBrush x:Key="CancelButtonBackgroundBrush" Color="#FFFEF2F2" />
+    <SolidColorBrush x:Key="CancelButtonHoverBrush" Color="#FFFDE4E4" />
+    <SolidColorBrush x:Key="CancelButtonPressedBrush" Color="#FFFBD3D3" />
+    <SolidColorBrush x:Key="CancelButtonBorderBrush" Color="#FFFBC9C9" />
+    <SolidColorBrush x:Key="CancelButtonForegroundBrush" Color="#FFB91C1C" />
+
+    <!-- 入力欄 -->
     <SolidColorBrush x:Key="InputBackgroundBrush" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="InputForegroundBrush" Color="#FF1E293B" />
-    <SolidColorBrush x:Key="InputBorderBrush" Color="#FFCBD5E1" />
+    <SolidColorBrush x:Key="InputForegroundBrush" Color="#FF111827" />
+    <SolidColorBrush x:Key="InputBorderBrush" Color="#FFD1D5DB" />
+    <SolidColorBrush x:Key="InputHoverBorderBrush" Color="#FFB3BAC6" />
+    <SolidColorBrush x:Key="InputFocusBorderBrush" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="CheckBoxBorderBrush" Color="#FFB3BAC6" />
+
+    <!-- プレビュー -->
     <SolidColorBrush x:Key="PreviewAreaBackgroundBrush" Color="#FFF8FAFC" />
-    <SolidColorBrush x:Key="PreviewAreaBorderBrush" Color="#FFDDE5ED" />
+    <SolidColorBrush x:Key="PreviewAreaBorderBrush" Color="#FFE2E8F0" />
+
+    <!-- ステータスバー -->
     <SolidColorBrush x:Key="StatusBarBackgroundBrush" Color="#FFFFFFFF" />
-    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FF334155" />
-    <SolidColorBrush x:Key="ControlForegroundBrush" Color="#FF334155" />
-    <SolidColorBrush x:Key="ProgressBarBackgroundBrush" Color="#FFE2E8F0" />
-    <SolidColorBrush x:Key="ProgressBarForegroundBrush" Color="#FF2563EB" />
+    <SolidColorBrush x:Key="StatusBarForegroundBrush" Color="#FF374151" />
+    <SolidColorBrush x:Key="StatusInfoBackgroundBrush" Color="#FFEEF2FF" />
+    <SolidColorBrush x:Key="StatusInfoBorderBrush" Color="#FFC7D2FE" />
+    <SolidColorBrush x:Key="StatusInfoForegroundBrush" Color="#FF4338CA" />
+    <SolidColorBrush x:Key="StatusProgressBackgroundBrush" Color="#FFEEF2FF" />
+    <SolidColorBrush x:Key="StatusProgressBorderBrush" Color="#FFC7D2FE" />
+    <SolidColorBrush x:Key="StatusProgressForegroundBrush" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="StatusSuccessBackgroundBrush" Color="#FFECFDF5" />
+    <SolidColorBrush x:Key="StatusSuccessBorderBrush" Color="#FFA7F3D0" />
+    <SolidColorBrush x:Key="StatusSuccessForegroundBrush" Color="#FF047857" />
+    <SolidColorBrush x:Key="StatusWarningBackgroundBrush" Color="#FFFFFBEB" />
+    <SolidColorBrush x:Key="StatusWarningBorderBrush" Color="#FFFDE68A" />
+    <SolidColorBrush x:Key="StatusWarningForegroundBrush" Color="#FFB45309" />
+    <SolidColorBrush x:Key="StatusErrorBackgroundBrush" Color="#FFFEF2F2" />
+    <SolidColorBrush x:Key="StatusErrorBorderBrush" Color="#FFFECACA" />
+    <SolidColorBrush x:Key="StatusErrorForegroundBrush" Color="#FFB91C1C" />
+    <SolidColorBrush x:Key="ValidationMessageForegroundBrush" Color="#FFB91C1C" />
+
+    <!-- プログレスバー -->
+    <SolidColorBrush x:Key="ProgressBarBackgroundBrush" Color="#FFE5E7EB" />
+    <SolidColorBrush x:Key="ProgressBarForegroundBrush" Color="#FF4F46E5" />
+
+    <!-- コンボボックスポップアップ -->
     <SolidColorBrush x:Key="ComboBoxPopupBackgroundBrush" Color="#FFFFFFFF" />
+
+    <!-- スクロールバー -->
+    <SolidColorBrush x:Key="ScrollBarThumbBrush" Color="#FFCBD2DE" />
+    <SolidColorBrush x:Key="ScrollBarThumbHoverBrush" Color="#FFAEB7C6" />
+
+    <!-- ドラッグ&ドロップ オーバーレイ -->
+    <SolidColorBrush x:Key="DropOverlayBackgroundBrush" Color="#F0EEF0FF" />
+    <SolidColorBrush x:Key="DropOverlayBorderBrush" Color="#FF4F46E5" />
+    <SolidColorBrush x:Key="DropOverlayForegroundBrush" Color="#FF3730A3" />
 </ResourceDictionary>
