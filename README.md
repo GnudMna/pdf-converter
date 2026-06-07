@@ -99,17 +99,20 @@ msbuild src/PdfConverter.slnx /p:Configuration=Release
 
 ## 🧪 テスト
 
-単体テストは [xUnit](https://xunit.net/) で実装されています。
-
-WPF 本体のビルドには MSBuild が必要なため、次の 2 段階で実行します。
+単体テストは [xUnit](https://xunit.net/) で実装されています。テストプロジェクトはアプリ本体と同様に **.NET Framework 4.8.1（非 SDK 形式）** です。
 
 ```powershell
-# 1. ビルド（Visual Studio 付属の MSBuild を使用）
-msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Release /restore
+# 1. NuGet パッケージの復元（未実施の場合）
+nuget restore src/PdfConverter.Tests/PdfConverter.Tests.csproj -PackagesDirectory src/packages
 
-# 2. テスト実行
-dotnet test src/PdfConverter.Tests/PdfConverter.Tests.csproj -c Release --no-build
+# 2. ビルド（Visual Studio 付属の MSBuild を使用）
+msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Release
+
+# 3. テスト実行
+src/packages/xunit.runner.console.2.9.2/tools/net481/xunit.console.exe src/PdfConverter.Tests/bin/Release/PdfConverter.Tests.dll
 ```
+
+Visual Studio のテストエクスプローラーからも実行できます（`xunit.runner.visualstudio` を使用）。
 
 ---
 
