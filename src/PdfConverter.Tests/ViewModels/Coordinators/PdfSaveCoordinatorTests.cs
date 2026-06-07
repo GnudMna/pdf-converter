@@ -65,10 +65,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 不正なページ範囲指定時にエラーダイアログが表示され、保存が実行されないことを検証する
+        /// 不正なページ範囲指定時に検証メッセージが設定され、保存が実行されないことを検証する
         /// </summary>
         [Fact]
-        public async Task SaveAsync_InvalidPageRange_ShowsDialogAndStops()
+        public async Task SaveAsync_InvalidPageRange_SetsValidationAndStops()
         {
             var coordinator = CreateCoordinator(out var pdf, out var dialog);
             string folder = CreateTempDirectory();
@@ -83,7 +83,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            dialog.Verify(d => d.ShowMessage(It.Is<string>(m => m.Contains("不正"))), Times.Once);
+            host.PageRangeValidationMessage.Should().NotBeNullOrWhiteSpace();
+            host.StatusKind.Should().Be(StatusKind.Warning);
             pdf.Verify(p => p.SavePdfPagesToImagesAsync(
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<int>>(),
@@ -168,7 +169,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             await coordinator.SaveAsync(host);
 
             host.StatusMessage.Should().Contain("キャンセル");
-            dialog.Verify(d => d.ShowMessage("画像の保存が完了しました。"), Times.Never);
+            host.StatusKind.Should().NotBe(StatusKind.Success);
             Directory.Delete(folder, recursive: true);
         }
 
@@ -206,7 +207,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             host.ProgressValue.Should().Be(100);
             host.StatusMessage.Should().Contain("完了");
-            dialog.Verify(d => d.ShowMessage("画像の保存が完了しました。"), Times.Once);
+            host.StatusKind.Should().Be(StatusKind.Success);
             Directory.Delete(folder, recursive: true);
         }
 

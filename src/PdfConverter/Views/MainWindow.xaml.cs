@@ -15,9 +15,9 @@ namespace PdfConverter.Views
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// ViewModel を受け取り、DataContext に設定してウィンドウを初期化する
+        /// ViewModelを受け取り、DataContextに設定してウィンドウを初期化する
         /// </summary>
-        /// <param name="viewModel">バインドする ViewModel</param>
+        /// <param name="viewModel">バインドするViewModel</param>
         public MainWindow(MainViewModel viewModel)
         {
             InitializeComponent();
@@ -31,6 +31,8 @@ namespace PdfConverter.Views
         /// <summary>
         /// パス入力欄からフォーカスが外れたときにPDFの読み込みを試行する
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">イベントの引数</param>
         private void FilePathTextBox_LostFocus(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel && !viewModel.IsBusy)
@@ -40,8 +42,10 @@ namespace PdfConverter.Views
         }
 
         /// <summary>
-        /// ドラッグ中のデータに PDF ファイルが含まれるかどうかを判定する
+        /// ドラッグ中のデータにPDFファイルが含まれるかどうかを判定する
         /// </summary>
+        /// <param name="data">ドラッグ中のデータ</param>
+        /// <returns>true: PDFファイルが含まれる / false: PDFファイルが含まれない</returns>
         private static bool ContainsPdf(IDataObject data)
         {
             if (data == null || !data.GetDataPresent(DataFormats.FileDrop))
@@ -57,6 +61,8 @@ namespace PdfConverter.Views
         /// <summary>
         /// ドラッグがウィンドウに入ったときにオーバーレイ表示とドロップ可否を更新する
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">イベントの引数</param>
         private void MainWindow_DragEnter(object sender, DragEventArgs e)
         {
             UpdateDragFeedback(e);
@@ -65,6 +71,8 @@ namespace PdfConverter.Views
         /// <summary>
         /// ドラッグ中の継続的なフィードバック（カーソル効果）を更新する
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">イベントの引数</param>
         private void MainWindow_DragOver(object sender, DragEventArgs e)
         {
             UpdateDragFeedback(e);
@@ -73,6 +81,8 @@ namespace PdfConverter.Views
         /// <summary>
         /// ドラッグがウィンドウから外れたときにオーバーレイを非表示にする
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">イベントの引数</param>
         private void MainWindow_DragLeave(object sender, DragEventArgs e)
         {
             DropOverlay.Visibility = Visibility.Collapsed;
@@ -81,6 +91,7 @@ namespace PdfConverter.Views
         /// <summary>
         /// ドラッグ内容に応じてオーバーレイの表示とドロップ効果を設定する
         /// </summary>
+        /// <param name="e">イベントの引数</param>
         private void UpdateDragFeedback(DragEventArgs e)
         {
             if (DataContext is MainViewModel viewModel && viewModel.IsBusy)
@@ -101,6 +112,8 @@ namespace PdfConverter.Views
         /// ウィンドウへのファイルドロップを処理する<br/>
         /// 複数ファイルがドロップされた場合は先頭の<c>.pdf</c>ファイルのみを<see cref="MainViewModel"/>に渡す
         /// </summary>
+        /// <param name="sender">イベントの送信元</param>
+        /// <param name="e">イベントの引数</param>
         private void MainWindow_Drop(object sender, DragEventArgs e)
         {
             DropOverlay.Visibility = Visibility.Collapsed;

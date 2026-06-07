@@ -23,6 +23,13 @@
         <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
     </Style>
 
+    <Style x:Key="ValidationMessage" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Margin" Value="0,6,0,0" />
+        <Setter Property="TextWrapping" Value="Wrap" />
+        <Setter Property="Foreground" Value="{DynamicResource ValidationMessageForegroundBrush}" />
+    </Style>
+
     <!-- ============================ カード ============================ -->
     <Style x:Key="CardBorder" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}" />

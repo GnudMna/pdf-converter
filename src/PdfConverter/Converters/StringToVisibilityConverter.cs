@@ -6,13 +6,9 @@ using System.Windows.Data;
 namespace PdfConverter.Converters
 {
     /// <summary>
-    /// バインド値が<c>null</c>のとき<see cref="Visibility.Visible"/>、
-    /// 非<c>null</c>のとき<see cref="Visibility.Collapsed"/>を返すWPF Valueコンバーター
+    /// 文字列が空でないとき<see cref="Visibility.Visible"/>を返すWPF Valueコンバーター
     /// </summary>
-    /// <remarks>
-    /// 通常の<c>null</c>チェックとは可視性の論理が逆になっている点に注意
-    /// </remarks>
-    public class NullToVisibilityConverter : IValueConverter
+    public class StringToVisibilityConverter : IValueConverter
     {
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -20,7 +16,7 @@ namespace PdfConverter.Converters
         /// <inheritdoc/>
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            return value == null ? Visibility.Visible : Visibility.Collapsed;
+            return string.IsNullOrWhiteSpace(value as string) ? Visibility.Collapsed : Visibility.Visible;
         }
 
         /// <inheritdoc/>

@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:PdfConverter.Converters"
+        xmlns:models="clr-namespace:PdfConverter.Models"
         mc:Ignorable="d"
         Title="PDF Converter"
         Icon="/Assets/app.ico"
@@ -24,6 +25,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <conv:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
+        <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter" />
         <conv:InverseBooleanConverter x:Key="InverseBooleanConverter" />
     </Window.Resources>
 
@@ -206,6 +208,9 @@
                                             <TextBlock Margin="0,6,0,0"
                                                        Style="{StaticResource HintText}"
                                                        Text="選択したモードに応じて、幅・高さ (px) または DPI を入力してください。" />
+                                            <TextBlock Text="{Binding ResolutionValidationMessage}"
+                                                       Style="{StaticResource ValidationMessage}"
+                                                       Visibility="{Binding ResolutionValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -239,6 +244,9 @@
                                                 <TextBlock Margin="0,6,0,0"
                                                            Style="{StaticResource HintText}"
                                                            Text="例: 1,3-5" />
+                                                <TextBlock Text="{Binding PageRangeValidationMessage}"
+                                                           Style="{StaticResource ValidationMessage}"
+                                                           Visibility="{Binding PageRangeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>
@@ -305,9 +313,15 @@
                                            VerticalAlignment="Center"
                                            Margin="0,0,8,0"
                                            Style="{StaticResource FieldLabel}" />
-                                <TextBox Width="72"
-                                         Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
-                                         IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}" />
+                                <StackPanel>
+                                    <TextBox Width="72"
+                                             Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}" />
+                                    <TextBlock Text="{Binding PageNumberValidationMessage}"
+                                               Style="{StaticResource ValidationMessage}"
+                                               MaxWidth="160"
+                                               Visibility="{Binding PageNumberValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                </StackPanel>
                                 <Button Content="表示"
                                         Width="72"
                                         Padding="0"
@@ -385,14 +399,153 @@
                              Margin="0,0,0,10"
                              Value="{Binding ProgressValue}"
                              IsIndeterminate="{Binding IsProgressIndeterminate}" />
-                <Border Padding="14"
-                        Background="{DynamicResource StatusBarBackgroundBrush}"
+                <Border Padding="14,12"
                         CornerRadius="14"
-                        BorderBrush="{DynamicResource CardBorderBrush}"
                         BorderThickness="1">
-                    <TextBlock Text="{Binding StatusMessage}"
-                               Foreground="{DynamicResource StatusBarForegroundBrush}"
-                               VerticalAlignment="Center" />
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="{DynamicResource StatusInfoBackgroundBrush}" />
+                            <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBorderBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusProgressBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusProgressBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusSuccessBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusSuccessBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusWarningBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusWarningBorderBrush}" />
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                    <Setter Property="Background" Value="{DynamicResource StatusErrorBackgroundBrush}" />
+                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusErrorBorderBrush}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Viewbox Grid.Column="0"
+                                 Width="18"
+                                 Height="18"
+                                 Margin="0,0,12,0"
+                                 VerticalAlignment="Center">
+                            <Grid Width="24" Height="24">
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M12 10 L12 11 M12 14 L12 16"
+                                      Fill="{DynamicResource StatusInfoForegroundBrush}">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M7 12 L11 16 L17 9"
+                                      Stroke="{DynamicResource StatusSuccessForegroundBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      StrokeEndLineCap="Round"
+                                      StrokeLineJoin="Round"
+                                      Fill="Transparent"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 L22 20 L2 20 Z M12 9 L12 14 M12 17 L12 17"
+                                      Fill="{DynamicResource StatusWarningForegroundBrush}"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M8 8 L16 16 M16 8 L8 16"
+                                      Stroke="{DynamicResource StatusErrorForegroundBrush}"
+                                      StrokeThickness="2"
+                                      StrokeStartLineCap="Round"
+                                      Visibility="Collapsed">
+                                    <Path.Style>
+                                        <Style TargetType="Path">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Path.Style>
+                                </Path>
+                                <Ellipse Width="8"
+                                         Height="8"
+                                         Fill="{DynamicResource StatusProgressForegroundBrush}"
+                                         Visibility="Collapsed">
+                                    <Ellipse.Style>
+                                        <Style TargetType="Ellipse">
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Ellipse.Style>
+                                </Ellipse>
+                            </Grid>
+                        </Viewbox>
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StatusMessage}"
+                                   TextWrapping="Wrap"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="{DynamicResource StatusInfoForegroundBrush}" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusProgressForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Success}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusSuccessForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusWarningForegroundBrush}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
+                                            <Setter Property="Foreground" Value="{DynamicResource StatusErrorForegroundBrush}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
                 </Border>
             </StackPanel>
         </Grid>

@@ -18,7 +18,7 @@ namespace PdfConverter.Tests.Helpers
             var viewModel = new MainViewModel(
                 dialog.Object,
                 clipboard.Object,
-                new PdfPreviewCoordinator(pdf.Object, dialog.Object),
+                new PdfPreviewCoordinator(pdf.Object),
                 new PdfSaveCoordinator(pdf.Object, dialog.Object));
             return (viewModel, pdf, dialog, clipboard);
         }

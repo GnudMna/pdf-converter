@@ -14,7 +14,7 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// Docnet.Core(PDFium)を使用して PDFページを画像に変換・保存するサービス
+    /// Docnet.Core(PDFium)を使用してPDFページを画像に変換・保存するサービス
     /// </summary>
     /// <remarks>
     /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
@@ -171,6 +171,12 @@ namespace PdfConverter.Services
         /// <summary>
         /// 保存対象ページ一覧を解決する
         /// </summary>
+        /// <param name="pageIndexes">保存対象のページインデックス一覧</param>
+        /// <param name="saveAllPages"><c>true</c>の場合は全ページを保存する</param>
+        /// <param name="pageCount">PDFのページ数</param>
+        /// <returns>保存対象のページインデックス一覧</returns>
+        /// <exception cref="ArgumentException">有効なページインデックス一覧または"全ページを保存"を選択してください</exception>
+        /// <exception cref="ArgumentOutOfRangeException">範囲外のページインデックスが含まれている場合</exception>
         private static List<int> ResolvePagesToSave(IEnumerable<int> pageIndexes, bool saveAllPages, int pageCount)
         {
             if (saveAllPages)
@@ -228,6 +234,9 @@ namespace PdfConverter.Services
         /// <summary>
         /// ページ一覧を並列ワーカー数に応じて分割する
         /// </summary>
+        /// <param name="pages">0始まりのページインデックス一覧</param>
+        /// <param name="partitionCount">分割するパーティション数</param>
+        /// <returns>分割されたページインデックスのリスト</returns>
         private static IReadOnlyList<IReadOnlyList<int>> PartitionPages(IReadOnlyList<int> pages, int partitionCount)
         {
             var partitions = Enumerable.Range(0, partitionCount)
@@ -243,9 +252,12 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// ファイルパスと最終更新日時をキーにしたメモリキャッシュから読み込む<br/>
-        /// <see cref="MaxCacheableFileSizeBytes"/>を超えるPDFはキャッシュせず、都度ディスクから読み込む
+        /// ファイルパスと最終更新日時をキーにしたメモリキャッシュから読み込む
         /// </summary>
+        /// <param name="filePath">PDFファイルのパス</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>PDFファイルのバイト配列</returns>
+        /// <remarks><see cref="MaxCacheableFileSizeBytes"/>を超えるPDFはキャッシュせず、都度ディスクから読み込む</remarks>
         private async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
         {
             var fileInfo = new FileInfo(filePath);
@@ -300,6 +312,14 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定ページをスケーリング済みビットマップとして描画する
         /// </summary>
+        /// <param name="docReader">DocReader</param>
+        /// <param name="pageIndex">ページインデックス</param>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>スケーリング済みビットマップ</returns>
+        /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
         private static BitmapSource RenderScaledPage(IDocReader docReader, int pageIndex, ResolutionMode mode, double value, bool preserveTransparency, CancellationToken cancellationToken)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
@@ -320,6 +340,8 @@ namespace PdfConverter.Services
         /// <summary>
         /// <see cref="IPageReader"/>のピクセルデータからビットマップを生成する
         /// </summary>
+        /// <param name="pageReader">PageReader</param>
+        /// <returns>ビットマップ</returns>
         private static BitmapSource CreateBitmapFromPageReader(IPageReader pageReader)
         {
             int width = pageReader.GetPageWidth();
@@ -343,6 +365,13 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定ページを画像ファイルとして保存する
         /// </summary>
+        /// <param name="docReader">DocReader</param>
+        /// <param name="pageIndex">ページインデックス</param>
+        /// <param name="folderPath">保存先フォルダーのパス</param>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="format">出力画像形式</param>
+        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value, OutputImageFormat format, bool preserveTransparency)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
@@ -360,6 +389,8 @@ namespace PdfConverter.Services
         /// <summary>
         /// ファイルの先頭4バイトがPDFマジックナンバー(<c>%PDF</c>)であることを検証する
         /// </summary>
+        /// <param name="fileBytes">PDFファイルのバイト配列</param>
+        /// <exception cref="InvalidDataException">PDFファイルではない場合</exception>
         private static void ValidatePdfHeader(byte[] fileBytes)
         {
             if (fileBytes == null || fileBytes.Length < 4)
@@ -377,8 +408,12 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// <see cref="ResolutionMode"/> に基づいて <paramref name="source"/> をスケーリングする
+        /// <see cref="ResolutionMode"/>に基づいて<paramref name="source"/>をスケーリングする
         /// </summary>
+        /// <param name="source">元ビットマップ</param>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <returns>スケーリング済みビットマップ</returns>
         private static BitmapSource ScaleBitmap(BitmapSource source, ResolutionMode mode, double value)
         {
             if (mode == ResolutionMode.Default || value <= 0)

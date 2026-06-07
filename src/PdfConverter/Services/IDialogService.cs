@@ -29,21 +29,14 @@ namespace PdfConverter.Services
         /// <summary>
         /// PDFファイル選択ダイアログを表示する
         /// </summary>
-        /// <returns>選択されたファイルの絶対パス。キャンセル時は <c>null</c></returns>
+        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は<c>null</c></returns>
         string ShowOpenPdfFileDialog();
 
         /// <summary>
         /// フォルダー選択ダイアログを表示する
         /// </summary>
-        /// <returns>選択されたフォルダーの絶対パス。キャンセル時は <c>null</c></returns>
+        /// <returns>選択されたフォルダーの絶対パス<br/>キャンセル時は<c>null</c></returns>
         string ShowFolderBrowserDialog();
-
-        /// <summary>
-        /// 情報メッセージを表示する
-        /// </summary>
-        /// <param name="message">表示するメッセージ</param>
-        /// <param name="title">ダイアログのタイトル</param>
-        void ShowMessage(string message, string title = "PDF Converter");
 
         /// <summary>
         /// はい/いいえの確認ダイアログを表示する
@@ -51,7 +44,14 @@ namespace PdfConverter.Services
         /// <param name="message">表示するメッセージ</param>
         /// <param name="title">ダイアログのタイトル</param>
         /// <param name="icon">表示するアイコン</param>
-        /// <returns>「はい」が選択された場合は <c>true</c></returns>
-        bool ShowYesNo(string message, string title, DialogIcon icon = DialogIcon.None);
+        /// <param name="yesText">肯定ボタンのラベル</param>
+        /// <param name="noText">否定ボタンのラベル</param>
+        /// <returns>true: 肯定ボタンが選択された / false: 否定ボタンが選択された</returns>
+        bool ShowYesNo(
+            string message,
+            string title,
+            DialogIcon icon = DialogIcon.None,
+            string yesText = "はい",
+            string noText = "いいえ");
     }
 }
