@@ -99,7 +99,6 @@
     <Compile Include="Services\WordToPdfConversionTimeouts.cs" />
     <Compile Include="Services\IWordToPdfConversionService.cs" />
     <Compile Include="Services\StaTaskRunner.cs" />
-    <Compile Include="Services\PdfFileHelper.cs" />
     <Compile Include="Services\PdfConversionService.cs" />
     <Compile Include="Services\IPdfConversionService.cs" />
     <Compile Include="Services\IDialogService.cs" />
