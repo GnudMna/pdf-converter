@@ -84,6 +84,7 @@
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
+    <Compile Include="Services\PdfFileHelper.cs" />
     <Compile Include="Services\PdfConversionService.cs" />
     <Compile Include="Services\IPdfConversionService.cs" />
     <Compile Include="Services\IDialogService.cs" />
@@ -106,6 +107,7 @@
     <Compile Include="Models\StatusKind.cs" />
     <Compile Include="ViewModels\ViewModelBase.cs" />
     <Compile Include="ViewModels\IMainViewModelHost.cs" />
+    <Compile Include="ViewModels\IMainWindowViewModel.cs" />
     <Compile Include="ViewModels\Coordinators\CoordinatorHelpers.cs" />
     <Compile Include="ViewModels\Coordinators\IPdfPreviewCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\IPdfSaveCoordinator.cs" />
@@ -122,6 +124,8 @@
     <Compile Include="Views\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Views\Behaviors\FileDropBehavior.cs" />
+    <Compile Include="Views\Behaviors\InvokeCommandBehavior.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs">

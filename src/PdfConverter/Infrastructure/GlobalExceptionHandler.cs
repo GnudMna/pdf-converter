@@ -197,12 +197,12 @@ namespace PdfConverter.Infrastructure
                 MessageBoxImage.Error);
         }
 
-        /// <summary>メイン ViewModel のステータスバーへエラーを表示する</summary>
+        /// <summary>メインウィンドウのViewModelのステータスバーへエラーを表示する</summary>
         /// <param name="message">メッセージ</param>
-        /// <returns>true: 更新できた / false: MainViewModel が取得できなかった</returns>
+        /// <returns>true: 更新できた / false: 更新できなかった</returns>
         private static bool TryUpdateMainViewModelStatus(string message)
         {
-            if (!(Application.Current?.MainWindow?.DataContext is MainViewModel viewModel))
+            if (!(Application.Current?.MainWindow?.DataContext is IMainWindowViewModel viewModel))
             {
                 return false;
             }
