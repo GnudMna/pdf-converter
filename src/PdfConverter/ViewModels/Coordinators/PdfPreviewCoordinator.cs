@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 using PdfConverter.Models;
 using PdfConverter.Services;
 
@@ -224,9 +225,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="completedTask">完了したプレビュータスク</param>
         private static void ObservePreviewTaskFault(Task completedTask)
         {
-            if (completedTask.IsFaulted)
+            if (completedTask.IsFaulted && completedTask.Exception != null)
             {
-                _ = completedTask.Exception;
+                GlobalExceptionHandler.Report(completedTask.Exception, "PreviewTask");
             }
         }
 
