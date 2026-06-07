@@ -108,6 +108,41 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+        /// <summary>
+        /// Dispose 時にキャッシュ済みの一時 PDF が削除されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task Dispose_RemovesCachedTemporaryPdf()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string pdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+
+            wordToPdf
+                .Setup(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(pdfPath);
+
+            try
+            {
+                await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+                File.Exists(pdfPath).Should().BeTrue();
+
+                service.Dispose();
+
+                File.Exists(pdfPath).Should().BeFalse();
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                if (File.Exists(pdfPath))
+                {
+                    File.Delete(pdfPath);
+                }
+            }
+        }
+
         private static string CreateTempPdfPath()
         {
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.pdf");
