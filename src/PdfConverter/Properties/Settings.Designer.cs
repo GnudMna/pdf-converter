@@ -41,5 +41,35 @@ namespace PdfConverter.Properties
                 this["ThemeMode"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("MicrosoftWord")]
+        public string WordToPdfBackend
+        {
+            get
+            {
+                return ((string)(this["WordToPdfBackend"]));
+            }
+            set
+            {
+                this["WordToPdfBackend"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LibreOfficePath
+        {
+            get
+            {
+                return ((string)(this["LibreOfficePath"]));
+            }
+            set
+            {
+                this["LibreOfficePath"] = value;
+            }
+        }
     }
 }

@@ -15,6 +15,7 @@
     <WarningLevel>4</WarningLevel>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
+    <LangVersion>latest</LangVersion>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
   </PropertyGroup>
@@ -84,6 +85,18 @@
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
+    <Compile Include="Services\DocumentFileHelper.cs" />
+    <Compile Include="Services\DocumentPdfSourceService.cs" />
+    <Compile Include="Services\IDocumentPdfSourceService.cs" />
+    <Compile Include="Services\IWordToPdfConversionSettings.cs" />
+    <Compile Include="Services\LibreOfficePathHelper.cs" />
+    <Compile Include="Services\LibreOfficeToPdfConversionService.cs" />
+    <Compile Include="Services\MicrosoftWordToPdfConversionService.cs" />
+    <Compile Include="Services\SelectableWordToPdfConversionService.cs" />
+    <Compile Include="Services\WordToPdfBackendParser.cs" />
+    <Compile Include="Services\WordToPdfConversionSettings.cs" />
+    <Compile Include="Services\IWordToPdfConversionService.cs" />
+    <Compile Include="Services\StaTaskRunner.cs" />
     <Compile Include="Services\PdfFileHelper.cs" />
     <Compile Include="Services\PdfConversionService.cs" />
     <Compile Include="Services\IPdfConversionService.cs" />
@@ -94,6 +107,8 @@
     <Compile Include="Commands\IRelayCommand.cs" />
     <Compile Include="Commands\AsyncRelayCommand.cs" />
     <Compile Include="Commands\RelayCommand.cs" />
+    <Compile Include="Models\WordToPdfBackend.cs" />
+    <Compile Include="Models\WordToPdfBackendOption.cs" />
     <Compile Include="Models\OutputImageFormat.cs" />
     <Compile Include="Models\OutputImageFormatOption.cs" />
     <Compile Include="Models\ResolutionMode.cs" />
@@ -175,12 +190,19 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\DropOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
     <Compile Include="Views\ConfirmDialog.xaml.cs">
       <DependentUpon>ConfirmDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\DropOverlay.xaml.cs">
+      <DependentUpon>DropOverlay.xaml</DependentUpon>
     </Compile>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

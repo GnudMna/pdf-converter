@@ -125,6 +125,7 @@ namespace PdfConverter.Services
             List<int> pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
             int total = pagesToSave.Count;
             int completedCount = 0;
+            object progressLock = new object();
 
             // ワーカーごとに1つのDocReaderを再利用し、ページごとの生成コストを削減する
             // 大容量PDFではDocReaderごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
@@ -151,7 +152,11 @@ namespace PdfConverter.Services
 
                             SavePageToFile(docReader, pageIndex, folderPath, mode, value, format, preserveTransparency);
                             int completed = Interlocked.Increment(ref completedCount);
-                            progress?.Report(new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ"));
+                            var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
+                            lock (progressLock)
+                            {
+                                progress?.Report(report);
+                            }
                         }
                     }
                 }));
@@ -161,6 +166,11 @@ namespace PdfConverter.Services
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
+            }
+
+            if (progress != null && completedCount == total)
+            {
+                progress.Report(new SaveProgressReport(100.0, $"保存中... {total}/{total} ページ"));
             }
         }
 

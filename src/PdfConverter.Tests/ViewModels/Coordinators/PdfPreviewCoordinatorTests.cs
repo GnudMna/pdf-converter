@@ -51,10 +51,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// .pdf 以外の拡張子を指定した場合にエラーメッセージが設定されることを検証する
+        /// サポート対象外の拡張子を指定した場合にエラーメッセージが設定されることを検証する
         /// </summary>
         [Fact]
-        public void LoadFromPath_NonPdfExtension_SetsErrorStatus()
+        public void LoadFromPath_UnsupportedExtension_SetsErrorStatus()
         {
             var coordinator = CreateCoordinator(out _);
             string path = Path.GetTempFileName();
@@ -64,7 +64,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 coordinator.LoadFromPath(host);
 
-                host.StatusMessage.Should().Contain(".pdf");
+                host.StatusMessage.Should().Contain("Word");
             }
             finally
             {
@@ -327,7 +327,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf)
         {
             pdf = new Mock<IPdfConversionService>();
-            return new PdfPreviewCoordinator(pdf.Object);
+            var documentPdfSource = DocumentPdfSourceTestHelper.CreatePassthrough();
+            return new PdfPreviewCoordinator(pdf.Object, documentPdfSource.Object);
         }
 
         private static string CreateTempPdfPath()
