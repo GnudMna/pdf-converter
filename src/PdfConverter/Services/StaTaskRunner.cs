@@ -18,14 +18,30 @@ namespace PdfConverter.Services
         /// <typeparam name="T">戻り値の型</typeparam>
         /// <param name="func">実行する処理</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <param name="cancelCleanup">キャンセル時に呼び出すクリーンアップ処理</param>
         /// <returns>処理結果</returns>
-        public static Task<T> RunAsync<T>(Func<CancellationToken, T> func, CancellationToken cancellationToken = default)
+        public static Task<T> RunAsync<T>(
+            Func<CancellationToken, T> func,
+            CancellationToken cancellationToken = default,
+            Action cancelCleanup = null)
         {
             var tcs = new TaskCompletionSource<T>();
+            CancellationTokenRegistration? registration = null;
 
             if (cancellationToken.CanBeCanceled)
             {
-                cancellationToken.Register(() => tcs.TrySetCanceled(cancellationToken));
+                registration = cancellationToken.Register(() =>
+                {
+                    try
+                    {
+                        cancelCleanup?.Invoke();
+                    }
+                    catch
+                    {
+                    }
+
+                    tcs.TrySetCanceled(cancellationToken);
+                });
             }
 
             var thread = new Thread(() =>
@@ -40,13 +56,17 @@ namespace PdfConverter.Services
 
                     tcs.TrySetResult(func(cancellationToken));
                 }
-                catch (OperationCanceledException ex)
+                catch (OperationCanceledException)
                 {
-                    tcs.TrySetException(ex);
+                    tcs.TrySetCanceled(cancellationToken);
                 }
                 catch (Exception ex)
                 {
                     tcs.TrySetException(ex);
+                }
+                finally
+                {
+                    registration?.Dispose();
                 }
             })
             {

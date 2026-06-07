@@ -108,8 +108,10 @@
     <Compile Include="Services\DocumentFileHelperTests.cs" />
     <Compile Include="Services\DocumentPdfSourceServiceTests.cs" />
     <Compile Include="Services\LibreOfficePathHelperTests.cs" />
+    <Compile Include="Services\ProcessWaitHelperTests.cs" />
     <Compile Include="Services\PdfFileHelperTests.cs" />
     <Compile Include="Services\SelectableWordToPdfConversionServiceTests.cs" />
+    <Compile Include="Services\StaTaskRunnerTests.cs" />
     <Compile Include="Services\WordToPdfBackendParserTests.cs" />
     <Compile Include="Services\ResolutionValueParserTests.cs" />
     <Compile Include="Themes\ThemeManagerTests.cs" />
