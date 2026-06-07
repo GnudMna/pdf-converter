@@ -9,7 +9,7 @@ namespace PdfConverter.Services
     /// <summary>
     /// 入力ドキュメントからPDFレンダリング用のパスを提供するサービス
     /// </summary>
-    public class DocumentPdfSourceService : IDocumentPdfSourceService
+    public class DocumentPdfSourceService : IDocumentPdfSourceService, IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -31,6 +31,12 @@ namespace PdfConverter.Services
         /// <summary>キャッシュ操作の排他制御用オブジェクト</summary>
         private readonly object _cacheLock = new object();
 
+        /// <summary>設定変更時にキャッシュを破棄するハンドラー</summary>
+        private readonly EventHandler _settingsChangedHandler;
+
+        /// <summary>破棄済みかどうか</summary>
+        private bool _disposed;
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -46,7 +52,8 @@ namespace PdfConverter.Services
         {
             _wordToPdfService = wordToPdfService;
             _settings = settings;
-            _settings.SettingsChanged += (_, __) => InvalidateAll();
+            _settingsChangedHandler = (_, __) => InvalidateAll();
+            _settings.SettingsChanged += _settingsChangedHandler;
         }
 
 
@@ -135,6 +142,19 @@ namespace PdfConverter.Services
                 _temporaryPdfPaths.Clear();
                 _pdfPathBySourcePath.Clear();
             }
+        }
+
+        /// <inheritdoc/>
+        public void Dispose()
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _settings.SettingsChanged -= _settingsChangedHandler;
+            InvalidateAll();
         }
 
 
