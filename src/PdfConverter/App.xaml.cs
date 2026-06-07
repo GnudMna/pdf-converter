@@ -35,6 +35,8 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnStartup(StartupEventArgs e)
         {
+            GlobalExceptionHandler.Register();
+
             var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
                          ?? AppDomain.CurrentDomain.BaseDirectory;
             SetDllDirectory(Path.Combine(exeDir, "lib"));
@@ -51,6 +53,7 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnExit(ExitEventArgs e)
         {
+            GlobalExceptionHandler.Unregister();
             ThemeManager.Shutdown();
 
             if (_serviceProvider is IDisposable disposable)

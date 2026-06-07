@@ -80,6 +80,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Infrastructure\GlobalExceptionHandler.cs" />
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
