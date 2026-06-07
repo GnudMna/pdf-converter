@@ -91,10 +91,12 @@
     <Compile Include="Services\IWordToPdfConversionSettings.cs" />
     <Compile Include="Services\LibreOfficePathHelper.cs" />
     <Compile Include="Services\LibreOfficeToPdfConversionService.cs" />
+    <Compile Include="Services\ProcessWaitHelper.cs" />
     <Compile Include="Services\MicrosoftWordToPdfConversionService.cs" />
     <Compile Include="Services\SelectableWordToPdfConversionService.cs" />
     <Compile Include="Services\WordToPdfBackendParser.cs" />
     <Compile Include="Services\WordToPdfConversionSettings.cs" />
+    <Compile Include="Services\WordToPdfConversionTimeouts.cs" />
     <Compile Include="Services\IWordToPdfConversionService.cs" />
     <Compile Include="Services\StaTaskRunner.cs" />
     <Compile Include="Services\PdfFileHelper.cs" />

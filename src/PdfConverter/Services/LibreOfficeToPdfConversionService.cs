@@ -82,47 +82,56 @@ namespace PdfConverter.Services
             string outputDirectory = Path.Combine(Path.GetTempPath(), "PdfConverter", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(outputDirectory);
 
-            string arguments = BuildArguments(outputDirectory, wordFilePath);
-            var startInfo = new ProcessStartInfo
+            try
             {
-                FileName = sofficePath,
-                Arguments = arguments,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            };
-
-            using (var process = new Process { StartInfo = startInfo })
-            {
-                process.Start();
-                WaitForExit(process, cancellationToken);
-
-                if (process.ExitCode != 0)
+                string arguments = BuildArguments(outputDirectory, wordFilePath);
+                var startInfo = new ProcessStartInfo
                 {
-                    string error = ReadAvailableStream(process.StandardError);
-                    throw new InvalidOperationException(
-                        $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{error}");
+                    FileName = sofficePath,
+                    Arguments = arguments,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+
+                using (var process = new Process { StartInfo = startInfo })
+                {
+                    process.Start();
+                    ProcessWaitHelper.WaitForExit(
+                        process,
+                        WordToPdfConversionTimeouts.Conversion,
+                        cancellationToken,
+                        "LibreOffice による PDF 変換がタイムアウトしました。");
+
+                    if (process.ExitCode != 0)
+                    {
+                        string error = ReadAvailableStream(process.StandardError);
+                        throw new InvalidOperationException(
+                            $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{error}");
+                    }
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string generatedPdfPath = Path.Combine(
+                    outputDirectory,
+                    Path.GetFileNameWithoutExtension(wordFilePath) + ".pdf");
+
+                if (!File.Exists(generatedPdfPath))
+                {
+                    throw new InvalidOperationException("LibreOffice から PDF への変換結果ファイルを取得できませんでした。");
+                }
+
+                string finalPdfPath = Path.Combine(Path.GetTempPath(), "PdfConverter", $"{Guid.NewGuid():N}.pdf");
+                Directory.CreateDirectory(Path.GetDirectoryName(finalPdfPath));
+                File.Move(generatedPdfPath, finalPdfPath);
+                return finalPdfPath;
             }
-
-            cancellationToken.ThrowIfCancellationRequested();
-
-            string generatedPdfPath = Path.Combine(
-                outputDirectory,
-                Path.GetFileNameWithoutExtension(wordFilePath) + ".pdf");
-
-            if (!File.Exists(generatedPdfPath))
+            finally
             {
                 TryDeleteDirectory(outputDirectory);
-                throw new InvalidOperationException("LibreOffice から PDF への変換結果ファイルを取得できませんでした。");
             }
-
-            string finalPdfPath = Path.Combine(Path.GetTempPath(), "PdfConverter", $"{Guid.NewGuid():N}.pdf");
-            Directory.CreateDirectory(Path.GetDirectoryName(finalPdfPath));
-            File.Move(generatedPdfPath, finalPdfPath);
-            TryDeleteDirectory(outputDirectory);
-            return finalPdfPath;
         }
 
         /// <summary>
@@ -147,33 +156,6 @@ namespace PdfConverter.Services
         private static string QuoteArgument(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
-        }
-
-        /// <summary>
-        /// プロセス終了を待機する
-        /// </summary>
-        /// <param name="process">対象プロセス</param>
-        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        private static void WaitForExit(Process process, CancellationToken cancellationToken)
-        {
-            using (cancellationToken.Register(() =>
-            {
-                try
-                {
-                    if (!process.HasExited)
-                    {
-                        process.Kill();
-                    }
-                }
-                catch
-                {
-                }
-            }))
-            {
-                process.WaitForExit();
-            }
-
-            cancellationToken.ThrowIfCancellationRequested();
         }
 
         /// <summary>
