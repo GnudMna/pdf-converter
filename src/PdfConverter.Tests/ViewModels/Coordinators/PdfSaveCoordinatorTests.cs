@@ -275,7 +275,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             File.ReadAllText(destinationPdf).Should().Be("pdf-content");
             host.StatusKind.Should().Be(StatusKind.Success);
-            host.StatusMessage.Should().Contain("PDFを保存しました");
+            host.StatusMessage.Should().Contain("PDF を保存しました");
             host.IsBusy.Should().BeFalse();
             Directory.Delete(tempDir, recursive: true);
         }

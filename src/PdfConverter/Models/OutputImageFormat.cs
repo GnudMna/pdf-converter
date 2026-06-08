@@ -5,13 +5,13 @@ namespace PdfConverter.Models
     /// </summary>
     public enum OutputImageFormat
     {
-        /// <summary>PNG形式(透明度をサポート)</summary>
+        /// <summary>PNG 形式 (透明度をサポート)</summary>
         Png,
 
-        /// <summary>JPEG形式(透明度非対応)</summary>
+        /// <summary>JPEG 形式 (透明度非対応)</summary>
         Jpeg,
 
-        /// <summary>BMP形式</summary>
+        /// <summary>BMP 形式</summary>
         Bmp,
     }
 }

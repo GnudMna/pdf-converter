@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// WordファイルをPDFに変換するサービスのコントラクト
+    /// Word ファイルを PDF に変換するサービスのコントラクト
     /// </summary>
     public interface IWordToPdfConversionService
     {
@@ -12,11 +12,11 @@ namespace PdfConverter.Services
         /*                                 抽象メソッド                                 */
         /********************************************************************************/
         /// <summary>
-        /// Wordファイルを一時PDFファイルへ変換する
+        /// Word ファイルを一時 PDF ファイルへ変換する
         /// </summary>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        /// <returns>生成されたPDFファイルの絶対パス</returns>
+        /// <returns>生成された PDF ファイルの絶対パス</returns>
         Task<string> ConvertToPdfAsync(string wordFilePath, CancellationToken cancellationToken = default);
     }
 }

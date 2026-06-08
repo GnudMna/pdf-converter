@@ -4,7 +4,7 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// <see cref="WordToPdfBackend"/>の文字列変換
+    /// <see cref="WordToPdfBackend"/> の文字列変換
     /// </summary>
     public static class WordToPdfBackendParser
     {
@@ -12,7 +12,7 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 文字列を<see cref="WordToPdfBackend"/>に変換する
+        /// 文字列を <see cref="WordToPdfBackend"/> に変換する
         /// </summary>
         /// <param name="value">設定文字列</param>
         /// <returns>変換エンジン</returns>

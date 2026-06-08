@@ -8,7 +8,7 @@ using PdfConverter.ViewModels;
 namespace PdfConverter.Views.Behaviors
 {
     /// <summary>
-    /// ウィンドウへのPDFファイルのドラッグ&amp;ドロップを<see cref="IMainWindowViewModel"/>に委譲する
+    /// ウィンドウへの PDF ファイルのドラッグ&amp;ドロップを <see cref="IMainWindowViewModel"/> に委譲する
     /// </summary>
     public static class FileDropBehavior
     {
@@ -150,9 +150,9 @@ namespace PdfConverter.Views.Behaviors
             e.Handled = true;
         }
 
-        /// <summary>ViewModelを取得する</summary>
+        /// <summary>ViewModel を取得する</summary>
         /// <param name="sender">イベントの送信元</param>
-        /// <param name="viewModel">取得したViewModel</param>
+        /// <param name="viewModel">取得した ViewModel</param>
         /// <returns>true: 取得できた / false: 取得できなかった</returns>
         private static bool TryGetViewModel(object sender, out IMainWindowViewModel viewModel)
         {

@@ -5,7 +5,7 @@ using PdfConverter.Services;
 namespace PdfConverter.Tests.Helpers
 {
     /// <summary>
-    /// <see cref="IWordToPdfConversionSettings"/>のテスト用モック生成ヘルパー
+    /// <see cref="IWordToPdfConversionSettings"/> のテスト用モック生成ヘルパー
     /// </summary>
     internal static class WordToPdfConversionSettingsTestHelper
     {

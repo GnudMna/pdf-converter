@@ -1,7 +1,7 @@
 namespace PdfConverter.Models
 {
     /// <summary>
-    /// テーマ選択ComboBox用の表示項目
+    /// テーマ選択 ComboBox 用の表示項目
     /// </summary>
     public sealed class ThemeModeOption
     {
@@ -11,7 +11,7 @@ namespace PdfConverter.Models
         /// <summary>テーマ種別</summary>
         public ThemeMode Mode { get; }
 
-        /// <summary>UI表示名</summary>
+        /// <summary>UI 表示名</summary>
         public string DisplayName { get; }
 
 

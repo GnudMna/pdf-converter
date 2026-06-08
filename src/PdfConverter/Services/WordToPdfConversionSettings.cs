@@ -5,7 +5,7 @@ using PdfConverter.Properties;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// ユーザー設定に永続化するWord → PDF変換エンジン設定
+    /// ユーザー設定に永続化する Word → PDF 変換エンジン設定
     /// </summary>
     public sealed class WordToPdfConversionSettings : IWordToPdfConversionSettings
     {

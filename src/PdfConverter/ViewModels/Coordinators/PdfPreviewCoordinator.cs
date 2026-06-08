@@ -9,17 +9,17 @@ using PdfConverter.Services;
 namespace PdfConverter.ViewModels.Coordinators
 {
     /// <summary>
-    /// PDF読み込み・プレビュー生成・ページナビゲーションを担当する
+    /// PDF 読み込み・プレビュー生成・ページナビゲーションを担当する
     /// </summary>
     internal sealed class PdfPreviewCoordinator : IPdfPreviewCoordinator
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>PDF変換サービス</summary>
+        /// <summary>PDF 変換サービス</summary>
         private readonly IPdfConversionService _pdfService;
 
-        /// <summary>入力ドキュメントからPDFソースを提供するサービス</summary>
+        /// <summary>入力ドキュメントから PDF ソースを提供するサービス</summary>
         private readonly IDocumentPdfSourceService _documentPdfSourceService;
 
         /// <summary>プレビュータスクの排他制御用オブジェクト</summary>
@@ -36,10 +36,10 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 指定したサービスを使用してPDF読み込み・プレビュー生成・ページナビゲーションを担当する
+        /// 指定したサービスを使用して PDF 読み込み・プレビュー生成・ページナビゲーションを担当する
         /// </summary>
-        /// <param name="pdfService">PDF変換サービス</param>
-        /// <param name="documentPdfSourceService">入力ドキュメントからPDFソースを提供するサービス</param>
+        /// <param name="pdfService">PDF 変換サービス</param>
+        /// <param name="documentPdfSourceService">入力ドキュメントから PDF ソースを提供するサービス</param>
         public PdfPreviewCoordinator(
             IPdfConversionService pdfService,
             IDocumentPdfSourceService documentPdfSourceService)
@@ -53,7 +53,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="IMainViewModelHost.FilePath"/>のPDFを検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="IMainViewModelHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
@@ -102,7 +102,7 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDFが読み込み済みのとき、現在の解像度設定でプレビューを再生成する
+        /// PDF が読み込み済みのとき、現在の解像度設定でプレビューを再生成する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
@@ -118,9 +118,9 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 読み込み済みPDFのプレビュー再生成をスケジュールする
+        /// 読み込み済み PDF のプレビュー再生成をスケジュールする
         /// </summary>
-        /// <remarks>プロパティセッターなどUIスレッドから呼び出す用途向け</remarks>
+        /// <remarks>プロパティセッターなど UI スレッドから呼び出す用途向け</remarks>
         /// <param name="host">メインビューモデル</param>
         public void RequestRefreshIfLoaded(IMainViewModelHost host)
         {
@@ -136,7 +136,7 @@ namespace PdfConverter.ViewModels.Coordinators
         {
             if (host.PageCount <= 0)
             {
-                host.SetStatus("ページ数が不明です。PDFを読み込んでください。", StatusKind.Warning);
+                host.SetStatus("ページ数が不明です。PDF を読み込んでください。", StatusKind.Warning);
                 return;
             }
 
@@ -245,7 +245,7 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDFのページ数を取得し、プレビューを生成する
+        /// PDF のページ数を取得し、プレビューを生成する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="operationGeneration">操作世代番号</param>
@@ -296,7 +296,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageCount = 0;
                     host.PreviewImage = null;
                     host.LoadedFilePath = null;
-                    host.SetStatus($"PDFの読み込みに失敗しました: {ex.Message}", StatusKind.Error);
+                    host.SetStatus($"PDF の読み込みに失敗しました: {ex.Message}", StatusKind.Error);
                     return;
                 }
 
@@ -323,7 +323,7 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDFのページを画像に変換し、プレビューを更新する
+        /// PDF のページを画像に変換し、プレビューを更新する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="operationGeneration">操作世代番号</param>
@@ -431,13 +431,13 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 入力ドキュメントからPDFレンダリング用のパスを取得する
+        /// 入力ドキュメントから PDF レンダリング用のパスを取得する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="sourcePath">入力ファイルの絶対パス</param>
         /// <param name="operationGeneration">操作世代番号</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        /// <returns>PDFレンダリング用の絶対パス。失敗時は <c>null</c></returns>
+        /// <returns>PDF レンダリング用の絶対パス。失敗時は <c>null</c></returns>
         private async Task<string> ResolvePdfPathAsync(
             IMainViewModelHost host,
             string sourcePath,
@@ -447,7 +447,7 @@ namespace PdfConverter.ViewModels.Coordinators
             bool isWordDocument = DocumentFileHelper.IsWordFile(sourcePath);
             if (isWordDocument)
             {
-                host.SetStatus("WordをPDFに変換中...", StatusKind.Progress);
+                host.SetStatus("Word を PDF に変換中...", StatusKind.Progress);
             }
 
             try
@@ -478,8 +478,8 @@ namespace PdfConverter.ViewModels.Coordinators
                 host.LoadedFilePath = null;
                 host.SetStatus(
                     isWordDocument
-                        ? $"WordをPDFに変換に失敗しました: {ex.Message}"
-                        : $"PDFの読み込みに失敗しました: {ex.Message}",
+                        ? $"Word を PDF に変換に失敗しました: {ex.Message}"
+                        : $"PDF の読み込みに失敗しました: {ex.Message}",
                     StatusKind.Error);
                 return null;
             }

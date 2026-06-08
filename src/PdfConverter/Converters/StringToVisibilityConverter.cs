@@ -6,7 +6,7 @@ using System.Windows.Data;
 namespace PdfConverter.Converters
 {
     /// <summary>
-    /// 文字列が空でないとき<see cref="Visibility.Visible"/>を返すWPF Valueコンバーター
+    /// 文字列が空でないとき <see cref="Visibility.Visible"/> を返す WPF Value コンバーター
     /// </summary>
     public class StringToVisibilityConverter : IValueConverter
     {

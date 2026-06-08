@@ -6,7 +6,7 @@ using PdfConverter.Views;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// WPF標準ダイアログを使用する<see cref="IDialogService"/>の実装
+    /// WPF 標準ダイアログを使用する <see cref="IDialogService"/> の実装
     /// </summary>
     public class WpfDialogService : IDialogService
     {
@@ -36,7 +36,7 @@ namespace PdfConverter.Services
         {
             var dialog = new SaveFileDialog
             {
-                Filter = "PDFファイル (*.pdf)|*.pdf",
+                Filter = "PDF ファイル (*.pdf)|*.pdf",
                 FileName = suggestedFileName,
                 DefaultExt = ".pdf",
             };

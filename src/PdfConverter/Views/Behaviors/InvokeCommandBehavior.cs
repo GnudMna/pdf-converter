@@ -5,7 +5,7 @@ using System.Windows.Input;
 namespace PdfConverter.Views.Behaviors
 {
     /// <summary>
-    /// 指定した<see cref="ICommand"/>をUIイベントで実行するAttached Behavior
+    /// 指定した <see cref="ICommand"/> を UI イベントで実行する Attached Behavior
     /// </summary>
     public static class InvokeCommandBehavior
     {

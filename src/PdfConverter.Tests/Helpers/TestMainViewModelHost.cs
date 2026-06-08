@@ -64,7 +64,7 @@ namespace PdfConverter.Tests.Helpers
 
         public CancellationToken GetCancellationToken() => _cancellationTokenSource.Token;
 
-        /// <summary>進行中の操作をキャンセルする(テスト用)</summary>
+        /// <summary>進行中の操作をキャンセルする (テスト用)</summary>
         public void Cancel() => _cancellationTokenSource?.Cancel();
 
         public void DisposeCancellation()

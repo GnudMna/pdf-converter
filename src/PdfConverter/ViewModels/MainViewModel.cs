@@ -13,7 +13,7 @@ namespace PdfConverter.ViewModels
 {
     /// <summary>
     /// メインウィンドウの ViewModel<br/>
-    /// UI バインディングとコマンドを公開し、処理はCoordinatorに委譲する
+    /// UI バインディングとコマンドを公開し、処理は Coordinator に委譲する
     /// </summary>
     public class MainViewModel : ViewModelBase, IMainViewModelHost, IMainWindowViewModel
     {
@@ -27,9 +27,9 @@ namespace PdfConverter.ViewModels
         private readonly IClipboardService _clipboardService;
 
         /* --------------------------- コーディネーター関連 --------------------------- */
-        /// <summary>PDFプレビューコーディネーター</summary>
+        /// <summary>PDF プレビュー コーディネーター</summary>
         private readonly IPdfPreviewCoordinator _previewCoordinator;
-        /// <summary>PDF保存コーディネーター</summary>
+        /// <summary>PDF 保存 コーディネーター</summary>
         private readonly IPdfSaveCoordinator _saveCoordinator;
 
         /* ------------------------------- 状態管理関連 ------------------------------- */
@@ -53,17 +53,17 @@ namespace PdfConverter.ViewModels
             };
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
-        /// <summary>読み込むPDFのパス</summary>
+        /// <summary>読み込む PDF のパス</summary>
         private string _filePath;
-        /// <summary>読み込んだPDFのパス</summary>
+        /// <summary>読み込んだ PDF のパス</summary>
         private string _loadedFilePath;
-        /// <summary>Word → PDF変換設定</summary>
+        /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _wordToPdfSettings;
-        /// <summary>Word → PDF変換エンジン</summary>
+        /// <summary>Word → PDF 変換エンジン</summary>
         private WordToPdfBackend _wordToPdfBackend;
-        /// <summary>LibreOfficeの<c>soffice.exe</c>のパス</summary>
+        /// <summary>LibreOffice の <c>soffice.exe</c> のパス</summary>
         private string _libreOfficePath;
-        /// <summary>Word設定セクションを展開するかどうか</summary>
+        /// <summary>Word 設定セクションを展開するかどうか</summary>
         private bool _isWordSettingsExpanded;
         /// <summary>Word → PDF 変換時の PDF 形式</summary>
         private WordToPdfPdfFormat _wordToPdfPdfFormat;
@@ -73,7 +73,7 @@ namespace PdfConverter.ViewModels
         private bool _wordToPdfExportBookmarks;
         /// <summary>Word → PDF 変換時にコメントを出力するかどうか</summary>
         private bool _wordToPdfExportComments;
-        /// <summary>Word → PDF変換エンジンの選択肢</summary>
+        /// <summary>Word → PDF 変換エンジンの選択肢</summary>
         private static readonly IReadOnlyList<WordToPdfBackendOption> WordToPdfBackendOptionsList =
             new List<WordToPdfBackendOption>
             {
@@ -128,7 +128,7 @@ namespace PdfConverter.ViewModels
         /* ---------------------------- プレビュー表示関連 ---------------------------- */
         /// <summary>プレビュー画像</summary>
         private BitmapSource _previewImage;
-        /// <summary>PDFのページ数</summary>
+        /// <summary>PDF のページ数</summary>
         private int _pageCount;
         /// <summary>現在表示中のページ番号</summary>
         private string _pageNumber = "1";
@@ -194,7 +194,7 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>Wordから変換したPDFの保存ボタンを表示するかどうか</summary>
+        /// <summary>Word から変換した PDF の保存ボタンを表示するかどうか</summary>
         public bool IsSavePdfVisible =>
             !string.IsNullOrEmpty(FilePath)
             && DocumentFileHelper.IsWordFile(FilePath)
@@ -220,7 +220,7 @@ namespace PdfConverter.ViewModels
         public IReadOnlyList<ThemeModeOption> ThemeModeOptions => ThemeModeOptionsList;
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
-        /// <summary>読み込むPDFのパス</summary>
+        /// <summary>読み込む PDF のパス</summary>
         public string FilePath
         {
             get => _filePath;
@@ -237,14 +237,14 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>読み込んだPDFのパス</summary>
+        /// <summary>読み込んだ PDF のパス</summary>
         string IMainViewModelHost.LoadedFilePath
         {
             get => _loadedFilePath;
             set => _loadedFilePath = value;
         }
 
-        /// <summary>Word → PDF変換エンジン</summary>
+        /// <summary>Word → PDF 変換エンジン</summary>
         public WordToPdfBackend WordToPdfBackend
         {
             get => _wordToPdfBackend;
@@ -265,10 +265,10 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>Word → PDF変換エンジンの選択肢</summary>
+        /// <summary>Word → PDF 変換エンジンの選択肢</summary>
         public IReadOnlyList<WordToPdfBackendOption> WordToPdfBackendOptions => WordToPdfBackendOptionsList;
 
-        /// <summary>LibreOfficeの<c>soffice.exe</c>のパス</summary>
+        /// <summary>LibreOffice の <c>soffice.exe</c> のパス</summary>
         public string LibreOfficePath
         {
             get => _libreOfficePath;
@@ -292,10 +292,10 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>LibreOfficeの<c>soffice.exe</c>のパス入力欄を表示するかどうか</summary>
+        /// <summary>LibreOffice の <c>soffice.exe</c> のパス入力欄を表示するかどうか</summary>
         public bool IsLibreOfficePathVisible => WordToPdfBackend == WordToPdfBackend.LibreOffice;
 
-        /// <summary>Wordの設定セクションを展開するかどうか</summary>
+        /// <summary>Word の設定セクションを展開するかどうか</summary>
         public bool IsWordSettingsExpanded
         {
             get => _isWordSettingsExpanded;
@@ -502,7 +502,7 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>PDFのページ数</summary>
+        /// <summary>PDF のページ数</summary>
         public int PageCount
         {
             get => _pageCount;
@@ -547,8 +547,8 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>
-        /// 進捗を不確定（マーキー）表示にするかどうか<br/>
-        /// 保存以外の処理（プレビュー生成・読み込み・ページ移動）中は具体的な進捗値を持たないため不確定表示にする
+        /// 進捗を不確定 (マーキー) 表示にするかどうか<br/>
+        /// 保存以外の処理 (プレビュー生成・読み込み・ページ移動) 中は具体的な進捗値を持たないため不確定表示にする
         /// </summary>
         public bool IsProgressIndeterminate => IsBusy && !IsSaving;
 
@@ -639,7 +639,7 @@ namespace PdfConverter.ViewModels
         /// <summary>保存するコマンド</summary>
         public ICommand SaveCommand { get; }
 
-        /// <summary>Wordから変換したPDFを保存するコマンド</summary>
+        /// <summary>Word から変換した PDF を保存するコマンド</summary>
         public ICommand SavePdfCommand { get; }
 
         /// <summary>プレビュー画像をクリップボードにコピーするコマンド</summary>
@@ -691,7 +691,7 @@ namespace PdfConverter.ViewModels
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 指定したファイルパスのPDFを検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// 指定したファイルパスの PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
         public void LoadPdfFromPath(bool forceReload = false) => _previewCoordinator.LoadFromPath(this, forceReload);
@@ -735,14 +735,14 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>Word → PDF変換設定を保存し、必要に応じてWord文書を再読み込みする</summary>
+        /// <summary>Word → PDF 変換設定を保存し、必要に応じて Word 文書を再読み込みする</summary>
         private void ApplyWordToPdfSettingsChange()
         {
             _wordToPdfSettings.Save();
             ReloadWordDocumentIfLoaded();
         }
 
-        /// <summary>Wordファイルが読み込み済みの場合にプレビューを再生成する</summary>
+        /// <summary>Word ファイルが読み込み済みの場合にプレビューを再生成する</summary>
         private void ReloadWordDocumentIfLoaded()
         {
             if (string.IsNullOrEmpty(FilePath) || !DocumentFileHelper.IsWordFile(FilePath) || IsBusy)
@@ -799,7 +799,7 @@ namespace PdfConverter.ViewModels
             RaiseCanExecuteChanged(CopyToClipboardCommand);
         }
 
-        /// <summary>Wordから変換したPDFを保存できるかどうか</summary>
+        /// <summary>Word から変換した PDF を保存できるかどうか</summary>
         private bool CanSavePdf() =>
             !IsBusy
             && !string.IsNullOrEmpty(FilePath)

@@ -214,7 +214,7 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
-        /// 処理中（IsBusy）のときに BrowseCommand が実行不可能であることを検証する
+        /// 処理中 (IsBusy) のときに BrowseCommand が実行不可能であることを検証する
         /// </summary>
         [Fact]
         public void BrowseCommand_WhenBusy_CannotExecute()
@@ -227,7 +227,7 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
-        /// 処理中（IsBusy）のときに CancelCommand が実行可能であることを検証する
+        /// 処理中 (IsBusy) のときに CancelCommand が実行可能であることを検証する
         /// </summary>
         [Fact]
         public void CancelCommand_WhenBusy_CanExecute()

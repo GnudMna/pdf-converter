@@ -4,7 +4,7 @@ using PdfConverter.Services;
 namespace PdfConverter.ViewModels.Coordinators
 {
     /// <summary>
-    /// Coordinator間で共有する補助メソッド
+    /// Coordinator 間で共有する補助メソッド
     /// </summary>
     internal static class CoordinatorHelpers
     {
