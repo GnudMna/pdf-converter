@@ -143,7 +143,7 @@
 
                                 <Expander Margin="0,18,0,0"
                                           Style="{StaticResource OptionalSectionExpander}"
-                                          IsExpanded="{Binding IsWordSettingsExpanded}">
+                                          IsExpanded="{Binding WordSettings.IsSectionExpanded}">
                                     <Expander.Header>
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Word 設定"
@@ -160,19 +160,19 @@
                                         <ComboBox Width="180"
                                                   Margin="0,8,0,0"
                                                   HorizontalAlignment="Left"
-                                                  ItemsSource="{Binding WordToPdfBackendOptions}"
-                                                  SelectedValue="{Binding WordToPdfBackend}"
+                                                  ItemsSource="{Binding WordSettings.BackendOptions}"
+                                                  SelectedValue="{Binding WordSettings.Backend}"
                                                   SelectedValuePath="Backend"
                                                   DisplayMemberPath="DisplayName" />
                                         <TextBlock Margin="0,6,0,0"
                                                    Style="{StaticResource HintText}"
                                                    Text="Word ファイルを PDF 化する際に使用するエンジンを選択します。" />
                                         <StackPanel Margin="0,12,0,0"
-                                                    Visibility="{Binding IsLibreOfficePathVisible, Converter={StaticResource BoolToVis}}">
+                                                    Visibility="{Binding WordSettings.IsLibreOfficePathVisible, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="LibreOffice 実行ファイル"
                                                        Style="{StaticResource FieldLabel}" />
                                             <TextBox Margin="0,8,0,0"
-                                                     Text="{Binding LibreOfficePath, UpdateSourceTrigger=PropertyChanged}" />
+                                                     Text="{Binding WordSettings.LibreOfficePath, UpdateSourceTrigger=PropertyChanged}" />
                                             <TextBlock Margin="0,6,0,0"
                                                        Style="{StaticResource HintText}"
                                                        Text="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。" />
@@ -183,8 +183,8 @@
                                         <ComboBox Width="180"
                                                   Margin="0,8,0,0"
                                                   HorizontalAlignment="Left"
-                                                  ItemsSource="{Binding WordToPdfPdfFormatOptions}"
-                                                  SelectedValue="{Binding WordToPdfPdfFormat}"
+                                                  ItemsSource="{Binding WordSettings.PdfFormatOptions}"
+                                                  SelectedValue="{Binding WordSettings.PdfFormat}"
                                                   SelectedValuePath="Format"
                                                   DisplayMemberPath="DisplayName" />
                                         <TextBlock Margin="0,6,0,0"
@@ -196,8 +196,8 @@
                                         <ComboBox Width="180"
                                                   Margin="0,8,0,0"
                                                   HorizontalAlignment="Left"
-                                                  ItemsSource="{Binding WordToPdfOptimizeForOptions}"
-                                                  SelectedValue="{Binding WordToPdfOptimizeFor}"
+                                                  ItemsSource="{Binding WordSettings.OptimizeForOptions}"
+                                                  SelectedValue="{Binding WordSettings.OptimizeFor}"
                                                   SelectedValuePath="OptimizeFor"
                                                   DisplayMemberPath="DisplayName" />
                                         <TextBlock Margin="0,6,0,0"
@@ -205,13 +205,13 @@
                                                    Text="オンライン向けはファイルサイズを抑えます。" />
                                         <CheckBox Margin="0,18,0,0"
                                                   Content="しおり (見出し) を出力"
-                                                  IsChecked="{Binding WordToPdfExportBookmarks}" />
+                                                  IsChecked="{Binding WordSettings.ExportBookmarks}" />
                                         <TextBlock Margin="0,6,0,0"
                                                    Style="{StaticResource HintText}"
                                                    Text="Word 文書の見出しスタイルから PDF のしおりを作成します。" />
                                         <CheckBox Margin="0,12,0,0"
                                                   Content="コメントを含める"
-                                                  IsChecked="{Binding WordToPdfExportComments}" />
+                                                  IsChecked="{Binding WordSettings.ExportComments}" />
                                         <TextBlock Margin="0,6,0,0"
                                                    Style="{StaticResource HintText}"
                                                    Text="Word 文書のコメントを PDF に出力します。" />
@@ -232,8 +232,8 @@
                                         <StackPanel>
                                             <ComboBox Width="120"
                                                       HorizontalAlignment="Left"
-                                                      ItemsSource="{Binding OutputImageFormatOptions}"
-                                                      SelectedValue="{Binding OutputImageFormat}"
+                                                      ItemsSource="{Binding ExportSettings.OutputImageFormatOptions}"
+                                                      SelectedValue="{Binding ExportSettings.OutputImageFormat}"
                                                       SelectedValuePath="Format"
                                                       DisplayMemberPath="DisplayName" />
                                             <TextBlock Margin="0,6,0,0"
@@ -249,8 +249,8 @@
                                     <Border Style="{StaticResource SettingValueBorder}">
                                         <StackPanel>
                                             <CheckBox Content="透明度を保持"
-                                                      IsChecked="{Binding PreserveTransparency}"
-                                                      IsEnabled="{Binding IsTransparencySelectable}" />
+                                                      IsChecked="{Binding ExportSettings.PreserveTransparency}"
+                                                      IsEnabled="{Binding ExportSettings.IsTransparencySelectable}" />
                                             <TextBlock Margin="0,6,0,0"
                                                        Style="{StaticResource HintText}">
                                                 オフの場合は白背景で合成します。<LineBreak/>
@@ -269,13 +269,13 @@
                                                         VerticalAlignment="Center">
                                                 <ComboBox Width="90"
                                                           Margin="0,0,8,0"
-                                                          ItemsSource="{Binding ResolutionModeOptions}"
-                                                          SelectedValue="{Binding ResolutionMode}"
+                                                          ItemsSource="{Binding ExportSettings.ResolutionModeOptions}"
+                                                          SelectedValue="{Binding ExportSettings.ResolutionMode}"
                                                           SelectedValuePath="Mode"
                                                           DisplayMemberPath="DisplayName" />
                                                 <TextBox Width="80"
                                                          Margin="0,0,8,0"
-                                                         Text="{Binding ResolutionValue}" />
+                                                         Text="{Binding ExportSettings.ResolutionValue}" />
                                                 <TextBlock Text="px / DPI"
                                                            VerticalAlignment="Center"
                                                            Style="{StaticResource MutedText}" />
@@ -283,9 +283,9 @@
                                             <TextBlock Margin="0,6,0,0"
                                                        Style="{StaticResource HintText}"
                                                        Text="選択したモードに応じて、幅・高さ (px) または DPI を入力してください。" />
-                                            <TextBlock Text="{Binding ResolutionValidationMessage}"
+                                            <TextBlock Text="{Binding ExportSettings.ResolutionValidationMessage}"
                                                        Style="{StaticResource ValidationMessage}"
-                                                       Visibility="{Binding ResolutionValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                                       Visibility="{Binding ExportSettings.ResolutionValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -296,17 +296,17 @@
                                     <Border Style="{StaticResource SettingValueBorder}">
                                         <StackPanel>
                                             <CheckBox Content="全ページを保存"
-                                                      IsChecked="{Binding IsAllPagesSelected}" />
+                                                      IsChecked="{Binding ExportSettings.IsAllPagesSelected}" />
                                             <TextBlock Margin="0,10,0,0"
                                                        Style="{StaticResource HintText}"
                                                        Text="すべてのページを保存します。"
-                                                       Visibility="{Binding IsAllPagesSelected, Converter={StaticResource BoolToVis}}" />
+                                                       Visibility="{Binding ExportSettings.IsAllPagesSelected, Converter={StaticResource BoolToVis}}" />
                                             <StackPanel Margin="0,10,0,0">
                                                 <StackPanel.Style>
                                                     <Style TargetType="StackPanel">
                                                         <Setter Property="Visibility" Value="Visible" />
                                                         <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsAllPagesSelected}" Value="True">
+                                                            <DataTrigger Binding="{Binding ExportSettings.IsAllPagesSelected}" Value="True">
                                                                 <Setter Property="Visibility" Value="Collapsed" />
                                                             </DataTrigger>
                                                         </Style.Triggers>
@@ -315,13 +315,13 @@
                                                 <TextBlock Text="ページ番号または範囲"
                                                            Style="{StaticResource FieldLabel}" />
                                                 <TextBox Margin="0,6,0,0"
-                                                         Text="{Binding PageRange, UpdateSourceTrigger=PropertyChanged}" />
+                                                         Text="{Binding ExportSettings.PageRange, UpdateSourceTrigger=PropertyChanged}" />
                                                 <TextBlock Margin="0,6,0,0"
                                                            Style="{StaticResource HintText}"
                                                            Text="例: 1,3-5" />
-                                                <TextBlock Text="{Binding PageRangeValidationMessage}"
+                                                <TextBlock Text="{Binding ExportSettings.PageRangeValidationMessage}"
                                                            Style="{StaticResource ValidationMessage}"
-                                                           Visibility="{Binding PageRangeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
+                                                           Visibility="{Binding ExportSettings.PageRangeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
                                             </StackPanel>
                                         </StackPanel>
                                     </Border>

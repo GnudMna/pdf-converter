@@ -23,26 +23,31 @@ namespace PdfConverter.ViewModels
         /* ----------------------------- 依存関係注入関連 ----------------------------- */
         /// <summary>ダイアログサービス</summary>
         private readonly IDialogService _dialogService;
+
         /// <summary>クリップボードサービス</summary>
         private readonly IClipboardService _clipboardService;
 
         /* --------------------------- コーディネーター関連 --------------------------- */
         /// <summary>PDF プレビュー コーディネーター</summary>
         private readonly IPdfPreviewCoordinator _previewCoordinator;
+
         /// <summary>PDF 保存 コーディネーター</summary>
         private readonly IPdfSaveCoordinator _saveCoordinator;
 
         /* ------------------------------- 状態管理関連 ------------------------------- */
         /// <summary>処理中かどうか</summary>
         private bool _isBusy;
+
         /// <summary>保存中かどうか</summary>
         private bool _isSaving;
+
         /// <summary>キャンセルトークンソース</summary>
         private CancellationTokenSource _cancelTokenSource;
 
         /* -------------------------------- テーマ関連 -------------------------------- */
         /// <summary>テーマ</summary>
         private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
+
         /// <summary>テーマの選択肢</summary>
         private static readonly IReadOnlyList<ThemeModeOption> ThemeModeOptionsList =
             new List<ThemeModeOption>
@@ -53,84 +58,20 @@ namespace PdfConverter.ViewModels
             };
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
-        /// <summary>読み込む PDF のパス</summary>
+        /// <summary>読み込むドキュメントのパス</summary>
         private string _filePath;
-        /// <summary>読み込んだ PDF のパス</summary>
+
+        /// <summary>読み込み済みドキュメントのパス</summary>
         private string _loadedFilePath;
-        /// <summary>Word → PDF 変換設定</summary>
-        private readonly IWordToPdfConversionSettings _wordToPdfSettings;
-        /// <summary>Word → PDF 変換エンジン</summary>
-        private WordToPdfBackend _wordToPdfBackend;
-        /// <summary>LibreOffice の <c>soffice.exe</c> のパス</summary>
-        private string _libreOfficePath;
-        /// <summary>Word 設定セクションを展開するかどうか</summary>
-        private bool _isWordSettingsExpanded;
-        /// <summary>Word → PDF 変換時の PDF 形式</summary>
-        private WordToPdfPdfFormat _wordToPdfPdfFormat;
-        /// <summary>Word → PDF 変換時の出力最適化モード</summary>
-        private WordToPdfOptimizeFor _wordToPdfOptimizeFor;
-        /// <summary>Word → PDF 変換時にしおりを出力するかどうか</summary>
-        private bool _wordToPdfExportBookmarks;
-        /// <summary>Word → PDF 変換時にコメントを出力するかどうか</summary>
-        private bool _wordToPdfExportComments;
-        /// <summary>Word → PDF 変換エンジンの選択肢</summary>
-        private static readonly IReadOnlyList<WordToPdfBackendOption> WordToPdfBackendOptionsList =
-            new List<WordToPdfBackendOption>
-            {
-                new WordToPdfBackendOption(WordToPdfBackend.MicrosoftWord, "Microsoft Word"),
-                new WordToPdfBackendOption(WordToPdfBackend.LibreOffice, "LibreOffice"),
-            };
-        /// <summary>Word → PDF 変換時の PDF 形式の選択肢</summary>
-        private static readonly IReadOnlyList<WordToPdfPdfFormatOption> WordToPdfPdfFormatOptionsList =
-            new List<WordToPdfPdfFormatOption>
-            {
-                new WordToPdfPdfFormatOption(WordToPdfPdfFormat.Standard, "標準 PDF"),
-                new WordToPdfPdfFormatOption(WordToPdfPdfFormat.PdfA, "PDF/A-1"),
-            };
-        /// <summary>Word → PDF 変換時の出力最適化モードの選択肢</summary>
-        private static readonly IReadOnlyList<WordToPdfOptimizeForOption> WordToPdfOptimizeForOptionsList =
-            new List<WordToPdfOptimizeForOption>
-            {
-                new WordToPdfOptimizeForOption(WordToPdfOptimizeFor.Print, "印刷向け"),
-                new WordToPdfOptimizeForOption(WordToPdfOptimizeFor.Online, "オンライン向け"),
-            };
 
-        /* ------------------------------- 変換設定関連 ------------------------------- */
-        /// <summary>保存するページの範囲</summary>
-        private string _pageRange = "1";
-        /// <summary>全ページを保存するかどうか</summary>
-        private bool _isAllPagesSelected;
-        /// <summary>解像度の指定方法</summary>
-        private ResolutionMode _resolutionMode = ResolutionMode.Width;
-        /// <summary>解像度の値</summary>
-        private string _resolutionValue = ResolutionValueParser.GetDefaultValue(ResolutionMode.Width);
-        /// <summary>出力画像形式</summary>
-        private OutputImageFormat _outputImageFormat = OutputImageFormat.Png;
-        /// <summary>透明度を保持するかどうか</summary>
-        private bool _preserveTransparency = false;
-        /// <summary>解像度の選択肢</summary>
-        private static readonly IReadOnlyList<ResolutionModeOption> ResolutionModeOptionsList =
-            new List<ResolutionModeOption>
-            {
-                new ResolutionModeOption(ResolutionMode.Width, "幅 (px)"),
-                new ResolutionModeOption(ResolutionMode.Height, "高さ (px)"),
-                new ResolutionModeOption(ResolutionMode.Dpi, "DPI"),
-            };
-        /// <summary>出力画像形式の選択肢</summary>
-        private static readonly IReadOnlyList<OutputImageFormatOption> OutputImageFormatOptionsList =
-            new List<OutputImageFormatOption>
-            {
-                new OutputImageFormatOption(OutputImageFormat.Png, "PNG"),
-                new OutputImageFormatOption(OutputImageFormat.Jpeg, "JPEG"),
-                new OutputImageFormatOption(OutputImageFormat.Bmp, "BMP"),
-            };
-
-        /* ---------------------------- プレビュー表示関連 ---------------------------- */
+        /* ------------------------------ プレビュー関連 ------------------------------ */
         /// <summary>プレビュー画像</summary>
         private BitmapSource _previewImage;
+
         /// <summary>PDF のページ数</summary>
         private int _pageCount;
-        /// <summary>現在表示中のページ番号</summary>
+
+        /// <summary>表示ページ番号の入力値</summary>
         private string _pageNumber = "1";
 
         /* ------------------------------- 進捗表示関連 ------------------------------- */
@@ -140,12 +81,10 @@ namespace PdfConverter.ViewModels
         /* ---------------------------- ステータス表示関連 ---------------------------- */
         /// <summary>ステータスメッセージ</summary>
         private string _statusMessage = "ファイルを選択して開始してください。";
+
         /// <summary>ステータスバーの表示種類</summary>
         private StatusKind _statusKind = StatusKind.Info;
-        /// <summary>出力解像度の入力エラーメッセージ</summary>
-        private string _resolutionValidationMessage;
-        /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
-        private string _pageRangeValidationMessage;
+
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
         private string _pageNumberValidationMessage;
 
@@ -155,9 +94,47 @@ namespace PdfConverter.ViewModels
 
 
         /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
+        public MainViewModel(
+            IDialogService dialogService,
+            IClipboardService clipboardService,
+            IPdfPreviewCoordinator previewCoordinator,
+            IPdfSaveCoordinator saveCoordinator,
+            IWordToPdfConversionSettings wordToPdfSettings)
+        {
+            _dialogService = dialogService;
+            _clipboardService = clipboardService;
+            _previewCoordinator = previewCoordinator;
+            _saveCoordinator = saveCoordinator;
+
+            WordSettings = new WordConversionSettingsViewModel(wordToPdfSettings, ReloadWordDocumentIfLoaded);
+            ExportSettings = new ImageExportSettingsViewModel(
+                () => _previewCoordinator.RequestRefreshIfLoaded(this),
+                RaiseActionCanExecuteChanged);
+
+            BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
+            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
+            SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(this), CanSavePdf, OnAsyncCommandException);
+            CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
+            CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
+            GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage, OnAsyncCommandException);
+            PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious, OnAsyncCommandException);
+            NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext, OnAsyncCommandException);
+            LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
+        }
+
+
+        /********************************************************************************/
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /* ------------------------------- 状態管理関連 ------------------------------- */
+        /// <summary>Word → PDF 変換設定</summary>
+        public WordConversionSettingsViewModel WordSettings { get; }
+
+        /// <summary>画像出力設定</summary>
+        public ImageExportSettingsViewModel ExportSettings { get; }
+
         /// <summary>処理中かどうか</summary>
         public bool IsBusy
         {
@@ -220,7 +197,7 @@ namespace PdfConverter.ViewModels
         public IReadOnlyList<ThemeModeOption> ThemeModeOptions => ThemeModeOptionsList;
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
-        /// <summary>読み込む PDF のパス</summary>
+        /// <summary>読み込むドキュメントのパス</summary>
         public string FilePath
         {
             get => _filePath;
@@ -237,256 +214,7 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>読み込んだ PDF のパス</summary>
-        string IMainViewModelHost.LoadedFilePath
-        {
-            get => _loadedFilePath;
-            set => _loadedFilePath = value;
-        }
-
-        /// <summary>Word → PDF 変換エンジン</summary>
-        public WordToPdfBackend WordToPdfBackend
-        {
-            get => _wordToPdfBackend;
-            set
-            {
-                if (!SetProperty(ref _wordToPdfBackend, value))
-                {
-                    return;
-                }
-
-                if (_wordToPdfSettings.Backend != value)
-                {
-                    _wordToPdfSettings.Backend = value;
-                    ApplyWordToPdfSettingsChange();
-                }
-
-                OnPropertyChanged(nameof(IsLibreOfficePathVisible));
-            }
-        }
-
-        /// <summary>Word → PDF 変換エンジンの選択肢</summary>
-        public IReadOnlyList<WordToPdfBackendOption> WordToPdfBackendOptions => WordToPdfBackendOptionsList;
-
-        /// <summary>LibreOffice の <c>soffice.exe</c> のパス</summary>
-        public string LibreOfficePath
-        {
-            get => _libreOfficePath;
-            set
-            {
-                string normalizedValue = value ?? string.Empty;
-                if (!SetProperty(ref _libreOfficePath, normalizedValue))
-                {
-                    return;
-                }
-
-                _wordToPdfSettings.LibreOfficePath = normalizedValue;
-                if (_wordToPdfSettings.Backend == WordToPdfBackend.LibreOffice)
-                {
-                    ApplyWordToPdfSettingsChange();
-                }
-                else
-                {
-                    _wordToPdfSettings.Save();
-                }
-            }
-        }
-
-        /// <summary>LibreOffice の <c>soffice.exe</c> のパス入力欄を表示するかどうか</summary>
-        public bool IsLibreOfficePathVisible => WordToPdfBackend == WordToPdfBackend.LibreOffice;
-
-        /// <summary>Word の設定セクションを展開するかどうか</summary>
-        public bool IsWordSettingsExpanded
-        {
-            get => _isWordSettingsExpanded;
-            set => SetProperty(ref _isWordSettingsExpanded, value);
-        }
-
-        /// <summary>Word → PDF 変換時の PDF 形式</summary>
-        public WordToPdfPdfFormat WordToPdfPdfFormat
-        {
-            get => _wordToPdfPdfFormat;
-            set
-            {
-                if (!SetProperty(ref _wordToPdfPdfFormat, value))
-                {
-                    return;
-                }
-
-                if (_wordToPdfSettings.PdfFormat != value)
-                {
-                    _wordToPdfSettings.PdfFormat = value;
-                    ApplyWordToPdfSettingsChange();
-                }
-            }
-        }
-
-        /// <summary>Word → PDF 変換時の PDF 形式の選択肢</summary>
-        public IReadOnlyList<WordToPdfPdfFormatOption> WordToPdfPdfFormatOptions => WordToPdfPdfFormatOptionsList;
-
-        /// <summary>Word → PDF 変換時の出力最適化モード</summary>
-        public WordToPdfOptimizeFor WordToPdfOptimizeFor
-        {
-            get => _wordToPdfOptimizeFor;
-            set
-            {
-                if (!SetProperty(ref _wordToPdfOptimizeFor, value))
-                {
-                    return;
-                }
-
-                if (_wordToPdfSettings.OptimizeFor != value)
-                {
-                    _wordToPdfSettings.OptimizeFor = value;
-                    ApplyWordToPdfSettingsChange();
-                }
-            }
-        }
-
-        /// <summary>Word → PDF 変換時の出力最適化モードの選択肢</summary>
-        public IReadOnlyList<WordToPdfOptimizeForOption> WordToPdfOptimizeForOptions => WordToPdfOptimizeForOptionsList;
-
-        /// <summary>Word → PDF 変換時にしおりを出力するかどうか</summary>
-        public bool WordToPdfExportBookmarks
-        {
-            get => _wordToPdfExportBookmarks;
-            set
-            {
-                if (!SetProperty(ref _wordToPdfExportBookmarks, value))
-                {
-                    return;
-                }
-
-                if (_wordToPdfSettings.ExportBookmarks != value)
-                {
-                    _wordToPdfSettings.ExportBookmarks = value;
-                    ApplyWordToPdfSettingsChange();
-                }
-            }
-        }
-
-        /// <summary>Word → PDF 変換時にコメントを出力するかどうか</summary>
-        public bool WordToPdfExportComments
-        {
-            get => _wordToPdfExportComments;
-            set
-            {
-                if (!SetProperty(ref _wordToPdfExportComments, value))
-                {
-                    return;
-                }
-
-                if (_wordToPdfSettings.ExportComments != value)
-                {
-                    _wordToPdfSettings.ExportComments = value;
-                    ApplyWordToPdfSettingsChange();
-                }
-            }
-        }
-
-        /* ------------------------------- 変換設定関連 ------------------------------- */
-        /// <summary>保存するページの範囲</summary>
-        public string PageRange
-        {
-            get => _pageRange;
-            set
-            {
-                if (!SetProperty(ref _pageRange, value))
-                {
-                    return;
-                }
-
-                PageRangeValidationMessage = null;
-                RaiseActionCanExecuteChanged();
-            }
-        }
-
-        /// <summary>全ページを保存するかどうか</summary>
-        public bool IsAllPagesSelected
-        {
-            get => _isAllPagesSelected;
-            set => SetProperty(ref _isAllPagesSelected, value);
-        }
-
-        /// <summary>解像度の指定方法</summary>
-        public ResolutionMode ResolutionMode
-        {
-            get => _resolutionMode;
-            set
-            {
-                if (!SetProperty(ref _resolutionMode, value))
-                {
-                    return;
-                }
-
-                _resolutionValue = ResolutionValueParser.GetDefaultValue(value);
-                OnPropertyChanged(nameof(ResolutionValue));
-                ResolutionValidationMessage = null;
-                _previewCoordinator.RequestRefreshIfLoaded(this);
-            }
-        }
-
-        /// <summary>解像度の値</summary>
-        public string ResolutionValue
-        {
-            get => _resolutionValue;
-            set
-            {
-                if (!SetProperty(ref _resolutionValue, value))
-                {
-                    return;
-                }
-
-                ResolutionValidationMessage = null;
-                _previewCoordinator.RequestRefreshIfLoaded(this);
-            }
-        }
-
-        /// <summary>解像度の選択肢</summary>
-        public IReadOnlyList<ResolutionModeOption> ResolutionModeOptions => ResolutionModeOptionsList;
-
-        /// <summary>出力画像形式</summary>
-        public OutputImageFormat OutputImageFormat
-        {
-            get => _outputImageFormat;
-            set
-            {
-                if (!SetProperty(ref _outputImageFormat, value))
-                {
-                    return;
-                }
-
-                if (!ImageBitmapHelper.SupportsTransparency(value))
-                {
-                    PreserveTransparency = false;
-                }
-
-                OnPropertyChanged(nameof(IsTransparencySelectable));
-            }
-        }
-
-        /// <summary>出力画像形式の選択肢</summary>
-        public IReadOnlyList<OutputImageFormatOption> OutputImageFormatOptions => OutputImageFormatOptionsList;
-
-        /// <summary>透明度を保持するかどうか</summary>
-        public bool PreserveTransparency
-        {
-            get => _preserveTransparency;
-            set
-            {
-                if (!SetProperty(ref _preserveTransparency, value))
-                {
-                    return;
-                }
-
-                _previewCoordinator.RequestRefreshIfLoaded(this);
-            }
-        }
-
-        /// <summary>透明度を選択可能かどうか</summary>
-        public bool IsTransparencySelectable => ImageBitmapHelper.SupportsTransparency(OutputImageFormat);
-
-        /* ---------------------------- プレビュー表示関連 ---------------------------- */
+        /* ------------------------------ プレビュー関連 ------------------------------ */
         /// <summary>プレビュー画像</summary>
         public BitmapSource PreviewImage
         {
@@ -520,7 +248,7 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>現在表示中のページ番号</summary>
+        /// <summary>表示ページ番号の入力値</summary>
         public string PageNumber
         {
             get => _pageNumber;
@@ -567,20 +295,6 @@ namespace PdfConverter.ViewModels
             set => SetProperty(ref _statusKind, value);
         }
 
-        /// <summary>出力解像度の入力エラーメッセージ</summary>
-        public string ResolutionValidationMessage
-        {
-            get => _resolutionValidationMessage;
-            set => SetProperty(ref _resolutionValidationMessage, value);
-        }
-
-        /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
-        public string PageRangeValidationMessage
-        {
-            get => _pageRangeValidationMessage;
-            set => SetProperty(ref _pageRangeValidationMessage, value);
-        }
-
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
         public string PageNumberValidationMessage
         {
@@ -588,7 +302,7 @@ namespace PdfConverter.ViewModels
             set => SetProperty(ref _pageNumberValidationMessage, value);
         }
 
-        /// <summary>現在表示中のページ番号</summary>
+        /// <summary>現在表示中のページ番号の表示文字列</summary>
         public string PageIndicator
         {
             get
@@ -604,14 +318,6 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>現在表示中のページ番号</summary>
-        int IMainViewModelHost.CurrentPreviewPage => CurrentPreviewPage;
-
-        /// <summary>現在表示中のページ番号</summary>
-        private int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
-            ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
-            : 1;
-
         /* ----------------------------- オーバーレイ関連 ----------------------------- */
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
         public bool IsDropOverlayVisible
@@ -619,6 +325,11 @@ namespace PdfConverter.ViewModels
             get => _isDropOverlayVisible;
             set => SetProperty(ref _isDropOverlayVisible, value);
         }
+
+        /// <summary>現在表示中のページ番号</summary>
+        private int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
+            ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
+            : 1;
 
 
         /********************************************************************************/
@@ -653,41 +364,6 @@ namespace PdfConverter.ViewModels
 
 
         /********************************************************************************/
-        /*                                コンストラクタ                                */
-        /********************************************************************************/
-        public MainViewModel(
-            IDialogService dialogService,
-            IClipboardService clipboardService,
-            IPdfPreviewCoordinator previewCoordinator,
-            IPdfSaveCoordinator saveCoordinator,
-            IWordToPdfConversionSettings wordToPdfSettings)
-        {
-            _dialogService = dialogService;
-            _clipboardService = clipboardService;
-            _previewCoordinator = previewCoordinator;
-            _saveCoordinator = saveCoordinator;
-            _wordToPdfSettings = wordToPdfSettings;
-            _wordToPdfBackend = wordToPdfSettings.Backend;
-            _libreOfficePath = wordToPdfSettings.LibreOfficePath ?? string.Empty;
-            _wordToPdfPdfFormat = wordToPdfSettings.PdfFormat;
-            _wordToPdfOptimizeFor = wordToPdfSettings.OptimizeFor;
-            _wordToPdfExportBookmarks = wordToPdfSettings.ExportBookmarks;
-            _wordToPdfExportComments = wordToPdfSettings.ExportComments;
-
-            // コマンド初期化
-            BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
-            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
-            SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(this), CanSavePdf, OnAsyncCommandException);
-            CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
-            CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
-            GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage, OnAsyncCommandException);
-            PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious, OnAsyncCommandException);
-            NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext, OnAsyncCommandException);
-            LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
-        }
-
-
-        /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
@@ -708,40 +384,75 @@ namespace PdfConverter.ViewModels
             LoadPdfFromPath(forceReload: true);
         }
 
+        /// <inheritdoc/>
+        public void SetStatus(string message, StatusKind kind = StatusKind.Info)
+        {
+            StatusMessage = message;
+            StatusKind = kind;
+        }
+
 
         /********************************************************************************/
-        /*                                 実装メソッド                                 */
+        /*                          IMainViewModelHost 委譲                            */
         /********************************************************************************/
-        /// <summary>キャンセル処理を準備する</summary>
-        void IMainViewModelHost.PrepareCancellation() => PrepareCancellation();
+        string IPreviewCoordinatorHost.LoadedFilePath
+        {
+            get => _loadedFilePath;
+            set => _loadedFilePath = value;
+        }
 
-        /// <summary>キャンセルトークンを取得する</summary>
-        CancellationToken IMainViewModelHost.GetCancellationToken() => _cancelTokenSource.Token;
+        ResolutionMode IResolutionInputHost.ResolutionMode => ExportSettings.ResolutionMode;
 
-        /// <summary>キャンセルトークンを破棄する</summary>
-        void IMainViewModelHost.DisposeCancellation()
+        string IResolutionInputHost.ResolutionValue => ExportSettings.ResolutionValue;
+
+        string IResolutionInputHost.ResolutionValidationMessage
+        {
+            get => ExportSettings.ResolutionValidationMessage;
+            set => ExportSettings.ResolutionValidationMessage = value;
+        }
+
+        bool IPreviewCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
+
+        int IPreviewCoordinatorHost.CurrentPreviewPage => CurrentPreviewPage;
+
+        string ISaveCoordinatorHost.PageRange => ExportSettings.PageRange;
+
+        bool ISaveCoordinatorHost.IsAllPagesSelected => ExportSettings.IsAllPagesSelected;
+
+        OutputImageFormat ISaveCoordinatorHost.OutputImageFormat => ExportSettings.OutputImageFormat;
+
+        bool ISaveCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
+
+        string ISaveCoordinatorHost.PageRangeValidationMessage
+        {
+            get => ExportSettings.PageRangeValidationMessage;
+            set => ExportSettings.PageRangeValidationMessage = value;
+        }
+
+        void ICoordinatorSession.PrepareCancellation() => PrepareCancellation();
+
+        CancellationToken ICoordinatorSession.GetCancellationToken() => _cancelTokenSource.Token;
+
+        void ICoordinatorSession.DisposeCancellation()
         {
             _cancelTokenSource?.Dispose();
             _cancelTokenSource = null;
         }
 
-        /// <summary>ナビゲーション可能なコマンドの実行可能状態を更新する</summary>
-        void IMainViewModelHost.RaiseNavigationCanExecuteChanged() => RaiseNavigationCanExecuteChanged();
+        void ICoordinatorSession.RaiseNavigationCanExecuteChanged() => RaiseNavigationCanExecuteChanged();
 
-        /// <summary>アクション可能なコマンドの実行可能状態を更新する</summary>
-        void IMainViewModelHost.RaiseActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
+        void ICoordinatorSession.RaiseActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
+
+        void ICoordinatorSession.ClearFieldValidationMessages()
+        {
+            ExportSettings.ClearValidationMessages();
+            PageNumberValidationMessage = null;
+        }
 
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>Word → PDF 変換設定を保存し、必要に応じて Word 文書を再読み込みする</summary>
-        private void ApplyWordToPdfSettingsChange()
-        {
-            _wordToPdfSettings.Save();
-            ReloadWordDocumentIfLoaded();
-        }
-
         /// <summary>Word ファイルが読み込み済みの場合にプレビューを再生成する</summary>
         private void ReloadWordDocumentIfLoaded()
         {
@@ -781,6 +492,14 @@ namespace PdfConverter.ViewModels
         /// <returns>true: コピー可能 / false: コピー不可能</returns>
         private bool CanCopyToClipboard() => !IsBusy && PreviewImage != null;
 
+        /// <summary>Word から変換した PDF を保存できるかどうか</summary>
+        /// <returns>true: 保存可能 / false: 保存不可能</returns>
+        private bool CanSavePdf() =>
+            !IsBusy
+            && !string.IsNullOrEmpty(FilePath)
+            && DocumentFileHelper.IsWordFile(FilePath)
+            && PageCount > 0;
+
         /// <summary>ナビゲーション可能なコマンドの実行可能状態を更新する</summary>
         private void RaiseNavigationCanExecuteChanged()
         {
@@ -799,15 +518,7 @@ namespace PdfConverter.ViewModels
             RaiseCanExecuteChanged(CopyToClipboardCommand);
         }
 
-        /// <summary>Word から変換した PDF を保存できるかどうか</summary>
-        private bool CanSavePdf() =>
-            !IsBusy
-            && !string.IsNullOrEmpty(FilePath)
-            && DocumentFileHelper.IsWordFile(FilePath)
-            && PageCount > 0;
-
         /// <summary>コマンドの実行可能状態を更新する</summary>
-        /// <param name="command">コマンド</param>
         private static void RaiseCanExecuteChanged(ICommand command)
         {
             if (command is IRelayCommand relayCommand)
@@ -824,21 +535,6 @@ namespace PdfConverter.ViewModels
             _cancelTokenSource = new CancellationTokenSource();
         }
 
-        /// <inheritdoc/>
-        public void SetStatus(string message, StatusKind kind = StatusKind.Info)
-        {
-            StatusMessage = message;
-            StatusKind = kind;
-        }
-
-        /// <inheritdoc/>
-        public void ClearFieldValidationMessages()
-        {
-            ResolutionValidationMessage = null;
-            PageRangeValidationMessage = null;
-            PageNumberValidationMessage = null;
-        }
-
         /// <summary>キャンセル操作を実行する</summary>
         private void CancelOperation()
         {
@@ -850,7 +546,6 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>非同期コマンドで捕捉した未処理例外をステータスに反映する</summary>
-        /// <param name="ex">未処理例外</param>
         private void OnAsyncCommandException(Exception ex)
         {
             IsBusy = false;
@@ -868,7 +563,7 @@ namespace PdfConverter.ViewModels
 
             try
             {
-                _clipboardService.CopyImage(PreviewImage, PreserveTransparency);
+                _clipboardService.CopyImage(PreviewImage, ExportSettings.PreserveTransparency);
                 SetStatus("プレビュー画像をクリップボードにコピーしました。", StatusKind.Success);
             }
             catch (Exception ex)
