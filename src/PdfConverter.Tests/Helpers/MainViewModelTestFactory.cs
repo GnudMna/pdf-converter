@@ -18,12 +18,14 @@ namespace PdfConverter.Tests.Helpers
             var clipboard = new Mock<IClipboardService>();
             var documentPdfSource = DocumentPdfSourceTestHelper.CreatePassthrough();
             var wordToPdfSettings = WordToPdfConversionSettingsTestHelper.Create();
+            var imageExportSettings = ImageExportSettingsTestHelper.Create();
             var viewModel = new MainViewModel(
                 dialog.Object,
                 clipboard.Object,
                 new PdfPreviewCoordinator(pdf.Object, documentPdfSource.Object),
                 new PdfSaveCoordinator(pdf.Object, documentPdfSource.Object, dialog.Object),
-                wordToPdfSettings.Object);
+                wordToPdfSettings.Object,
+                imageExportSettings.Object);
             return (viewModel, pdf, dialog, clipboard);
         }
     }

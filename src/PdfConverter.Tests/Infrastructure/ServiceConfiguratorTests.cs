@@ -27,6 +27,7 @@ namespace PdfConverter.Tests.Infrastructure
             provider.GetService(typeof(IDocumentPdfSourceService)).Should().NotBeNull();
             provider.GetService(typeof(IDialogService)).Should().NotBeNull();
             provider.GetService(typeof(IClipboardService)).Should().NotBeNull();
+            provider.GetService(typeof(IImageExportSettings)).Should().NotBeNull();
         }
 
         /// <summary>

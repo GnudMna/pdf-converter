@@ -88,6 +88,10 @@
     <Compile Include="Services\DocumentFileHelper.cs" />
     <Compile Include="Services\DocumentPdfSourceService.cs" />
     <Compile Include="Services\IDocumentPdfSourceService.cs" />
+    <Compile Include="Services\IImageExportSettings.cs" />
+    <Compile Include="Services\ImageExportSettings.cs" />
+    <Compile Include="Services\OutputImageFormatParser.cs" />
+    <Compile Include="Services\ResolutionModeParser.cs" />
     <Compile Include="Services\IWordToPdfConversionSettings.cs" />
     <Compile Include="Services\LibreOfficePathHelper.cs" />
     <Compile Include="Services\LibreOfficePdfExportFilterBuilder.cs" />
