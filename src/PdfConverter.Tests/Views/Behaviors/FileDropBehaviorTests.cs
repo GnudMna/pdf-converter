@@ -2,9 +2,9 @@ using System.Windows;
 using System.Windows.Input;
 using FluentAssertions;
 using Moq;
+using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels;
 using PdfConverter.Views.Behaviors;
-using PdfConverter.Tests.Helpers;
 using Xunit;
 
 namespace PdfConverter.Tests.Views.Behaviors
@@ -14,6 +14,9 @@ namespace PdfConverter.Tests.Views.Behaviors
     /// </summary>
     public class FileDropBehaviorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 有効化すると AllowDrop が true になり、無効化すると false になることを検証する
         /// </summary>
@@ -103,6 +106,10 @@ namespace PdfConverter.Tests.Views.Behaviors
             viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static IDataObject CreateFileDropData(string filePath)
         {
             var data = new DataObject();

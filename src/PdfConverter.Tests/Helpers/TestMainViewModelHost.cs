@@ -11,8 +11,15 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal sealed class TestMainViewModelHost : IMainViewModelHost
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private CancellationTokenSource _cancellationTokenSource;
 
+
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         public string FilePath { get; set; }
 
         public string LoadedFilePath { get; set; }
@@ -55,6 +62,10 @@ namespace PdfConverter.Tests.Helpers
             ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
             : 1;
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public void PrepareCancellation()
         {
             _cancellationTokenSource?.Cancel();

@@ -16,6 +16,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class LibreOfficeToPdfConversionServiceTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 起動引数に headless 変換に必要なオプションが含まれることを検証する
         /// </summary>
@@ -133,6 +136,11 @@ namespace PdfConverter.Tests.Services
                 File.Delete(fakeSoffice);
             }
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static LibreOfficeToPdfConversionService CreateService()
         {

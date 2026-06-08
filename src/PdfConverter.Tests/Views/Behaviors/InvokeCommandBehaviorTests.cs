@@ -2,8 +2,8 @@ using System.Windows;
 using System.Windows.Controls;
 using FluentAssertions;
 using PdfConverter.Commands;
-using PdfConverter.Views.Behaviors;
 using PdfConverter.Tests.Helpers;
+using PdfConverter.Views.Behaviors;
 using Xunit;
 
 namespace PdfConverter.Tests.Views.Behaviors
@@ -13,6 +13,9 @@ namespace PdfConverter.Tests.Views.Behaviors
     /// </summary>
     public class InvokeCommandBehaviorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// フォーカス喪失時にコマンドが実行されることを検証する
         /// </summary>

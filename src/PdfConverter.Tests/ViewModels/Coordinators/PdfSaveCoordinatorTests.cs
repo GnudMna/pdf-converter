@@ -18,6 +18,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
     /// </summary>
     public class PdfSaveCoordinatorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパスが空の場合に保存処理が開始されないことを検証する
         /// </summary>
@@ -317,6 +320,11 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             host.IsBusy.Should().BeFalse();
             Directory.Delete(tempDir, recursive: true);
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static PdfSaveCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf, out Mock<IDialogService> dialog)
         {

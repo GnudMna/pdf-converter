@@ -6,7 +6,7 @@ namespace PdfConverter.Models
     public sealed class ThemeModeOption
     {
         /********************************************************************************/
-        /*                                 プロパティ                                  */
+        /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>テーマ種別</summary>
         public ThemeMode Mode { get; }

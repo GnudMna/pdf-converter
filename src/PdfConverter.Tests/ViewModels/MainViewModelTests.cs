@@ -16,6 +16,9 @@ namespace PdfConverter.Tests.ViewModels
     /// </summary>
     public class MainViewModelTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパス未設定時に PageIndicator が選択を促すメッセージを返すことを検証する
         /// </summary>
@@ -266,6 +269,10 @@ namespace PdfConverter.Tests.ViewModels
             Directory.Delete(folder, recursive: true);
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static System.Windows.Media.Imaging.BitmapSource CreatePreviewBitmap()
         {
             System.Windows.Media.Imaging.BitmapSource image = null;

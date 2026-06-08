@@ -395,7 +395,7 @@ namespace PdfConverter.ViewModels
 
 
         /********************************************************************************/
-        /*                          IMainViewModelHost 委譲                            */
+        /*                           IMainViewModelHost 委譲                            */
         /********************************************************************************/
         string IPreviewCoordinatorHost.LoadedFilePath
         {

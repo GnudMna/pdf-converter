@@ -7,6 +7,9 @@ namespace PdfConverter.Services
     /// </summary>
     internal static class WordToPdfConversionTimeouts
     {
+        /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
         /// <summary>変換処理全体の上限時間</summary>
         public static readonly TimeSpan Conversion = TimeSpan.FromMinutes(5);
     }

@@ -15,6 +15,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class DocumentPdfSourceServiceTests
     {
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static DocumentPdfSourceService CreateService(
             Mock<IWordToPdfConversionService> wordToPdf,
             Mock<IWordToPdfConversionSettings> settings = null)
@@ -23,6 +26,10 @@ namespace PdfConverter.Tests.Services
             return new DocumentPdfSourceService(wordToPdf.Object, settings.Object);
         }
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// PDF 入力の場合は元ファイルパスをそのまま返すことを検証する
         /// </summary>

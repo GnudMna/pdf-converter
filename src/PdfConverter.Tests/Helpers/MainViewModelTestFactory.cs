@@ -11,6 +11,9 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal static class MainViewModelTestFactory
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public static (MainViewModel ViewModel, Mock<IPdfConversionService> Pdf, Mock<IDialogService> Dialog, Mock<IClipboardService> Clipboard) Create()
         {
             var pdf = new Mock<IPdfConversionService>();

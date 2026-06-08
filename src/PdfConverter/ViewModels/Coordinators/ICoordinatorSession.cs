@@ -1,4 +1,5 @@
 using System.Threading;
+
 using PdfConverter.Models;
 
 namespace PdfConverter.ViewModels.Coordinators
@@ -8,6 +9,9 @@ namespace PdfConverter.ViewModels.Coordinators
     /// </summary>
     public interface ICoordinatorSession
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <summary>処理中かどうか</summary>
         bool IsBusy { get; set; }
 
@@ -17,6 +21,10 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>進捗値</summary>
         double ProgressValue { get; set; }
 
+
+        /********************************************************************************/
+        /*                                 抽象メソッド                                 */
+        /********************************************************************************/
         /// <summary>キャンセル処理を準備する</summary>
         void PrepareCancellation();
 

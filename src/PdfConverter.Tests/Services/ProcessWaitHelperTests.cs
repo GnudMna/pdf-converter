@@ -12,6 +12,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class ProcessWaitHelperTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// タイムアウト時にプロセスを終了し <see cref="TimeoutException"/> を送出することを検証する
         /// </summary>

@@ -5,6 +5,9 @@ namespace PdfConverter.Models
     /// </summary>
     public enum WordToPdfBackend
     {
+        /********************************************************************************/
+        /*                                    列挙値                                    */
+        /********************************************************************************/
         /// <summary>Microsoft Word (COM)</summary>
         MicrosoftWord,
 

@@ -8,6 +8,9 @@ namespace PdfConverter.Services
     /// </summary>
     public static class ResolutionModeParser
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 文字列を <see cref="ResolutionMode"/> に変換する
         /// </summary>
