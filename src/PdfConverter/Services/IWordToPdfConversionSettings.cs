@@ -17,6 +17,18 @@ namespace PdfConverter.Services
         /// <summary>LibreOfficeの<c>soffice.exe</c>のパス（空の場合は自動検出）</summary>
         string LibreOfficePath { get; set; }
 
+        /// <summary>出力する PDF の形式</summary>
+        WordToPdfPdfFormat PdfFormat { get; set; }
+
+        /// <summary>出力最適化モード</summary>
+        WordToPdfOptimizeFor OptimizeFor { get; set; }
+
+        /// <summary>しおり（見出し）を PDF に出力するかどうか</summary>
+        bool ExportBookmarks { get; set; }
+
+        /// <summary>コメントを PDF に出力するかどうか</summary>
+        bool ExportComments { get; set; }
+
 
         /********************************************************************************/
         /*                                    イベント                                    */
