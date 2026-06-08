@@ -24,7 +24,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 ResolutionValidationMessage = "previous error",
             };
 
-            var success = CoordinatorHelpers.TryGetResolutionValue(host, out double value, showFieldValidation: false);
+            var success = CoordinatorHelpers.TryGetResolutionValue(host, host, out double value, showFieldValidation: false);
 
             success.Should().BeTrue();
             value.Should().Be(1080);
@@ -43,7 +43,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 ResolutionValue = "",
             };
 
-            var success = CoordinatorHelpers.TryGetResolutionValue(host, out _, showFieldValidation: true);
+            var success = CoordinatorHelpers.TryGetResolutionValue(host, host, out _, showFieldValidation: true);
 
             success.Should().BeFalse();
             host.StatusMessage.Should().NotBeNullOrWhiteSpace();

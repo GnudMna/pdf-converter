@@ -55,35 +55,6 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
-        /// 出力形式を JPEG に変更したときに透明度保持が自動的に無効化されることを検証する
-        /// </summary>
-        [Fact]
-        public void OutputImageFormat_Jpeg_DisablesPreserveTransparency()
-        {
-            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
-            viewModel.PreserveTransparency = true;
-
-            viewModel.OutputImageFormat = OutputImageFormat.Jpeg;
-
-            viewModel.PreserveTransparency.Should().BeFalse();
-            viewModel.IsTransparencySelectable.Should().BeFalse();
-        }
-
-        /// <summary>
-        /// 出力形式を PNG に設定したときに透明度の選択が可能であることを検証する
-        /// </summary>
-        [Fact]
-        public void OutputImageFormat_Png_AllowsTransparency()
-        {
-            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
-
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
-
-            viewModel.IsTransparencySelectable.Should().BeTrue();
-        }
-
-        /// <summary>
         /// 存在しないファイルを読み込もうとした場合にエラーステータスが設定され、PDF サービスが呼ばれないことを検証する
         /// </summary>
         [Fact]
@@ -178,8 +149,8 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
             System.Windows.Media.Imaging.BitmapSource image = null;
             StaTestHelper.Run(() => image = BitmapTestHelper.CreateBitmap());
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
-            viewModel.PreserveTransparency = true;
+            viewModel.ExportSettings.OutputImageFormat = OutputImageFormat.Png;
+            viewModel.ExportSettings.PreserveTransparency = true;
             viewModel.PreviewImage = image;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
@@ -272,8 +243,8 @@ namespace PdfConverter.Tests.ViewModels
             Directory.CreateDirectory(folder);
             viewModel.FilePath = "C:\\sample.pdf";
             viewModel.PageCount = 1;
-            viewModel.PageRange = "1";
-            viewModel.ResolutionValue = "1080";
+            viewModel.ExportSettings.PageRange = "1";
+            viewModel.ExportSettings.ResolutionValue = "1080";
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
             pdf.Setup(p => p.SavePdfPagesToImagesAsync(
                     It.IsAny<string>(),

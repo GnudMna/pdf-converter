@@ -53,11 +53,11 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="IMainViewModelHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
-        public void LoadFromPath(IMainViewModelHost host, bool forceReload = false)
+        public void LoadFromPath(IPreviewCoordinatorHost host, bool forceReload = false)
         {
             if (host.IsSaving)
             {
@@ -106,7 +106,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public Task RefreshIfLoadedAsync(IMainViewModelHost host)
+        public Task RefreshIfLoadedAsync(IPreviewCoordinatorHost host)
         {
             if (string.IsNullOrEmpty(host.FilePath) || host.PageCount <= 0 || host.IsSaving)
             {
@@ -122,7 +122,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <remarks>プロパティセッターなど UI スレッドから呼び出す用途向け</remarks>
         /// <param name="host">メインビューモデル</param>
-        public void RequestRefreshIfLoaded(IMainViewModelHost host)
+        public void RequestRefreshIfLoaded(IPreviewCoordinatorHost host)
         {
             TrackPreviewTask(RefreshIfLoadedAsync(host));
         }
@@ -132,7 +132,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToPageAsync(IMainViewModelHost host)
+        public async Task GoToPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.PageCount <= 0)
             {
@@ -149,7 +149,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToPreviousPageAsync(IMainViewModelHost host)
+        public async Task GoToPreviousPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.CurrentPreviewPage <= 1)
             {
@@ -166,7 +166,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToNextPageAsync(IMainViewModelHost host)
+        public async Task GoToNextPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.CurrentPreviewPage >= host.PageCount)
             {
@@ -187,7 +187,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>今回の操作世代番号</returns>
-        private long BeginPreviewOperation(IMainViewModelHost host)
+        private long BeginPreviewOperation(IPreviewCoordinatorHost host)
         {
             host.PrepareCancellation();
             return Interlocked.Increment(ref _previewOperationGeneration);
@@ -250,7 +250,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="host">メインビューモデル</param>
         /// <param name="operationGeneration">操作世代番号</param>
         /// <returns>非同期操作のタスク</returns>
-        private async Task LoadPageCountAndConvertAsync(IMainViewModelHost host, long operationGeneration)
+        private async Task LoadPageCountAndConvertAsync(IPreviewCoordinatorHost host, long operationGeneration)
         {
             if (string.IsNullOrEmpty(host.FilePath))
             {
@@ -331,7 +331,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="manageBusyState">処理中フラグとキャンセルソースのライフサイクルをこのメソッドで管理するかどうか</param>
         /// <returns>非同期操作のタスク</returns>
         private async Task ConvertAsync(
-            IMainViewModelHost host,
+            IPreviewCoordinatorHost host,
             long operationGeneration,
             bool showFieldValidation = false,
             bool manageBusyState = true)
@@ -371,7 +371,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 host.PageNumberValidationMessage = null;
 
-                if (!CoordinatorHelpers.TryGetResolutionValue(host, out double val, showFieldValidation))
+                if (!CoordinatorHelpers.TryGetResolutionValue(host, host, out double val, showFieldValidation))
                 {
                     return;
                 }
@@ -439,7 +439,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>PDF レンダリング用の絶対パス。失敗時は <c>null</c></returns>
         private async Task<string> ResolvePdfPathAsync(
-            IMainViewModelHost host,
+            IPreviewCoordinatorHost host,
             string sourcePath,
             long operationGeneration,
             CancellationToken cancellationToken)

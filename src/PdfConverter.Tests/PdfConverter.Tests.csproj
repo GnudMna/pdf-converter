@@ -120,6 +120,7 @@
     <Compile Include="ViewModels\Coordinators\CoordinatorHelpersTests.cs" />
     <Compile Include="ViewModels\Coordinators\PdfPreviewCoordinatorTests.cs" />
     <Compile Include="ViewModels\Coordinators\PdfSaveCoordinatorTests.cs" />
+    <Compile Include="ViewModels\ImageExportSettingsViewModelTests.cs" />
     <Compile Include="ViewModels\MainViewModelTests.cs" />
     <Compile Include="ViewModels\ViewModelBaseTests.cs" />
   </ItemGroup>

@@ -55,14 +55,14 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task SaveAsync(IMainViewModelHost host)
+        public async Task SaveAsync(ISaveCoordinatorHost host)
         {
             if (string.IsNullOrEmpty(host.FilePath))
             {
                 return;
             }
 
-            if (!CoordinatorHelpers.TryGetResolutionValue(host, out double resolutionValue, showFieldValidation: true))
+            if (!CoordinatorHelpers.TryGetResolutionValue(host, host, out double resolutionValue, showFieldValidation: true))
             {
                 return;
             }
@@ -167,7 +167,7 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <inheritdoc/>
-        public async Task SavePdfAsync(IMainViewModelHost host)
+        public async Task SavePdfAsync(ISaveCoordinatorHost host)
         {
             if (string.IsNullOrEmpty(host.FilePath) || !DocumentFileHelper.IsWordFile(host.FilePath))
             {
@@ -233,7 +233,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
         /// <returns>true: 上書き確認を行う / false: 上書き確認を行わない / キャンセルされた場合は<c>null</c></returns>
-        private bool ConfirmOverwriteExistingFiles(IMainViewModelHost host, string folderPath, IEnumerable<int> pageIndexes)
+        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int> pageIndexes)
         {
             string extension = ImageBitmapHelper.GetFileExtension(host.OutputImageFormat);
             IEnumerable<int> pagesToSave = host.IsAllPagesSelected
