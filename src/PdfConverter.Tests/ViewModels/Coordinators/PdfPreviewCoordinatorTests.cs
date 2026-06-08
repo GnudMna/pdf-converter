@@ -16,6 +16,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
     /// </summary>
     public class PdfPreviewCoordinatorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパスが空の場合に何も処理されないことを検証する
         /// </summary>
@@ -323,6 +326,11 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()), Times.Never);
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf)
         {

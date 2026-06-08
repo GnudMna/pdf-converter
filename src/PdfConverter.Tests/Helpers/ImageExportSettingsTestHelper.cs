@@ -12,6 +12,9 @@ namespace PdfConverter.Tests.Helpers
         /// <summary>
         /// 既定値を持つ <see cref="IImageExportSettings"/> モックを生成する
         /// </summary>
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public static Mock<IImageExportSettings> Create()
         {
             var mock = new Mock<IImageExportSettings>();

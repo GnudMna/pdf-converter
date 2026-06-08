@@ -12,6 +12,9 @@ namespace PdfConverter.Tests.Helpers
         /// <summary>
         /// 既定設定のモックを生成する
         /// </summary>
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public static Mock<IWordToPdfConversionSettings> Create()
         {
             var mock = new Mock<IWordToPdfConversionSettings>();

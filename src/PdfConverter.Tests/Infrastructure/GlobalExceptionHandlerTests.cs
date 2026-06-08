@@ -11,8 +11,15 @@ namespace PdfConverter.Tests.Infrastructure
     /// </summary>
     public class GlobalExceptionHandlerTests : IDisposable
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly string _logDirectory;
 
+
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
         public GlobalExceptionHandlerTests()
         {
             _logDirectory = Path.Combine(Path.GetTempPath(), "PdfConverterTests", Guid.NewGuid().ToString("N"));
@@ -29,6 +36,11 @@ namespace PdfConverter.Tests.Infrastructure
                 Directory.Delete(_logDirectory, recursive: true);
             }
         }
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
 
         /// <summary>
         /// キャンセル例外は報告されず、ログも出力されないことを検証する

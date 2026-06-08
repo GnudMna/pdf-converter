@@ -7,6 +7,9 @@ namespace PdfConverter.ViewModels.Coordinators
     /// </summary>
     public interface ISaveCoordinatorHost : ICoordinatorSession, IResolutionInputHost
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <summary>読み込むドキュメントのパス</summary>
         string FilePath { get; }
 

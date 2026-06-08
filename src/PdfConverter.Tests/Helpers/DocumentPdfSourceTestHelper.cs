@@ -13,6 +13,9 @@ namespace PdfConverter.Tests.Helpers
         /// <summary>
         /// 入力パスをそのまま PDF パスとして返すパススルーモックを生成する
         /// </summary>
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public static Mock<IDocumentPdfSourceService> CreatePassthrough()
         {
             var mock = new Mock<IDocumentPdfSourceService>();

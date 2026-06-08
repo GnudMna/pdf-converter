@@ -6,7 +6,7 @@ namespace PdfConverter.Models
     public class ResolutionModeOption
     {
         /********************************************************************************/
-        /*                                 プロパティ                                  */
+        /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>解像度の指定方法</summary>
         public ResolutionMode Mode { get; }

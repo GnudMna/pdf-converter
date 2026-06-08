@@ -8,6 +8,9 @@ namespace PdfConverter.Services
     /// </summary>
     public static class OutputImageFormatParser
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 文字列を <see cref="OutputImageFormat"/> に変換する
         /// </summary>

@@ -7,6 +7,9 @@ namespace PdfConverter.Services
     /// </summary>
     public interface IImageExportSettings
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <summary>出力画像形式</summary>
         OutputImageFormat OutputImageFormat { get; set; }
 
@@ -19,6 +22,10 @@ namespace PdfConverter.Services
         /// <summary>透明度を保持するかどうか</summary>
         bool PreserveTransparency { get; set; }
 
+
+        /********************************************************************************/
+        /*                                 抽象メソッド                                 */
+        /********************************************************************************/
         /// <summary>現在の設定を保存する</summary>
         void Save();
     }

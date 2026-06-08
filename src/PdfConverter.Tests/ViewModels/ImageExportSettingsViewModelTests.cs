@@ -13,6 +13,9 @@ namespace PdfConverter.Tests.ViewModels
     /// </summary>
     public class ImageExportSettingsViewModelTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 出力形式を JPEG に変更したときに透明度保持が自動的に無効化されることを検証する
         /// </summary>
@@ -106,6 +109,11 @@ namespace PdfConverter.Tests.ViewModels
 
             settings.Verify(s => s.Save(), Times.Never);
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static ImageExportSettingsViewModel CreateViewModel()
         {

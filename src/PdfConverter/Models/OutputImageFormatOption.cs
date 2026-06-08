@@ -6,7 +6,7 @@ namespace PdfConverter.Models
     public sealed class OutputImageFormatOption
     {
         /********************************************************************************/
-        /*                                 プロパティ                                  */
+        /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>出力画像形式</summary>
         public OutputImageFormat Format { get; }

@@ -7,6 +7,9 @@ namespace PdfConverter.ViewModels.Coordinators
     /// </summary>
     public interface IResolutionInputHost
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <summary>解像度の指定方法</summary>
         ResolutionMode ResolutionMode { get; }
 

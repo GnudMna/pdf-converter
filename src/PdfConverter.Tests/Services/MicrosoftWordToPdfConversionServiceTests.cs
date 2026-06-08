@@ -14,8 +14,16 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class MicrosoftWordToPdfConversionServiceTests
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly MicrosoftWordToPdfConversionService _service =
             new MicrosoftWordToPdfConversionService(WordToPdfConversionSettingsTestHelper.Create().Object);
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
 
         /// <summary>
         /// 空のパスを指定した場合に ArgumentException がスローされることを検証する
@@ -111,6 +119,10 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static string CreateTempWordFile()
         {
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");

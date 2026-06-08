@@ -12,7 +12,15 @@ namespace PdfConverter.Tests.Converters
     /// </summary>
     public class StringToVisibilityConverterTests
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly StringToVisibilityConverter _converter = new StringToVisibilityConverter();
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
 
         /// <summary>
         /// null・空文字・空白のみのとき Collapsed が返されることを検証する

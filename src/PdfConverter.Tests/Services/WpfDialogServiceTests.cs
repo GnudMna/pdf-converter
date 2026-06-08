@@ -9,6 +9,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class WpfDialogServiceTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// <see cref="IDialogService"/> を実装していることを検証する
         /// </summary>

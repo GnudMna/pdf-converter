@@ -8,6 +8,9 @@ namespace PdfConverter.Services
     /// </summary>
     public sealed class ImageExportSettings : IImageExportSettings
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <inheritdoc/>
         public OutputImageFormat OutputImageFormat { get; set; }
 
@@ -20,6 +23,10 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public bool PreserveTransparency { get; set; }
 
+
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
         /// <summary>
         /// 保存済み設定を読み込んで初期化する
         /// </summary>
@@ -31,6 +38,10 @@ namespace PdfConverter.Services
             PreserveTransparency = ResolvePreserveTransparency(OutputImageFormat, Settings.Default.PreserveTransparency);
         }
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <inheritdoc/>
         public void Save()
         {
@@ -41,6 +52,10 @@ namespace PdfConverter.Services
             Settings.Default.Save();
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         /// <summary>
         /// 保存済みの解像度値を検証し、不正な場合は既定値にフォールバックする
         /// </summary>

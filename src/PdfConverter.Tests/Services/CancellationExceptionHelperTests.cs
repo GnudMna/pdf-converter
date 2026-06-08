@@ -12,6 +12,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class CancellationExceptionHelperTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// OperationCanceledException がキャンセル例外として判定されることを検証する
         /// </summary>

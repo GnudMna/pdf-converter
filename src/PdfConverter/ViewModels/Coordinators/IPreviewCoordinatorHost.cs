@@ -1,4 +1,5 @@
 using System.Windows.Media.Imaging;
+
 using PdfConverter.Models;
 
 namespace PdfConverter.ViewModels.Coordinators
@@ -8,6 +9,9 @@ namespace PdfConverter.ViewModels.Coordinators
     /// </summary>
     public interface IPreviewCoordinatorHost : ICoordinatorSession, IResolutionInputHost
     {
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         /// <summary>読み込むドキュメントのパス</summary>
         string FilePath { get; set; }
 
