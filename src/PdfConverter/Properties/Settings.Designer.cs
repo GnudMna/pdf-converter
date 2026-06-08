@@ -71,5 +71,65 @@ namespace PdfConverter.Properties
                 this["LibreOfficePath"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Standard")]
+        public string WordToPdfPdfFormat
+        {
+            get
+            {
+                return ((string)(this["WordToPdfPdfFormat"]));
+            }
+            set
+            {
+                this["WordToPdfPdfFormat"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Print")]
+        public string WordToPdfOptimizeFor
+        {
+            get
+            {
+                return ((string)(this["WordToPdfOptimizeFor"]));
+            }
+            set
+            {
+                this["WordToPdfOptimizeFor"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool WordToPdfExportBookmarks
+        {
+            get
+            {
+                return ((bool)(this["WordToPdfExportBookmarks"]));
+            }
+            set
+            {
+                this["WordToPdfExportBookmarks"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool WordToPdfExportComments
+        {
+            get
+            {
+                return ((bool)(this["WordToPdfExportComments"]));
+            }
+            set
+            {
+                this["WordToPdfExportComments"] = value;
+            }
+        }
     }
 }

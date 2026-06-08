@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Models;
 
 namespace PdfConverter.Services
 {
@@ -12,10 +13,38 @@ namespace PdfConverter.Services
     public class MicrosoftWordToPdfConversionService : IWordToPdfConversionService
     {
         /********************************************************************************/
-        /*                                 ローカル定数                                 */
+        /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>WordのPDF保存形式 (<c>wdFormatPDF</c>)</summary>
-        private const int WdFormatPdf = 17;
+        /// <summary>Word → PDF 変換設定</summary>
+        private readonly IWordToPdfConversionSettings _settings;
+
+        /// <summary>WordのPDF保存形式 (<c>wdExportFormatPDF</c>)</summary>
+        private const int WdExportFormatPdf = 17;
+
+        /// <summary>印刷向け最適化 (<c>wdExportOptimizeForPrint</c>)</summary>
+        private const int WdExportOptimizeForPrint = 0;
+
+        /// <summary>画面表示向け最適化 (<c>wdExportOptimizeForOnScreen</c>)</summary>
+        private const int WdExportOptimizeForOnScreen = 1;
+
+        /// <summary>しおりを出力しない (<c>wdExportCreateNoBookmarks</c>)</summary>
+        private const int WdExportCreateNoBookmarks = 0;
+
+        /// <summary>見出しからしおりを作成 (<c>wdExportCreateHeadingBookmarks</c>)</summary>
+        private const int WdExportCreateHeadingBookmarks = 1;
+
+
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
+        /// <summary>
+        /// 指定した設定を使用して Word COM 経由の変換を行う
+        /// </summary>
+        /// <param name="settings">Word → PDF 変換設定</param>
+        public MicrosoftWordToPdfConversionService(IWordToPdfConversionSettings settings)
+        {
+            _settings = settings;
+        }
 
 
         /********************************************************************************/
@@ -28,7 +57,7 @@ namespace PdfConverter.Services
 
             var comHolder = new WordComHolder();
             Task<string> conversionTask = StaTaskRunner.RunAsync(
-                token => ConvertOnStaThread(wordFilePath, token, comHolder),
+                token => ConvertOnStaThread(wordFilePath, _settings, token, comHolder),
                 cancellationToken,
                 comHolder.TryCleanup);
 
@@ -78,6 +107,7 @@ namespace PdfConverter.Services
         /// <returns>生成されたPDFファイルの絶対パス</returns>
         private static string ConvertOnStaThread(
             string wordFilePath,
+            IWordToPdfConversionSettings settings,
             CancellationToken cancellationToken,
             WordComHolder comHolder)
         {
@@ -114,7 +144,7 @@ namespace PdfConverter.Services
                 comHolder.Set(document, wordApp);
 
                 cancellationToken.ThrowIfCancellationRequested();
-                document.SaveAs2(outputPath, WdFormatPdf);
+                ExportAsPdf(wordApp, document, outputPath, settings);
 
                 if (!File.Exists(outputPath))
                 {
@@ -126,6 +156,55 @@ namespace PdfConverter.Services
             finally
             {
                 comHolder.TryCleanup();
+            }
+        }
+
+        /// <summary>
+        /// 設定に応じて Word 文書を PDF として書き出す
+        /// </summary>
+        /// <param name="wordApp">Word アプリケーション</param>
+        /// <param name="document">Word 文書</param>
+        /// <param name="outputPath">出力先 PDF パス</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
+        private static void ExportAsPdf(
+            dynamic wordApp,
+            dynamic document,
+            string outputPath,
+            IWordToPdfConversionSettings settings)
+        {
+            int optimizeFor = settings.OptimizeFor == WordToPdfOptimizeFor.Online
+                ? WdExportOptimizeForOnScreen
+                : WdExportOptimizeForPrint;
+            int createBookmarks = settings.ExportBookmarks
+                ? WdExportCreateHeadingBookmarks
+                : WdExportCreateNoBookmarks;
+            bool usePdfA = settings.PdfFormat == WordToPdfPdfFormat.PdfA;
+
+            wordApp.Options.PrintComments = settings.ExportComments;
+            TrySetShowComments(wordApp, settings.ExportComments);
+
+            document.ExportAsFixedFormat2(
+                OutputFileName: outputPath,
+                ExportFormat: WdExportFormatPdf,
+                OpenAfterExport: false,
+                OptimizeFor: optimizeFor,
+                CreateBookmarks: createBookmarks,
+                UseISO19005_1: usePdfA);
+        }
+
+        /// <summary>
+        /// コメント表示を切り替える（利用できない環境では無視する）
+        /// </summary>
+        /// <param name="wordApp">Word アプリケーション</param>
+        /// <param name="showComments">コメントを表示するかどうか</param>
+        private static void TrySetShowComments(dynamic wordApp, bool showComments)
+        {
+            try
+            {
+                wordApp.ActiveWindow.View.ShowComments = showComments;
+            }
+            catch
+            {
             }
         }
 

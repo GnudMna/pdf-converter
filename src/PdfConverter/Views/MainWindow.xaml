@@ -177,6 +177,44 @@
                                                        Style="{StaticResource HintText}"
                                                        Text="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。" />
                                         </StackPanel>
+                                        <TextBlock Margin="0,18,0,0"
+                                                   Text="PDF 形式"
+                                                   Style="{StaticResource FieldLabel}" />
+                                        <ComboBox Width="180"
+                                                  Margin="0,8,0,0"
+                                                  HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding WordToPdfPdfFormatOptions}"
+                                                  SelectedValue="{Binding WordToPdfPdfFormat}"
+                                                  SelectedValuePath="Format"
+                                                  DisplayMemberPath="DisplayName" />
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Style="{StaticResource HintText}"
+                                                   Text="PDF/A-1 は長期保存向けの形式です。" />
+                                        <TextBlock Margin="0,18,0,0"
+                                                   Text="出力最適化"
+                                                   Style="{StaticResource FieldLabel}" />
+                                        <ComboBox Width="180"
+                                                  Margin="0,8,0,0"
+                                                  HorizontalAlignment="Left"
+                                                  ItemsSource="{Binding WordToPdfOptimizeForOptions}"
+                                                  SelectedValue="{Binding WordToPdfOptimizeFor}"
+                                                  SelectedValuePath="OptimizeFor"
+                                                  DisplayMemberPath="DisplayName" />
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Style="{StaticResource HintText}"
+                                                   Text="オンライン向けはファイルサイズを抑えます。" />
+                                        <CheckBox Margin="0,18,0,0"
+                                                  Content="しおり（見出し）を出力"
+                                                  IsChecked="{Binding WordToPdfExportBookmarks}" />
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Style="{StaticResource HintText}"
+                                                   Text="Word 文書の見出しスタイルから PDF のしおりを作成します。" />
+                                        <CheckBox Margin="0,12,0,0"
+                                                  Content="コメントを含める"
+                                                  IsChecked="{Binding WordToPdfExportComments}" />
+                                        <TextBlock Margin="0,6,0,0"
+                                                   Style="{StaticResource HintText}"
+                                                   Text="Word 文書のコメントを PDF に出力します。" />
                                     </StackPanel>
                                 </Expander>
                             </StackPanel>

@@ -62,7 +62,7 @@ namespace PdfConverter.Services
 
             try
             {
-                string arguments = BuildArguments(outputDirectory, wordFilePath);
+                string arguments = BuildArguments(outputDirectory, wordFilePath, _settings);
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = sofficePath,
@@ -117,11 +117,17 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="outputDirectory">出力先ディレクトリ</param>
         /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
         /// <returns>起動引数</returns>
-        private static string BuildArguments(string outputDirectory, string wordFilePath)
+        private static string BuildArguments(
+            string outputDirectory,
+            string wordFilePath,
+            IWordToPdfConversionSettings settings)
         {
+            string convertTo = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings);
             return string.Format(
-                "--headless --nologo --nofirststartwizard --convert-to pdf --outdir {0} {1}",
+                "--headless --nologo --nofirststartwizard --convert-to {0} --outdir {1} {2}",
+                QuoteArgument(convertTo),
                 QuoteArgument(outputDirectory),
                 QuoteArgument(wordFilePath));
         }

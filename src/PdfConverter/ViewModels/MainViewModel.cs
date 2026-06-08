@@ -65,12 +65,34 @@ namespace PdfConverter.ViewModels
         private string _libreOfficePath;
         /// <summary>Word設定セクションを展開するかどうか</summary>
         private bool _isWordSettingsExpanded;
+        /// <summary>Word → PDF 変換時の PDF 形式</summary>
+        private WordToPdfPdfFormat _wordToPdfPdfFormat;
+        /// <summary>Word → PDF 変換時の出力最適化モード</summary>
+        private WordToPdfOptimizeFor _wordToPdfOptimizeFor;
+        /// <summary>Word → PDF 変換時にしおりを出力するかどうか</summary>
+        private bool _wordToPdfExportBookmarks;
+        /// <summary>Word → PDF 変換時にコメントを出力するかどうか</summary>
+        private bool _wordToPdfExportComments;
         /// <summary>Word → PDF変換エンジンの選択肢</summary>
         private static readonly IReadOnlyList<WordToPdfBackendOption> WordToPdfBackendOptionsList =
             new List<WordToPdfBackendOption>
             {
                 new WordToPdfBackendOption(WordToPdfBackend.MicrosoftWord, "Microsoft Word"),
                 new WordToPdfBackendOption(WordToPdfBackend.LibreOffice, "LibreOffice"),
+            };
+        /// <summary>Word → PDF 変換時の PDF 形式の選択肢</summary>
+        private static readonly IReadOnlyList<WordToPdfPdfFormatOption> WordToPdfPdfFormatOptionsList =
+            new List<WordToPdfPdfFormatOption>
+            {
+                new WordToPdfPdfFormatOption(WordToPdfPdfFormat.Standard, "標準 PDF"),
+                new WordToPdfPdfFormatOption(WordToPdfPdfFormat.PdfA, "PDF/A-1"),
+            };
+        /// <summary>Word → PDF 変換時の出力最適化モードの選択肢</summary>
+        private static readonly IReadOnlyList<WordToPdfOptimizeForOption> WordToPdfOptimizeForOptionsList =
+            new List<WordToPdfOptimizeForOption>
+            {
+                new WordToPdfOptimizeForOption(WordToPdfOptimizeFor.Print, "印刷向け"),
+                new WordToPdfOptimizeForOption(WordToPdfOptimizeFor.Online, "オンライン向け"),
             };
 
         /* ------------------------------- 変換設定関連 ------------------------------- */
@@ -278,6 +300,88 @@ namespace PdfConverter.ViewModels
         {
             get => _isWordSettingsExpanded;
             set => SetProperty(ref _isWordSettingsExpanded, value);
+        }
+
+        /// <summary>Word → PDF 変換時の PDF 形式</summary>
+        public WordToPdfPdfFormat WordToPdfPdfFormat
+        {
+            get => _wordToPdfPdfFormat;
+            set
+            {
+                if (!SetProperty(ref _wordToPdfPdfFormat, value))
+                {
+                    return;
+                }
+
+                if (_wordToPdfSettings.PdfFormat != value)
+                {
+                    _wordToPdfSettings.PdfFormat = value;
+                    ApplyWordToPdfSettingsChange();
+                }
+            }
+        }
+
+        /// <summary>Word → PDF 変換時の PDF 形式の選択肢</summary>
+        public IReadOnlyList<WordToPdfPdfFormatOption> WordToPdfPdfFormatOptions => WordToPdfPdfFormatOptionsList;
+
+        /// <summary>Word → PDF 変換時の出力最適化モード</summary>
+        public WordToPdfOptimizeFor WordToPdfOptimizeFor
+        {
+            get => _wordToPdfOptimizeFor;
+            set
+            {
+                if (!SetProperty(ref _wordToPdfOptimizeFor, value))
+                {
+                    return;
+                }
+
+                if (_wordToPdfSettings.OptimizeFor != value)
+                {
+                    _wordToPdfSettings.OptimizeFor = value;
+                    ApplyWordToPdfSettingsChange();
+                }
+            }
+        }
+
+        /// <summary>Word → PDF 変換時の出力最適化モードの選択肢</summary>
+        public IReadOnlyList<WordToPdfOptimizeForOption> WordToPdfOptimizeForOptions => WordToPdfOptimizeForOptionsList;
+
+        /// <summary>Word → PDF 変換時にしおりを出力するかどうか</summary>
+        public bool WordToPdfExportBookmarks
+        {
+            get => _wordToPdfExportBookmarks;
+            set
+            {
+                if (!SetProperty(ref _wordToPdfExportBookmarks, value))
+                {
+                    return;
+                }
+
+                if (_wordToPdfSettings.ExportBookmarks != value)
+                {
+                    _wordToPdfSettings.ExportBookmarks = value;
+                    ApplyWordToPdfSettingsChange();
+                }
+            }
+        }
+
+        /// <summary>Word → PDF 変換時にコメントを出力するかどうか</summary>
+        public bool WordToPdfExportComments
+        {
+            get => _wordToPdfExportComments;
+            set
+            {
+                if (!SetProperty(ref _wordToPdfExportComments, value))
+                {
+                    return;
+                }
+
+                if (_wordToPdfSettings.ExportComments != value)
+                {
+                    _wordToPdfSettings.ExportComments = value;
+                    ApplyWordToPdfSettingsChange();
+                }
+            }
         }
 
         /* ------------------------------- 変換設定関連 ------------------------------- */
@@ -565,6 +669,10 @@ namespace PdfConverter.ViewModels
             _wordToPdfSettings = wordToPdfSettings;
             _wordToPdfBackend = wordToPdfSettings.Backend;
             _libreOfficePath = wordToPdfSettings.LibreOfficePath ?? string.Empty;
+            _wordToPdfPdfFormat = wordToPdfSettings.PdfFormat;
+            _wordToPdfOptimizeFor = wordToPdfSettings.OptimizeFor;
+            _wordToPdfExportBookmarks = wordToPdfSettings.ExportBookmarks;
+            _wordToPdfExportComments = wordToPdfSettings.ExportComments;
 
             // コマンド初期化
             BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);

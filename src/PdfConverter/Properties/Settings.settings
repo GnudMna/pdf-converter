@@ -13,5 +13,17 @@
     <Setting Name="LibreOfficePath" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>
+    <Setting Name="WordToPdfPdfFormat" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Standard</Value>
+    </Setting>
+    <Setting Name="WordToPdfOptimizeFor" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Print</Value>
+    </Setting>
+    <Setting Name="WordToPdfExportBookmarks" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">True</Value>
+    </Setting>
+    <Setting Name="WordToPdfExportComments" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

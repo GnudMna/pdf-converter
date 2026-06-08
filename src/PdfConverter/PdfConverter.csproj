@@ -90,11 +90,14 @@
     <Compile Include="Services\IDocumentPdfSourceService.cs" />
     <Compile Include="Services\IWordToPdfConversionSettings.cs" />
     <Compile Include="Services\LibreOfficePathHelper.cs" />
+    <Compile Include="Services\LibreOfficePdfExportFilterBuilder.cs" />
     <Compile Include="Services\LibreOfficeToPdfConversionService.cs" />
     <Compile Include="Services\ProcessWaitHelper.cs" />
     <Compile Include="Services\MicrosoftWordToPdfConversionService.cs" />
     <Compile Include="Services\SelectableWordToPdfConversionService.cs" />
     <Compile Include="Services\WordToPdfBackendParser.cs" />
+    <Compile Include="Services\WordToPdfOptimizeForParser.cs" />
+    <Compile Include="Services\WordToPdfPdfFormatParser.cs" />
     <Compile Include="Services\WordToPdfConversionSettings.cs" />
     <Compile Include="Services\WordToPdfConversionTimeouts.cs" />
     <Compile Include="Services\IWordToPdfConversionService.cs" />
@@ -110,6 +113,10 @@
     <Compile Include="Commands\RelayCommand.cs" />
     <Compile Include="Models\WordToPdfBackend.cs" />
     <Compile Include="Models\WordToPdfBackendOption.cs" />
+    <Compile Include="Models\WordToPdfOptimizeFor.cs" />
+    <Compile Include="Models\WordToPdfOptimizeForOption.cs" />
+    <Compile Include="Models\WordToPdfPdfFormat.cs" />
+    <Compile Include="Models\WordToPdfPdfFormatOption.cs" />
     <Compile Include="Models\OutputImageFormat.cs" />
     <Compile Include="Models\OutputImageFormatOption.cs" />
     <Compile Include="Models\ResolutionMode.cs" />
