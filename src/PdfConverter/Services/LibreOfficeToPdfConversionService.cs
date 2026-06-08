@@ -119,7 +119,7 @@ namespace PdfConverter.Services
         /// <param name="wordFilePath">Word ファイルの絶対パス</param>
         /// <param name="settings">Word → PDF 変換設定</param>
         /// <returns>起動引数</returns>
-        private static string BuildArguments(
+        internal static string BuildArguments(
             string outputDirectory,
             string wordFilePath,
             IWordToPdfConversionSettings settings)
@@ -137,7 +137,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="value">引数値</param>
         /// <returns>引用符で囲んだ引数</returns>
-        private static string QuoteArgument(string value)
+        internal static string QuoteArgument(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
         }
