@@ -101,7 +101,8 @@ namespace PdfConverter.ViewModels
             IClipboardService clipboardService,
             IPdfPreviewCoordinator previewCoordinator,
             IPdfSaveCoordinator saveCoordinator,
-            IWordToPdfConversionSettings wordToPdfSettings)
+            IWordToPdfConversionSettings wordToPdfSettings,
+            IImageExportSettings imageExportSettings)
         {
             _dialogService = dialogService;
             _clipboardService = clipboardService;
@@ -110,6 +111,7 @@ namespace PdfConverter.ViewModels
 
             WordSettings = new WordConversionSettingsViewModel(wordToPdfSettings, ReloadWordDocumentIfLoaded);
             ExportSettings = new ImageExportSettingsViewModel(
+                imageExportSettings,
                 () => _previewCoordinator.RequestRefreshIfLoaded(this),
                 RaiseActionCanExecuteChanged);
 

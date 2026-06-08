@@ -24,6 +24,7 @@ namespace PdfConverter.Infrastructure
             var services = new ServiceCollection();
             services.AddSingleton<IPdfConversionService, PdfConversionService>();
             services.AddSingleton<IWordToPdfConversionSettings, WordToPdfConversionSettings>();
+            services.AddSingleton<IImageExportSettings, ImageExportSettings>();
             services.AddSingleton<MicrosoftWordToPdfConversionService>();
             services.AddSingleton<LibreOfficeToPdfConversionService>();
             services.AddSingleton<IWordToPdfConversionService>(provider =>

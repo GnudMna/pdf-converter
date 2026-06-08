@@ -131,5 +131,65 @@ namespace PdfConverter.Properties
                 this["WordToPdfExportComments"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Png")]
+        public string OutputImageFormat
+        {
+            get
+            {
+                return ((string)(this["OutputImageFormat"]));
+            }
+            set
+            {
+                this["OutputImageFormat"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("Width")]
+        public string ResolutionMode
+        {
+            get
+            {
+                return ((string)(this["ResolutionMode"]));
+            }
+            set
+            {
+                this["ResolutionMode"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("1080")]
+        public string ResolutionValue
+        {
+            get
+            {
+                return ((string)(this["ResolutionValue"]));
+            }
+            set
+            {
+                this["ResolutionValue"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool PreserveTransparency
+        {
+            get
+            {
+                return ((bool)(this["PreserveTransparency"]));
+            }
+            set
+            {
+                this["PreserveTransparency"] = value;
+            }
+        }
     }
 }

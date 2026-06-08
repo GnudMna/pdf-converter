@@ -25,5 +25,17 @@
     <Setting Name="WordToPdfExportComments" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
     </Setting>
+    <Setting Name="OutputImageFormat" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Png</Value>
+    </Setting>
+    <Setting Name="ResolutionMode" Type="System.String" Scope="User">
+      <Value Profile="(Default)">Width</Value>
+    </Setting>
+    <Setting Name="ResolutionValue" Type="System.String" Scope="User">
+      <Value Profile="(Default)">1080</Value>
+    </Setting>
+    <Setting Name="PreserveTransparency" Type="System.Boolean" Scope="User">
+      <Value Profile="(Default)">False</Value>
+    </Setting>
   </Settings>
 </SettingsFile>

@@ -13,6 +13,9 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>画像出力設定</summary>
+        private readonly IImageExportSettings _settings;
+
         /// <summary>プレビュー再生成を要求するコールバック</summary>
         private readonly Action _requestPreviewRefresh;
 
@@ -26,13 +29,13 @@ namespace PdfConverter.ViewModels
         private bool _isAllPagesSelected;
 
         /// <summary>解像度の指定方法</summary>
-        private ResolutionMode _resolutionMode = ResolutionMode.Width;
+        private ResolutionMode _resolutionMode;
 
         /// <summary>解像度の値</summary>
-        private string _resolutionValue = ResolutionValueParser.GetDefaultValue(ResolutionMode.Width);
+        private string _resolutionValue;
 
         /// <summary>出力画像形式</summary>
-        private OutputImageFormat _outputImageFormat = OutputImageFormat.Png;
+        private OutputImageFormat _outputImageFormat;
 
         /// <summary>透明度を保持するかどうか</summary>
         private bool _preserveTransparency;
@@ -68,12 +71,21 @@ namespace PdfConverter.ViewModels
         /// <summary>
         /// 画像出力設定 ViewModel を初期化する
         /// </summary>
+        /// <param name="settings">画像出力設定</param>
         /// <param name="requestPreviewRefresh">プレビュー再生成を要求するコールバック</param>
         /// <param name="raiseSaveCanExecuteChanged">保存コマンドの実行可能状態を更新するコールバック</param>
-        public ImageExportSettingsViewModel(Action requestPreviewRefresh, Action raiseSaveCanExecuteChanged)
+        public ImageExportSettingsViewModel(
+            IImageExportSettings settings,
+            Action requestPreviewRefresh,
+            Action raiseSaveCanExecuteChanged)
         {
+            _settings = settings;
             _requestPreviewRefresh = requestPreviewRefresh;
             _raiseSaveCanExecuteChanged = raiseSaveCanExecuteChanged;
+            _outputImageFormat = settings.OutputImageFormat;
+            _resolutionMode = settings.ResolutionMode;
+            _resolutionValue = settings.ResolutionValue;
+            _preserveTransparency = settings.PreserveTransparency;
         }
 
 
@@ -117,6 +129,7 @@ namespace PdfConverter.ViewModels
                 _resolutionValue = ResolutionValueParser.GetDefaultValue(value);
                 OnPropertyChanged(nameof(ResolutionValue));
                 ResolutionValidationMessage = null;
+                PersistSettings();
                 _requestPreviewRefresh?.Invoke();
             }
         }
@@ -133,6 +146,7 @@ namespace PdfConverter.ViewModels
                 }
 
                 ResolutionValidationMessage = null;
+                PersistSettings();
                 _requestPreviewRefresh?.Invoke();
             }
         }
@@ -157,6 +171,7 @@ namespace PdfConverter.ViewModels
                 }
 
                 OnPropertyChanged(nameof(IsTransparencySelectable));
+                PersistSettings();
             }
         }
 
@@ -174,6 +189,7 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
+                PersistSettings();
                 _requestPreviewRefresh?.Invoke();
             }
         }
@@ -204,6 +220,25 @@ namespace PdfConverter.ViewModels
         {
             ResolutionValidationMessage = null;
             PageRangeValidationMessage = null;
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>永続化対象の設定を保存する</summary>
+        private void PersistSettings()
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            _settings.OutputImageFormat = _outputImageFormat;
+            _settings.ResolutionMode = _resolutionMode;
+            _settings.ResolutionValue = _resolutionValue;
+            _settings.PreserveTransparency = _preserveTransparency;
+            _settings.Save();
         }
     }
 }
