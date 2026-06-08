@@ -8,7 +8,7 @@ namespace PdfConverter.Models
         /// <summary>標準 PDF (PDF 1.4)</summary>
         Standard,
 
-        /// <summary>PDF/A-1（アーカイブ用）</summary>
+        /// <summary>PDF/A-1 (アーカイブ用)</summary>
         PdfA,
     }
 }

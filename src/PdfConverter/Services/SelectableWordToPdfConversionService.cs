@@ -6,20 +6,20 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// 設定に応じてMicrosoft WordまたはLibreOfficeへWord → PDF変換を委譲するサービス
+    /// 設定に応じて Microsoft Word または LibreOffice へ Word → PDF 変換を委譲するサービス
     /// </summary>
     public sealed class SelectableWordToPdfConversionService : IWordToPdfConversionService
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>Microsoft Wordへの変換サービス</summary>
+        /// <summary>Microsoft Word への変換サービス</summary>
         private readonly IWordToPdfConversionService _microsoftWordService;
 
-        /// <summary>LibreOfficeへの変換サービス</summary>
+        /// <summary>LibreOffice への変換サービス</summary>
         private readonly IWordToPdfConversionService _libreOfficeService;
 
-        /// <summary>Word → PDF変換設定</summary>
+        /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
 
@@ -29,9 +29,9 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定した変換サービスと設定を使用して委譲変換を行う
         /// </summary>
-        /// <param name="microsoftWordService">Microsoft Wordへの変換サービス</param>
-        /// <param name="libreOfficeService">LibreOfficeへの変換サービス</param>
-        /// <param name="settings">Word → PDF変換設定</param>
+        /// <param name="microsoftWordService">Microsoft Word への変換サービス</param>
+        /// <param name="libreOfficeService">LibreOffice への変換サービス</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
         public SelectableWordToPdfConversionService(
             IWordToPdfConversionService microsoftWordService,
             IWordToPdfConversionService libreOfficeService,
@@ -56,7 +56,7 @@ namespace PdfConverter.Services
                 case WordToPdfBackend.LibreOffice:
                     return _libreOfficeService.ConvertToPdfAsync(wordFilePath, cancellationToken);
                 default:
-                    throw new InvalidOperationException($"未対応の Word → PDF変換エンジンです: {_settings.Backend}");
+                    throw new InvalidOperationException($"未対応の Word → PDF 変換エンジンです: {_settings.Backend}");
             }
         }
     }

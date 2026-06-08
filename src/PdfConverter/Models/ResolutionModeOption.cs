@@ -1,7 +1,7 @@
 namespace PdfConverter.Models
 {
     /// <summary>
-    /// 解像度モードのComboBox表示用モデル
+    /// 解像度モードの ComboBox 表示用モデル
     /// </summary>
     public class ResolutionModeOption
     {
@@ -11,7 +11,7 @@ namespace PdfConverter.Models
         /// <summary>解像度の指定方法</summary>
         public ResolutionMode Mode { get; }
 
-        /// <summary>UIに表示するラベル</summary>
+        /// <summary>UI に表示するラベル</summary>
         public string DisplayName { get; }
 
 

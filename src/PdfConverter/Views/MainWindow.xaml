@@ -149,7 +149,7 @@
                                             <TextBlock Text="Word 設定"
                                                        FontWeight="SemiBold"
                                                        Foreground="{DynamicResource FieldLabelForegroundBrush}" />
-                                            <TextBlock Text="（Word ファイル利用時）"
+                                            <TextBlock Text="(Word ファイル利用時)"
                                                        Margin="8,0,0,0"
                                                        VerticalAlignment="Center"
                                                        Style="{StaticResource HintText}" />
@@ -204,7 +204,7 @@
                                                    Style="{StaticResource HintText}"
                                                    Text="オンライン向けはファイルサイズを抑えます。" />
                                         <CheckBox Margin="0,18,0,0"
-                                                  Content="しおり（見出し）を出力"
+                                                  Content="しおり (見出し) を出力"
                                                   IsChecked="{Binding WordToPdfExportBookmarks}" />
                                         <TextBlock Margin="0,6,0,0"
                                                    Style="{StaticResource HintText}"
@@ -332,7 +332,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- アクションボタン（常に表示） -->
+                    <!-- アクションボタン (常に表示) -->
                     <Border Grid.Row="1"
                             Margin="0,12,6,0"
                             Padding="0,12,0,0"
@@ -343,7 +343,7 @@
                             <Button Content="画像として保存"
                                     Command="{Binding SaveCommand}"
                                     Style="{StaticResource SaveButton}" />
-                            <Button Content="PDFとして保存"
+                            <Button Content="PDF として保存"
                                     Margin="12,0,0,0"
                                     Command="{Binding SavePdfCommand}"
                                     Style="{StaticResource SecondaryButton}"
@@ -630,7 +630,7 @@
             </StackPanel>
         </Grid>
 
-        <!-- ドラッグ&ドロップ オーバーレイ（デザイナーでは非表示。プレビューは DropOverlay.xaml を参照） -->
+        <!-- ドラッグ&ドロップ オーバーレイ (デザイナーでは非表示。プレビューは DropOverlay.xaml を参照) -->
         <views:DropOverlay d:Visibility="Collapsed"
                            Visibility="{Binding IsDropOverlayVisible, Converter={StaticResource BoolToVis}}" />
 

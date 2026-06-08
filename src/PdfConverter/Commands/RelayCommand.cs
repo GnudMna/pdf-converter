@@ -4,10 +4,10 @@ using System.Windows.Input;
 namespace PdfConverter.Commands
 {
     /// <summary>
-    /// MVVMパターンで使用する汎用コマンド実装
+    /// MVVM パターンで使用する汎用コマンド実装
     /// </summary>
     /// <remarks>
-    /// <see cref="ICommand"/>をデリゲートでラップし、ViewModel側でロジックを完結させる
+    /// <see cref="ICommand"/> をデリゲートでラップし、ViewModel 側でロジックを完結させる
     /// </remarks>
     public class RelayCommand : IRelayCommand
     {

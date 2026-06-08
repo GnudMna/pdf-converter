@@ -15,7 +15,7 @@ namespace PdfConverter.Tests.Infrastructure
     public class ServiceConfiguratorTests
     {
         /// <summary>
-        /// 主要サービス（PDF 変換・ダイアログ・クリップボード）が DI コンテナに登録されることを検証する
+        /// 主要サービス (PDF 変換・ダイアログ・クリップボード) が DI コンテナに登録されることを検証する
         /// </summary>
         [Fact]
         public void Configure_RegistersCoreServices()

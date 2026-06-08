@@ -93,7 +93,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 保存処理中（IsSaving）のときに新しい読み込みが開始されないことを検証する
+        /// 保存処理中 (IsSaving) のときに新しい読み込みが開始されないことを検証する
         /// </summary>
         [Fact]
         public void LoadFromPath_WhenSaving_DoesNotStartLoad()
@@ -305,7 +305,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDF が未読み込み（PageCount が 0）のときにプレビュー再生成が行われないことを検証する
+        /// PDF が未読み込み (PageCount が 0) のときにプレビュー再生成が行われないことを検証する
         /// </summary>
         [Fact]
         public async Task RefreshIfLoadedAsync_WhenNotLoaded_DoesNothing()

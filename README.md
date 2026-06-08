@@ -4,7 +4,7 @@
 
 # PDF Converter
 
-**PDFのページを高品質な画像へ変換する、シンプルなWindowsアプリ**
+**PDF のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
@@ -19,7 +19,7 @@
 
 ## ✨ 概要
 
-**PDF Converter**は、PDF または Word 文書の各ページを**PNG / JPEG / BMP**の画像として書き出せるWPFデスクトップアプリです。
+**PDF Converter**は、PDF または Word 文書の各ページを**PNG / JPEG / BMP** の画像として書き出せる WPF デスクトップアプリです。
 Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レンダリングには[PDFium](https://pdfium.googlesource.com/pdfium/)（[Docnet.Core](https://github.com/GowenGit/docnet)）を採用します。変換前にプレビューを確認しながら、解像度や出力範囲を細かく指定できます。
 
 ---

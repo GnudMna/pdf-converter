@@ -8,7 +8,7 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// Microsoft Word COMを使用してWordファイルをPDFに変換するサービス
+    /// Microsoft Word COM を使用して Word ファイルを PDF に変換するサービス
     /// </summary>
     public class MicrosoftWordToPdfConversionService : IWordToPdfConversionService
     {
@@ -18,7 +18,7 @@ namespace PdfConverter.Services
         /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
-        /// <summary>WordのPDF保存形式 (<c>wdExportFormatPDF</c>)</summary>
+        /// <summary>Word の PDF 保存形式 (<c>wdExportFormatPDF</c>)</summary>
         private const int WdExportFormatPdf = 17;
 
         /// <summary>印刷向け最適化 (<c>wdExportOptimizeForPrint</c>)</summary>
@@ -74,7 +74,7 @@ namespace PdfConverter.Services
         /// <param name="conversionTask">変換処理</param>
         /// <param name="comHolder">Word COM オブジェクトの参照</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        /// <returns>生成されたPDFファイルの絶対パス</returns>
+        /// <returns>生成された PDF ファイルの絶対パス</returns>
         private static async Task<string> WaitWithTimeoutAsync(
             Task<string> conversionTask,
             WordComHolder comHolder,
@@ -99,12 +99,12 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// STAスレッド上でWord COMを使用してPDFを生成する
+        /// STA スレッド上で Word COM を使用して PDF を生成する
         /// </summary>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <param name="comHolder">Word COM オブジェクトの参照</param>
-        /// <returns>生成されたPDFファイルの絶対パス</returns>
+        /// <returns>生成された PDF ファイルの絶対パス</returns>
         private static string ConvertOnStaThread(
             string wordFilePath,
             IWordToPdfConversionSettings settings,
@@ -193,7 +193,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// コメント表示を切り替える（利用できない環境では無視する）
+        /// コメント表示を切り替える (利用できない環境では無視する)
         /// </summary>
         /// <param name="wordApp">Word アプリケーション</param>
         /// <param name="showComments">コメントを表示するかどうか</param>
@@ -213,20 +213,20 @@ namespace PdfConverter.Services
         /*                                   ネスト型                                   */
         /********************************************************************************/
         /// <summary>
-        /// Word COMオブジェクトの参照を保持し、キャンセル時に解放する
+        /// Word COM オブジェクトの参照を保持し、キャンセル時に解放する
         /// </summary>
         private sealed class WordComHolder
         {
             /********************************************************************************/
             /*                                 ローカル変数                                 */
             /********************************************************************************/
-            /// <summary>開いているWordファイル</summary>
+            /// <summary>開いている Word ファイル</summary>
             private object _document;
 
-            /// <summary>Wordアプリケーション</summary>
+            /// <summary>Word アプリケーション</summary>
             private object _wordApp;
 
-            /// <summary>COM参照操作の排他制御用オブジェクト</summary>
+            /// <summary>COM 参照操作の排他制御用オブジェクト</summary>
             private readonly object _sync = new object();
 
 
@@ -234,10 +234,10 @@ namespace PdfConverter.Services
             /*                              パブリックメソッド                              */
             /********************************************************************************/
             /// <summary>
-            /// Word COMオブジェクトの参照を登録する
+            /// Word COM オブジェクトの参照を登録する
             /// </summary>
-            /// <param name="document">開いているWordファイル</param>
-            /// <param name="wordApp">Wordアプリケーション</param>
+            /// <param name="document">開いている Word ファイル</param>
+            /// <param name="wordApp">Word アプリケーション</param>
             public void Set(object document, object wordApp)
             {
                 lock (_sync)
@@ -248,7 +248,7 @@ namespace PdfConverter.Services
             }
 
             /// <summary>
-            /// Word COMオブジェクトを終了して解放する
+            /// Word COM オブジェクトを終了して解放する
             /// </summary>
             public void TryCleanup()
             {
@@ -264,27 +264,27 @@ namespace PdfConverter.Services
             /*                             プライベートメソッド                             */
             /********************************************************************************/
             /// <summary>
-            /// Wordファイルを保存せずに閉じる
+            /// Word ファイルを保存せずに閉じる
             /// </summary>
-            /// <param name="document">Wordファイル</param>
+            /// <param name="document">Word ファイル</param>
             private static void CloseDocument(dynamic document)
             {
                 document.Close(SaveChanges: false);
             }
 
             /// <summary>
-            /// Wordアプリケーションを終了する
+            /// Word アプリケーションを終了する
             /// </summary>
-            /// <param name="wordApp">Wordアプリケーション</param>
+            /// <param name="wordApp">Word アプリケーション</param>
             private static void QuitWordApplication(dynamic wordApp)
             {
                 wordApp.Quit(SaveChanges: false);
             }
 
             /// <summary>
-            /// COMオブジェクトを終了して解放する
+            /// COM オブジェクトを終了して解放する
             /// </summary>
-            /// <param name="comObject">COMオブジェクト</param>
+            /// <param name="comObject">COM オブジェクト</param>
             /// <param name="closeAction">終了処理</param>
             private static void ReleaseComObject(ref object comObject, Action<dynamic> closeAction)
             {

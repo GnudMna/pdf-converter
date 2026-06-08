@@ -5,10 +5,10 @@ namespace PdfConverter.Models
     /// </summary>
     public enum WordToPdfOptimizeFor
     {
-        /// <summary>印刷向け（高品質）</summary>
+        /// <summary>印刷向け (高品質)</summary>
         Print,
 
-        /// <summary>オンライン向け（ファイルサイズ優先）</summary>
+        /// <summary>オンライン向け (ファイルサイズ優先)</summary>
         Online,
     }
 }

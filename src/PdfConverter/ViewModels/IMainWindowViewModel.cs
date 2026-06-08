@@ -4,7 +4,7 @@ using PdfConverter.Models;
 namespace PdfConverter.ViewModels
 {
     /// <summary>
-    /// メインウィンドウが依存するViewModelのインターフェース
+    /// メインウィンドウが依存する ViewModel のインターフェース
     /// </summary>
     public interface IMainWindowViewModel
     {
@@ -17,7 +17,7 @@ namespace PdfConverter.ViewModels
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
         bool IsDropOverlayVisible { get; set; }
 
-        /// <summary>パス入力欄のフォーカス喪失時にPDFを読み込むコマンド</summary>
+        /// <summary>パス入力欄のフォーカス喪失時に PDF を読み込むコマンド</summary>
         ICommand LoadPdfFromPathCommand { get; }
 
 

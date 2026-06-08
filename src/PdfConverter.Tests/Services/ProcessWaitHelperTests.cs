@@ -8,12 +8,12 @@ using Xunit;
 namespace PdfConverter.Tests.Services
 {
     /// <summary>
-    /// <see cref="ProcessWaitHelper"/>の動作を検証する
+    /// <see cref="ProcessWaitHelper"/> の動作を検証する
     /// </summary>
     public class ProcessWaitHelperTests
     {
         /// <summary>
-        /// タイムアウト時にプロセスを終了し<see cref="TimeoutException"/>を送出することを検証する
+        /// タイムアウト時にプロセスを終了し <see cref="TimeoutException"/> を送出することを検証する
         /// </summary>
         [Fact]
         public void WaitForExit_TimesOut_KillsProcess()

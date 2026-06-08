@@ -49,7 +49,7 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// Word 入力の場合は Word → PDF変換サービスを呼び出すことを検証する
+        /// Word 入力の場合は Word → PDF 変換サービスを呼び出すことを検証する
         /// </summary>
         [Fact]
         public async Task GetPdfPathAsync_WordInput_UsesWordToPdfService()

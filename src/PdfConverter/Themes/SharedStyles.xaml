@@ -44,7 +44,7 @@
         </Setter>
     </Style>
 
-    <!-- 設定グループ内の値エリア（ジャンルラベルの下） -->
+    <!-- 設定グループ内の値エリア (ジャンルラベルの下) -->
     <Style x:Key="SettingValueBorder" TargetType="Border">
         <Setter Property="Margin" Value="0,8,0,0" />
         <Setter Property="Background" Value="{DynamicResource PreviewAreaBackgroundBrush}" />
@@ -135,7 +135,7 @@
         </Setter>
     </Style>
 
-    <!-- 保存（プライマリ系） -->
+    <!-- 保存 (プライマリ系) -->
     <Style x:Key="SaveButton"
            TargetType="Button"
            BasedOn="{StaticResource PrimaryButton}">
@@ -147,7 +147,7 @@
         </Style.Triggers>
     </Style>
 
-    <!-- コピー（セカンダリ系） -->
+    <!-- コピー (セカンダリ系) -->
     <Style x:Key="CopyButton"
            TargetType="Button"
            BasedOn="{StaticResource SecondaryButton}">
@@ -524,12 +524,12 @@
                             ClipToBounds="True">
                         <Grid>
                             <Border x:Name="PART_Track" />
-                            <!-- 確定（実際の進捗値）。Width はコントロールが設定する -->
+                            <!-- 確定 (実際の進捗値)。Width はコントロールが設定する -->
                             <Border x:Name="PART_Indicator"
                                     HorizontalAlignment="Left"
                                     Background="{TemplateBinding Foreground}"
                                     CornerRadius="7" />
-                            <!-- 不確定（マーキー）アニメーション -->
+                            <!-- 不確定 (マーキー) アニメーション -->
                             <Grid x:Name="IndeterminateRoot"
                                   Visibility="Collapsed"
                                   ClipToBounds="True">

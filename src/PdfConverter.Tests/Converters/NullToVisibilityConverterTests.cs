@@ -15,7 +15,7 @@ namespace PdfConverter.Tests.Converters
         private readonly NullToVisibilityConverter _converter = new NullToVisibilityConverter();
 
         /// <summary>
-        /// バインド値が null のとき Visible が返されることを検証する（プレースホルダー表示用）
+        /// バインド値が null のとき Visible が返されることを検証する (プレースホルダー表示用)
         /// </summary>
         [Fact]
         public void Convert_Null_ReturnsVisible()

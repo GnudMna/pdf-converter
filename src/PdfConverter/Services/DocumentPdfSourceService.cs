@@ -7,24 +7,24 @@ using System.Threading.Tasks;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// 入力ドキュメントからPDFレンダリング用のパスを提供するサービス
+    /// 入力ドキュメントから PDF レンダリング用のパスを提供するサービス
     /// </summary>
     public class DocumentPdfSourceService : IDocumentPdfSourceService, IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>Word → PDF変換サービス</summary>
+        /// <summary>Word → PDF 変換サービス</summary>
         private readonly IWordToPdfConversionService _wordToPdfService;
 
-        /// <summary>Word → PDF変換エンジン設定</summary>
+        /// <summary>Word → PDF 変換エンジン設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
-        /// <summary>入力パスとPDFパスの対応表</summary>
+        /// <summary>入力パスと PDF パスの対応表</summary>
         private readonly Dictionary<string, string> _pdfPathBySourcePath =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-        /// <summary>一時PDFファイルのパス一覧</summary>
+        /// <summary>一時 PDF ファイルのパス一覧</summary>
         private readonly HashSet<string> _temporaryPdfPaths =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -42,9 +42,9 @@ namespace PdfConverter.Services
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 指定したWord → PDF変換サービスを使用してPDFソースを提供する
+        /// 指定した Word → PDF 変換サービスを使用して PDF ソースを提供する
         /// </summary>
-        /// <param name="wordToPdfService">Word → PDF変換サービス</param>
+        /// <param name="wordToPdfService">Word → PDF 変換サービス</param>
         /// <param name="settings">Word → PDF 変換設定</param>
         public DocumentPdfSourceService(
             IWordToPdfConversionService wordToPdfService,
@@ -162,7 +162,7 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// 一時PDFファイルを削除する
+        /// 一時 PDF ファイルを削除する
         /// </summary>
         /// <param name="path">削除対象のファイルパス</param>
         private static void TryDeleteFile(string path)

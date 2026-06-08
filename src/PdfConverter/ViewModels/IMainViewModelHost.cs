@@ -5,17 +5,17 @@ using PdfConverter.Models;
 namespace PdfConverter.ViewModels
 {
     /// <summary>
-    /// CoordinatorがMainViewModelの状態を読み書きするためのインターフェース
+    /// Coordinator が MainViewModel の状態を読み書きするためのインターフェース
     /// </summary>
     public interface IMainViewModelHost
     {
         /********************************************************************************/
         /*                                  プロパティ                                  */
         /********************************************************************************/
-        /// <summary>読み込んだPDFのパス</summary>
+        /// <summary>読み込んだ PDF のパス</summary>
         string FilePath { get; set; }
 
-        /// <summary>読み込んだPDFのパス</summary>
+        /// <summary>読み込んだ PDF のパス</summary>
         string LoadedFilePath { get; set; }
 
         /// <summary>現在表示中のページ番号</summary>
@@ -24,7 +24,7 @@ namespace PdfConverter.ViewModels
         /// <summary>保存するページの範囲</summary>
         string PageRange { get; }
 
-        /// <summary>PDFのページ数</summary>
+        /// <summary>PDF のページ数</summary>
         int PageCount { get; set; }
 
         /// <summary>プレビュー画像</summary>

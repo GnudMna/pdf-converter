@@ -11,7 +11,7 @@ namespace PdfConverter.Models
         /// <summary>ダークテーマ</summary>
         Dark,
 
-        /// <summary>Windowsのシステム設定に従う</summary>
+        /// <summary>Windows のシステム設定に従う</summary>
         System,
     }
 }

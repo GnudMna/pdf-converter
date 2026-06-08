@@ -32,7 +32,7 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// フィルタ JSON を生成する（既定値のみの場合は空文字列）
+        /// フィルタ JSON を生成する (既定値のみの場合は空文字列)
         /// </summary>
         /// <param name="settings">Word → PDF 変換設定</param>
         /// <returns>フィルタ JSON</returns>
