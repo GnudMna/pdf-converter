@@ -59,7 +59,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 - **PDF レンダリング**: `Docnet.Core` (PDFium)
 - **Word → PDF 変換**: Microsoft Word COM または LibreOffice headless（設定で切り替え）
 - **ダイアログ**: `Ookii.Dialogs.Wpf`
-- **テスト**: 単体テストプロジェクト `PdfConverter.Tests` を同梱
+- **テスト**: `xUnit v3` + `Moq` による単体テスト（`PdfConverter.Tests`）
 
 ---
 
@@ -74,6 +74,9 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 ---
 
 ## 🏗️ ビルド & 実行
+
+基本は `src/PdfConverter.slnx` を使用します（`src/PdfConverter.sln` は旧ツールチェーン向けの互換用です）。  
+以下のコマンドは、`msbuild`/`nuget` が利用できる **Visual Studio Developer PowerShell** での実行を想定しています。
 
 ```powershell
 # リポジトリの取得
@@ -103,17 +106,17 @@ msbuild src/PdfConverter.slnx /p:Configuration=Release
 
 ## 🧪 テスト
 
-単体テストは [xUnit](https://xunit.net/) で実装されています。テストプロジェクトはアプリ本体と同様に **.NET Framework 4.8.1（非 SDK 形式）** です。
+単体テストは [xUnit.net v3](https://xunit.net/) で実装されています。テストプロジェクトは **SDK 形式の `net481`** で、ビルド後に生成されるテスト実行ファイルを直接起動して実行できます。
 
 ```powershell
 # 1. NuGet パッケージの復元（未実施の場合）
-nuget restore src/PdfConverter.Tests/PdfConverter.Tests.csproj -PackagesDirectory src/packages
+nuget restore src/PdfConverter.slnx
 
-# 2. ビルド（Visual Studio 付属の MSBuild を使用）
-msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Release
+# 2. テストプロジェクトをビルド
+msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Debug /p:Platform="Any CPU"
 
-# 3. テスト実行
-src/packages/xunit.runner.console.2.9.2/tools/net481/xunit.console.exe src/PdfConverter.Tests/bin/Release/PdfConverter.Tests.dll
+# 3. テスト実行（xUnit v3 In-Process Runner）
+src/PdfConverter.Tests/bin/Debug/net481/PdfConverter.Tests.exe
 ```
 
 Visual Studio のテストエクスプローラーからも実行できます（`xunit.runner.visualstudio` を使用）。
@@ -125,14 +128,31 @@ Visual Studio のテストエクスプローラーからも実行できます（
 ```text
 pdf-converter/
 ├─ src/
-│  ├─ PdfConverter/              # アプリ本体 (WPF / MVVM)
-│  │  ├─ Views/                  # 画面 (XAML)
-│  │  ├─ ViewModels/             # ViewModel と Coordinator
-│  │  ├─ Services/               # PDF 変換・ダイアログ・クリップボード
-│  │  ├─ Models/                 # ドメインモデル / 列挙型
-│  │  ├─ Themes/                 # ライト / ダークテーマ
-│  │  └─ Assets/                 # アイコンなどのリソース
-│  └─ PdfConverter.Tests/        # 単体テスト
+│  ├─ PdfConverter.slnx            # メインで使用するソリューション
+│  ├─ PdfConverter.sln             # 互換用途（旧ツールチェーン向け）
+│  ├─ PdfConverter/                # アプリ本体 (WPF / MVVM)
+│  │  ├─ Commands/                 # コマンド実装
+│  │  ├─ Converters/               # 値変換
+│  │  ├─ Infrastructure/           # 例外処理・DI 構成
+│  │  ├─ Models/                   # ドメインモデル / 列挙型
+│  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携
+│  │  ├─ Themes/                   # ライト / ダークテーマ
+│  │  ├─ ViewModels/               # ViewModel 群
+│  │  │  └─ Coordinators/          # 画面フロー調停
+│  │  ├─ Views/                    # 画面 (XAML)
+│  │  │  └─ Behaviors/             # UI ビヘイビア
+│  │  └─ Assets/                   # アイコンなどのリソース
+│  └─ PdfConverter.Tests/          # xUnit v3 単体テスト
+│     ├─ Commands/
+│     ├─ Converters/
+│     ├─ Infrastructure/
+│     ├─ Services/
+│     ├─ Themes/
+│     ├─ ViewModels/
+│     │  └─ Coordinators/
+│     ├─ Views/
+│     │  └─ Behaviors/
+│     └─ Helpers/                  # テスト補助
 ├─ LICENSE
 └─ README.md
 ```
