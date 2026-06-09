@@ -72,6 +72,7 @@ namespace PdfConverter.ViewModels.Coordinators
             CancellationToken cancellationToken = host.GetCancellationToken();
             host.IsBusy = true;
             host.IsSaving = true;
+            host.IsProgressBarVisible = true;
             host.SetStatus("保存処理を開始しています...", StatusKind.Progress);
 
             try
@@ -162,6 +163,7 @@ namespace PdfConverter.ViewModels.Coordinators
             {
                 host.IsSaving = false;
                 host.IsBusy = false;
+                host.IsProgressBarVisible = false;
                 host.DisposeCancellation();
             }
         }
@@ -177,6 +179,7 @@ namespace PdfConverter.ViewModels.Coordinators
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
             host.IsBusy = true;
+            host.IsProgressBarVisible = true;
             host.SetStatus("PDF 保存処理を開始しています...", StatusKind.Progress);
 
             try
@@ -218,6 +221,7 @@ namespace PdfConverter.ViewModels.Coordinators
             finally
             {
                 host.IsBusy = false;
+                host.IsProgressBarVisible = false;
                 host.DisposeCancellation();
             }
         }

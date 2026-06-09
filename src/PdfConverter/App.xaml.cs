@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
 using PdfConverter.Themes;
@@ -35,6 +36,10 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnStartup(StartupEventArgs e)
         {
+            ToolTipService.InitialShowDelayProperty.OverrideMetadata(
+                typeof(FrameworkElement),
+                new FrameworkPropertyMetadata(200));
+
             GlobalExceptionHandler.Register();
 
             var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)

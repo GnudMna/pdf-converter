@@ -31,6 +31,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>アクティブなプレビュータスク</summary>
         private Task _activePreviewTask = Task.CompletedTask;
 
+        /// <summary>アクティブなプレビュー UI フィードバック</summary>
+        private PreviewUiFeedback _activePreviewUiFeedback;
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -259,6 +262,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
             host.ProgressValue = 0;
             host.IsBusy = true;
+            host.IsProgressBarVisible = true;
             CancellationToken cancellationToken = host.GetCancellationToken();
             string loadingPath = host.FilePath;
 
@@ -317,6 +321,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 if (IsCurrentPreviewOperation(operationGeneration))
                 {
                     host.IsBusy = false;
+                    host.IsProgressBarVisible = false;
                     host.DisposeCancellation();
                 }
             }
@@ -341,15 +346,20 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            host.ProgressValue = 0;
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
+
+            PreviewUiFeedback uiFeedback = null;
             if (manageBusyState)
             {
-                host.IsBusy = true;
+                _activePreviewUiFeedback?.Abandon();
+                uiFeedback = new PreviewUiFeedback(host, () => IsCurrentPreviewOperation(operationGeneration));
+                _activePreviewUiFeedback = uiFeedback;
             }
-
-            host.SetStatus("プレビュー生成中...", StatusKind.Progress);
+            else
+            {
+                host.SetStatus("プレビュー生成中...", StatusKind.Progress);
+            }
 
             try
             {
@@ -359,6 +369,8 @@ namespace PdfConverter.ViewModels.Coordinators
                     {
                         return;
                     }
+
+                    uiFeedback?.Abandon();
 
                     if (showFieldValidation)
                     {
@@ -373,6 +385,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 if (!CoordinatorHelpers.TryGetResolutionValue(host, host, out double val, showFieldValidation))
                 {
+                    uiFeedback?.Abandon();
                     return;
                 }
 
@@ -384,6 +397,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 string pdfPath = await ResolvePdfPathAsync(host, host.FilePath, operationGeneration, cancellationToken);
                 if (pdfPath == null)
                 {
+                    uiFeedback?.Abandon();
                     return;
                 }
 
@@ -402,13 +416,27 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 host.PreviewImage = previewImage;
-                host.SetStatus("プレビューを更新しました。", StatusKind.Success);
+                if (manageBusyState)
+                {
+                    uiFeedback?.CompleteSuccess();
+                }
+                else
+                {
+                    host.SetStatus("プレビューを更新しました。", StatusKind.Success);
+                }
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
                 if (IsCurrentPreviewOperation(operationGeneration))
                 {
-                    host.SetStatus("プレビュー変換をキャンセルしました。", StatusKind.Info);
+                    if (manageBusyState)
+                    {
+                        uiFeedback?.CompleteCancelled();
+                    }
+                    else
+                    {
+                        host.SetStatus("プレビュー変換をキャンセルしました。", StatusKind.Info);
+                    }
                 }
             }
             catch (Exception ex)
@@ -418,14 +446,29 @@ namespace PdfConverter.ViewModels.Coordinators
                     return;
                 }
 
-                host.SetStatus($"プレビューの生成中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                if (manageBusyState)
+                {
+                    uiFeedback?.CompleteError($"プレビューの生成中にエラーが発生しました: {ex.Message}");
+                }
+                else
+                {
+                    host.SetStatus($"プレビューの生成中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                }
             }
             finally
             {
-                if (manageBusyState && IsCurrentPreviewOperation(operationGeneration))
+                if (manageBusyState)
                 {
-                    host.IsBusy = false;
-                    host.DisposeCancellation();
+                    uiFeedback?.Dispose();
+                    if (_activePreviewUiFeedback == uiFeedback)
+                    {
+                        _activePreviewUiFeedback = null;
+                    }
+
+                    if (IsCurrentPreviewOperation(operationGeneration))
+                    {
+                        host.DisposeCancellation();
+                    }
                 }
             }
         }

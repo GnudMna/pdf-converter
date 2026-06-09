@@ -14,6 +14,9 @@ namespace PdfConverter.ViewModels
         /// <summary>処理中かどうか</summary>
         bool IsBusy { get; set; }
 
+        /// <summary>プログレスバーを表示するかどうか</summary>
+        bool IsProgressBarVisible { get; set; }
+
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
         bool IsDropOverlayVisible { get; set; }
 

@@ -78,6 +78,9 @@ namespace PdfConverter.ViewModels
         /// <summary>進捗値</summary>
         private double _progressValue;
 
+        /// <summary>プログレスバーを表示するかどうか</summary>
+        private bool _isProgressBarVisible;
+
         /* ---------------------------- ステータス表示関連 ---------------------------- */
         /// <summary>ステータスメッセージ</summary>
         private string _statusMessage = "ファイルを選択して開始してください。";
@@ -192,6 +195,48 @@ namespace PdfConverter.ViewModels
                 }
 
                 ThemeManager.Apply(value);
+                OnPropertyChanged(nameof(IsLightThemeSelected));
+                OnPropertyChanged(nameof(IsDarkThemeSelected));
+                OnPropertyChanged(nameof(IsSystemThemeSelected));
+            }
+        }
+
+        /// <summary>ライトテーマが選択されているかどうか</summary>
+        public bool IsLightThemeSelected
+        {
+            get => ThemeMode == ThemeMode.Light;
+            set
+            {
+                if (value)
+                {
+                    ThemeMode = ThemeMode.Light;
+                }
+            }
+        }
+
+        /// <summary>ダークテーマが選択されているかどうか</summary>
+        public bool IsDarkThemeSelected
+        {
+            get => ThemeMode == ThemeMode.Dark;
+            set
+            {
+                if (value)
+                {
+                    ThemeMode = ThemeMode.Dark;
+                }
+            }
+        }
+
+        /// <summary>システム設定に従うテーマが選択されているかどうか</summary>
+        public bool IsSystemThemeSelected
+        {
+            get => ThemeMode == ThemeMode.System;
+            set
+            {
+                if (value)
+                {
+                    ThemeMode = ThemeMode.System;
+                }
             }
         }
 
@@ -244,9 +289,31 @@ namespace PdfConverter.ViewModels
                 }
 
                 OnPropertyChanged(nameof(PageIndicator));
+                OnPropertyChanged(nameof(IsPageNavigationVisible));
+                OnPropertyChanged(nameof(PageCountDisplayMinWidth));
+                OnPropertyChanged(nameof(PageNumberInputMinWidth));
                 OnPropertyChanged(nameof(IsSavePdfVisible));
                 RaiseNavigationCanExecuteChanged();
                 RaiseActionCanExecuteChanged();
+            }
+        }
+
+        /// <summary>ページ移動 UI を表示するかどうか</summary>
+        public bool IsPageNavigationVisible => PageCount > 0;
+
+        /// <summary>総ページ数表示の最小幅</summary>
+        public double PageCountDisplayMinWidth => GetPageDigitCount(PageCount) * PageNavigationCharWidth;
+
+        /// <summary>ページ番号入力欄の最小幅</summary>
+        public double PageNumberInputMinWidth
+        {
+            get
+            {
+                int pageNumberDigits = string.IsNullOrWhiteSpace(PageNumber)
+                    ? 1
+                    : PageNumber.Trim().Length;
+                int digitCount = Math.Max(GetPageDigitCount(PageCount), pageNumberDigits);
+                return digitCount * PageNavigationCharWidth + PageNavigationInputPadding;
             }
         }
 
@@ -263,6 +330,7 @@ namespace PdfConverter.ViewModels
 
                 PageNumberValidationMessage = null;
                 OnPropertyChanged(nameof(PageIndicator));
+                OnPropertyChanged(nameof(PageNumberInputMinWidth));
                 RaiseNavigationCanExecuteChanged();
                 RaiseActionCanExecuteChanged();
             }
@@ -276,11 +344,26 @@ namespace PdfConverter.ViewModels
             set => SetProperty(ref _progressValue, value);
         }
 
+        /// <summary>プログレスバーを表示するかどうか</summary>
+        public bool IsProgressBarVisible
+        {
+            get => _isProgressBarVisible;
+            set
+            {
+                if (!SetProperty(ref _isProgressBarVisible, value))
+                {
+                    return;
+                }
+
+                OnPropertyChanged(nameof(IsProgressIndeterminate));
+            }
+        }
+
         /// <summary>
         /// 進捗を不確定 (マーキー) 表示にするかどうか<br/>
-        /// 保存以外の処理 (プレビュー生成・読み込み・ページ移動) 中は具体的な進捗値を持たないため不確定表示にする
+        /// ファイル読み込み中は具体的な進捗値を持たないため不確定表示にする
         /// </summary>
-        public bool IsProgressIndeterminate => IsBusy && !IsSaving;
+        public bool IsProgressIndeterminate => IsProgressBarVisible && !IsSaving;
 
         /* ---------------------------- ステータス表示関連 ---------------------------- */
         /// <summary>ステータスメッセージ</summary>
@@ -529,6 +612,17 @@ namespace PdfConverter.ViewModels
             }
         }
 
+        /// <summary>ページ番号 1 桁あたりの表示幅 (px)</summary>
+        private const double PageNavigationCharWidth = 9;
+
+        /// <summary>ページ番号入力欄の左右余白 (px)</summary>
+        private const double PageNavigationInputPadding = 18;
+
+        /// <summary>ページ番号の桁数を返す</summary>
+        /// <param name="pageValue">ページ番号または総ページ数</param>
+        private static int GetPageDigitCount(int pageValue) =>
+            pageValue > 0 ? (int)Math.Floor(Math.Log10(pageValue)) + 1 : 1;
+
         /// <summary>キャンセル処理を準備する</summary>
         private void PrepareCancellation()
         {
@@ -551,6 +645,7 @@ namespace PdfConverter.ViewModels
         private void OnAsyncCommandException(Exception ex)
         {
             IsBusy = false;
+            IsProgressBarVisible = false;
             SetStatus($"処理中にエラーが発生しました: {ex.Message}", StatusKind.Error);
         }
 
