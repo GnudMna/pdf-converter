@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -26,7 +25,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("Unknown", ResolutionMode.Width)]
         public void Parse_ConvertsKnownValues(string value, ResolutionMode expected)
         {
-            ResolutionModeParser.Parse(value).Should().Be(expected);
+            Assert.Equal(expected, ResolutionModeParser.Parse(value));
         }
     }
 }

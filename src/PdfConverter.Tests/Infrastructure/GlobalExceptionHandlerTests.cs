@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using FluentAssertions;
 using PdfConverter.Infrastructure;
 using Xunit;
 
@@ -50,7 +49,7 @@ namespace PdfConverter.Tests.Infrastructure
         {
             GlobalExceptionHandler.Report(new OperationCanceledException(), "Test");
 
-            Directory.Exists(_logDirectory).Should().BeFalse();
+            Assert.False(Directory.Exists(_logDirectory));
         }
 
         /// <summary>
@@ -64,11 +63,11 @@ namespace PdfConverter.Tests.Infrastructure
             GlobalExceptionHandler.Report(exception, "UnitTest", ExceptionReportKind.Background);
 
             string logPath = Path.Combine(_logDirectory, "error.log");
-            File.Exists(logPath).Should().BeTrue();
+            Assert.True(File.Exists(logPath));
             string content = File.ReadAllText(logPath);
-            content.Should().Contain("UnitTest");
-            content.Should().Contain("test failure");
-            content.Should().Contain(nameof(InvalidOperationException));
+            Assert.Contains("UnitTest", content);
+            Assert.Contains("test failure", content);
+            Assert.Contains(nameof(InvalidOperationException), content);
         }
 
         /// <summary>
@@ -83,8 +82,8 @@ namespace PdfConverter.Tests.Infrastructure
             GlobalExceptionHandler.Report(aggregate, "AggregateTest");
 
             string content = File.ReadAllText(Path.Combine(_logDirectory, "error.log"));
-            content.Should().Contain("inner message");
-            content.Should().Contain(nameof(ArgumentException));
+            Assert.Contains("inner message", content);
+            Assert.Contains(nameof(ArgumentException), content);
         }
 
         /// <summary>

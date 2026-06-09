@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Media.Imaging;
-using FluentAssertions;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -28,7 +27,7 @@ namespace PdfConverter.Tests.Services
             {
                 image = BitmapTestHelper.CreateBitmap();
                 service.CopyImage(image, preserveTransparency: false);
-                Clipboard.ContainsImage().Should().BeTrue();
+                Assert.True(Clipboard.ContainsImage());
             });
         }
 
@@ -45,7 +44,7 @@ namespace PdfConverter.Tests.Services
             {
                 image = BitmapTestHelper.CreateBitmap();
                 service.CopyImage(image, preserveTransparency: true);
-                Clipboard.ContainsImage().Should().BeTrue();
+                Assert.True(Clipboard.ContainsImage());
             });
         }
     }

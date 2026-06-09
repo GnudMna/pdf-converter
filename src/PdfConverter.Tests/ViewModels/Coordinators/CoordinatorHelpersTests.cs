@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels.Coordinators;
@@ -29,9 +28,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             var success = CoordinatorHelpers.TryGetResolutionValue(host, host, out double value, showFieldValidation: false);
 
-            success.Should().BeTrue();
-            value.Should().Be(1080);
-            host.ResolutionValidationMessage.Should().BeNull();
+            Assert.True(success);
+            Assert.Equal(1080, value);
+            Assert.Null(host.ResolutionValidationMessage);
         }
 
         /// <summary>
@@ -48,10 +47,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             var success = CoordinatorHelpers.TryGetResolutionValue(host, host, out _, showFieldValidation: true);
 
-            success.Should().BeFalse();
-            host.StatusMessage.Should().NotBeNullOrWhiteSpace();
-            host.StatusKind.Should().Be(StatusKind.Warning);
-            host.ResolutionValidationMessage.Should().Be(host.StatusMessage);
+            Assert.False(success);
+            Assert.False(string.IsNullOrWhiteSpace(host.StatusMessage));
+            Assert.Equal(StatusKind.Warning, host.StatusKind);
+            Assert.Equal(host.StatusMessage, host.ResolutionValidationMessage);
         }
     }
 }

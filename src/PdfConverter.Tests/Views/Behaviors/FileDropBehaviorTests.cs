@@ -1,6 +1,5 @@
 using System.Windows;
 using System.Windows.Input;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels;
@@ -27,10 +26,10 @@ namespace PdfConverter.Tests.Views.Behaviors
             {
                 var window = new Window();
                 FileDropBehavior.SetIsEnabled(window, true);
-                window.AllowDrop.Should().BeTrue();
+                Assert.True(window.AllowDrop);
 
                 FileDropBehavior.SetIsEnabled(window, false);
-                window.AllowDrop.Should().BeFalse();
+                Assert.False(window.AllowDrop);
             });
         }
 
@@ -49,8 +48,8 @@ namespace PdfConverter.Tests.Views.Behaviors
                 data,
                 out bool showOverlay);
 
-            effects.Should().Be(DragDropEffects.Copy);
-            showOverlay.Should().BeTrue();
+            Assert.Equal(DragDropEffects.Copy, effects);
+            Assert.True(showOverlay);
         }
 
         /// <summary>
@@ -68,8 +67,8 @@ namespace PdfConverter.Tests.Views.Behaviors
                 data,
                 out bool showOverlay);
 
-            effects.Should().Be(DragDropEffects.None);
-            showOverlay.Should().BeFalse();
+            Assert.Equal(DragDropEffects.None, effects);
+            Assert.False(showOverlay);
         }
 
         /// <summary>
@@ -85,7 +84,7 @@ namespace PdfConverter.Tests.Views.Behaviors
 
             bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
 
-            accepted.Should().BeTrue();
+            Assert.True(accepted);
             viewModel.VerifySet(v => v.IsDropOverlayVisible = false);
             viewModel.Verify(v => v.HandleDroppedDocument(filePath), Times.Once);
         }
@@ -102,7 +101,7 @@ namespace PdfConverter.Tests.Views.Behaviors
 
             bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
 
-            accepted.Should().BeFalse();
+            Assert.False(accepted);
             viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
         }
 

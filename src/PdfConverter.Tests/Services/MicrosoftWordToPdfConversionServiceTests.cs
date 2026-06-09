@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -33,7 +32,7 @@ namespace PdfConverter.Tests.Services
         {
             Func<Task> act = () => _service.ConvertToPdfAsync(string.Empty);
 
-            await act.Should().ThrowAsync<ArgumentException>();
+            await Assert.ThrowsAsync<ArgumentException>(act);
         }
 
         /// <summary>
@@ -46,7 +45,7 @@ namespace PdfConverter.Tests.Services
 
             Func<Task> act = () => _service.ConvertToPdfAsync(missingPath);
 
-            await act.Should().ThrowAsync<FileNotFoundException>();
+            await Assert.ThrowsAsync<FileNotFoundException>(act);
         }
 
         /// <summary>
@@ -61,8 +60,8 @@ namespace PdfConverter.Tests.Services
             {
                 Func<Task> act = () => _service.ConvertToPdfAsync(path);
 
-                await act.Should().ThrowAsync<ArgumentException>()
-                    .WithMessage("*Word ファイル*");
+                var ex = await Assert.ThrowsAsync<ArgumentException>(act);
+                Assert.Contains("Word ファイル", ex.Message);
             }
             finally
             {
@@ -84,7 +83,7 @@ namespace PdfConverter.Tests.Services
                 {
                     cts.Cancel();
                     Func<Task> act = () => _service.ConvertToPdfAsync(wordPath, cts.Token);
-                    await act.Should().ThrowAsync<OperationCanceledException>();
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(act);
                 }
             }
             finally
@@ -110,8 +109,8 @@ namespace PdfConverter.Tests.Services
             {
                 Func<Task> act = () => _service.ConvertToPdfAsync(wordPath);
 
-                await act.Should().ThrowAsync<InvalidOperationException>()
-                    .WithMessage("*Microsoft Word*");
+                var ex = await Assert.ThrowsAsync<InvalidOperationException>(act);
+                Assert.Contains("Microsoft Word", ex.Message);
             }
             finally
             {

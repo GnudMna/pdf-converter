@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -24,7 +23,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(null, false)]
         public void IsPdfFile_DetectsExtension(string path, bool expected)
         {
-            DocumentFileHelper.IsPdfFile(path).Should().Be(expected);
+            Assert.Equal(expected, DocumentFileHelper.IsPdfFile(path));
         }
 
         /// <summary>
@@ -37,7 +36,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("C:\\docs\\sample.pdf", false)]
         public void IsWordFile_DetectsExtension(string path, bool expected)
         {
-            DocumentFileHelper.IsWordFile(path).Should().Be(expected);
+            Assert.Equal(expected, DocumentFileHelper.IsWordFile(path));
         }
 
         /// <summary>
@@ -49,7 +48,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("C:\\docs\\sample.txt", false)]
         public void IsSupportedDocument_DetectsExtension(string path, bool expected)
         {
-            DocumentFileHelper.IsSupportedDocument(path).Should().Be(expected);
+            Assert.Equal(expected, DocumentFileHelper.IsSupportedDocument(path));
         }
 
         /// <summary>
@@ -63,9 +62,9 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => DocumentFileHelper.ValidateWordFilePath(path);
 
-            act.Should().Throw<ArgumentException>()
-                .WithMessage("Word ファイルのパスが指定されていません。*")
-                .And.ParamName.Should().Be("wordFilePath");
+            var ex = Assert.Throws<ArgumentException>(act);
+            Assert.Contains("Word ファイルのパスが指定されていません。", ex.Message);
+            Assert.Equal("wordFilePath", ex.ParamName);
         }
 
         /// <summary>
@@ -78,9 +77,9 @@ namespace PdfConverter.Tests.Services
 
             Action act = () => DocumentFileHelper.ValidateWordFilePath(path);
 
-            act.Should().Throw<FileNotFoundException>()
-                .WithMessage("Word ファイルが見つかりません。*")
-                .Which.FileName.Should().Be(path);
+            var ex = Assert.Throws<FileNotFoundException>(act);
+            Assert.Contains("Word ファイルが見つかりません。", ex.Message);
+            Assert.Equal(path, ex.FileName);
         }
 
         /// <summary>
@@ -96,9 +95,9 @@ namespace PdfConverter.Tests.Services
             {
                 Action act = () => DocumentFileHelper.ValidateWordFilePath(path);
 
-                act.Should().Throw<ArgumentException>()
-                    .WithMessage("Word ファイル (.doc / .docx) を指定してください。*")
-                    .And.ParamName.Should().Be("wordFilePath");
+                var ex = Assert.Throws<ArgumentException>(act);
+                Assert.Contains("Word ファイル (.doc / .docx) を指定してください。", ex.Message);
+                Assert.Equal("wordFilePath", ex.ParamName);
             }
             finally
             {
@@ -119,7 +118,7 @@ namespace PdfConverter.Tests.Services
             {
                 Action act = () => DocumentFileHelper.ValidateWordFilePath(path);
 
-                act.Should().NotThrow();
+                act();
             }
             finally
             {

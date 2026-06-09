@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -26,7 +25,7 @@ namespace PdfConverter.Tests.Services
 
             try
             {
-                LibreOfficePathHelper.Resolve(path).Should().Be(path);
+                Assert.Equal(path, LibreOfficePathHelper.Resolve(path));
             }
             finally
             {
@@ -44,7 +43,7 @@ namespace PdfConverter.Tests.Services
 
             Action act = () => LibreOfficePathHelper.Resolve(path);
 
-            act.Should().Throw<FileNotFoundException>();
+            Assert.Throws<FileNotFoundException>(act);
         }
 
         /// <summary>
@@ -55,8 +54,8 @@ namespace PdfConverter.Tests.Services
         {
             var candidates = LibreOfficePathHelper.GetDefaultCandidates().ToList();
 
-            candidates.Should().NotBeEmpty();
-            candidates.Distinct(StringComparer.OrdinalIgnoreCase).Should().HaveSameCount(candidates);
+            Assert.NotEmpty(candidates);
+            Assert.Equal(candidates.Count, candidates.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         }
     }
 }

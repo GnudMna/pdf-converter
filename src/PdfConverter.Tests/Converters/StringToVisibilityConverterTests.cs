@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Windows;
-using FluentAssertions;
 using PdfConverter.Converters;
 using Xunit;
 
@@ -31,8 +30,7 @@ namespace PdfConverter.Tests.Converters
         [InlineData("   ")]
         public void Convert_EmptyOrWhitespace_ReturnsCollapsed(string value)
         {
-            _converter.Convert(value, typeof(Visibility), null, CultureInfo.InvariantCulture)
-                .Should().Be(Visibility.Collapsed);
+            Assert.Equal(Visibility.Collapsed, _converter.Convert(value, typeof(Visibility), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -41,8 +39,7 @@ namespace PdfConverter.Tests.Converters
         [Fact]
         public void Convert_NonEmptyString_ReturnsVisible()
         {
-            _converter.Convert("error message", typeof(Visibility), null, CultureInfo.InvariantCulture)
-                .Should().Be(Visibility.Visible);
+            Assert.Equal(Visibility.Visible, _converter.Convert("error message", typeof(Visibility), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -51,8 +48,7 @@ namespace PdfConverter.Tests.Converters
         [Fact]
         public void Convert_NonStringValue_ReturnsCollapsed()
         {
-            _converter.Convert(42, typeof(Visibility), null, CultureInfo.InvariantCulture)
-                .Should().Be(Visibility.Collapsed);
+            Assert.Equal(Visibility.Collapsed, _converter.Convert(42, typeof(Visibility), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -63,7 +59,7 @@ namespace PdfConverter.Tests.Converters
         {
             Action act = () => _converter.ConvertBack(Visibility.Visible, typeof(string), null, CultureInfo.InvariantCulture);
 
-            act.Should().Throw<NotSupportedException>();
+            Assert.Throws<NotSupportedException>(act);
         }
     }
 }

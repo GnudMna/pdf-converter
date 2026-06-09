@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -28,8 +27,8 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.OutputImageFormat = OutputImageFormat.Jpeg;
 
-            viewModel.PreserveTransparency.Should().BeFalse();
-            viewModel.IsTransparencySelectable.Should().BeFalse();
+            Assert.False(viewModel.PreserveTransparency);
+            Assert.False(viewModel.IsTransparencySelectable);
         }
 
         /// <summary>
@@ -42,7 +41,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.OutputImageFormat = OutputImageFormat.Png;
 
-            viewModel.IsTransparencySelectable.Should().BeTrue();
+            Assert.True(viewModel.IsTransparencySelectable);
         }
 
         /// <summary>
@@ -56,7 +55,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.PageRange = "1-2";
 
-            viewModel.PageRangeValidationMessage.Should().BeNull();
+            Assert.Null(viewModel.PageRangeValidationMessage);
         }
 
         /// <summary>
@@ -73,12 +72,12 @@ namespace PdfConverter.Tests.ViewModels
 
             var viewModel = new ImageExportSettingsViewModel(settings.Object, null, null);
 
-            viewModel.OutputImageFormat.Should().Be(OutputImageFormat.Jpeg);
-            viewModel.ResolutionMode.Should().Be(ResolutionMode.Dpi);
-            viewModel.ResolutionValue.Should().Be("300");
-            viewModel.PreserveTransparency.Should().BeTrue();
-            viewModel.PageRange.Should().Be("1");
-            viewModel.IsAllPagesSelected.Should().BeFalse();
+            Assert.Equal(OutputImageFormat.Jpeg, viewModel.OutputImageFormat);
+            Assert.Equal(ResolutionMode.Dpi, viewModel.ResolutionMode);
+            Assert.Equal("300", viewModel.ResolutionValue);
+            Assert.True(viewModel.PreserveTransparency);
+            Assert.Equal("1", viewModel.PageRange);
+            Assert.False(viewModel.IsAllPagesSelected);
         }
 
         /// <summary>
