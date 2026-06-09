@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -19,8 +18,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void ResolveResolutionValue_ValidValue_ReturnsStoredValue()
         {
-            ImageExportSettings.ResolveResolutionValue(ResolutionMode.Width, " 1920 ")
-                .Should().Be("1920");
+            Assert.Equal("1920", ImageExportSettings.ResolveResolutionValue(ResolutionMode.Width, " 1920 "));
         }
 
         /// <summary>
@@ -32,8 +30,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(ResolutionMode.Dpi, "150")]
         public void ResolveResolutionValue_InvalidValue_ReturnsDefault(ResolutionMode mode, string expected)
         {
-            ImageExportSettings.ResolveResolutionValue(mode, "invalid")
-                .Should().Be(expected);
+            Assert.Equal(expected, ImageExportSettings.ResolveResolutionValue(mode, "invalid"));
         }
 
         /// <summary>
@@ -42,8 +39,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void ResolvePreserveTransparency_Jpeg_ReturnsFalse()
         {
-            ImageExportSettings.ResolvePreserveTransparency(OutputImageFormat.Jpeg, storedValue: true)
-                .Should().BeFalse();
+            Assert.False(ImageExportSettings.ResolvePreserveTransparency(OutputImageFormat.Jpeg, storedValue: true));
         }
 
         /// <summary>
@@ -54,8 +50,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(false)]
         public void ResolvePreserveTransparency_Png_ReturnsStoredValue(bool storedValue)
         {
-            ImageExportSettings.ResolvePreserveTransparency(OutputImageFormat.Png, storedValue)
-                .Should().Be(storedValue);
+            Assert.Equal(storedValue, ImageExportSettings.ResolvePreserveTransparency(OutputImageFormat.Png, storedValue));
         }
     }
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using FluentAssertions;
 using PdfConverter.Commands;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -33,7 +32,7 @@ namespace PdfConverter.Tests.Commands
                 command.Execute(null);
                 Task.Delay(100).GetAwaiter().GetResult();
 
-                executed.Should().BeTrue();
+                Assert.True(executed);
             });
         }
 
@@ -49,7 +48,7 @@ namespace PdfConverter.Tests.Commands
                 var command = new AsyncRelayCommand(async () => await tcs.Task);
 
                 command.Execute(null);
-                command.CanExecute(null).Should().BeFalse();
+                Assert.False(command.CanExecute(null));
 
                 tcs.SetResult(true);
             });
@@ -65,7 +64,7 @@ namespace PdfConverter.Tests.Commands
             {
                 var command = new AsyncRelayCommand(async () => await Task.CompletedTask, () => false);
 
-                command.CanExecute(null).Should().BeFalse();
+                Assert.False(command.CanExecute(null));
             });
         }
 
@@ -85,8 +84,8 @@ namespace PdfConverter.Tests.Commands
                 command.Execute(null);
                 Task.Delay(100).GetAwaiter().GetResult();
 
-                handlerInvoked.Should().BeFalse();
-                command.CanExecute(null).Should().BeTrue();
+                Assert.False(handlerInvoked);
+                Assert.True(command.CanExecute(null));
             });
         }
 
@@ -110,8 +109,9 @@ namespace PdfConverter.Tests.Commands
                 command.Execute(null);
                 Task.Delay(100).GetAwaiter().GetResult();
 
-                caught.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Be("test");
-                command.CanExecute(null).Should().BeTrue();
+                var ex = Assert.IsType<InvalidOperationException>(caught);
+                Assert.Equal("test", ex.Message);
+                Assert.True(command.CanExecute(null));
             });
         }
 
@@ -125,7 +125,7 @@ namespace PdfConverter.Tests.Commands
             {
                 Action act = () => new AsyncRelayCommand(null);
 
-                act.Should().Throw<ArgumentNullException>();
+                Assert.Throws<ArgumentNullException>(act);
             });
         }
     }

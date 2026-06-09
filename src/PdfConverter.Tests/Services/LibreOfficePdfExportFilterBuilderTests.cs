@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -26,8 +25,7 @@ namespace PdfConverter.Tests.Services
                 exportBookmarks: true,
                 exportComments: false);
 
-            LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object)
-                .Should().Be("pdf");
+            Assert.Equal("pdf", LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object));
         }
 
         /// <summary>
@@ -44,8 +42,8 @@ namespace PdfConverter.Tests.Services
 
             string result = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object);
 
-            result.Should().StartWith("pdf:writer_pdf_Export:");
-            result.Should().Contain("\"SelectPdfVersion\":{\"type\":\"long\",\"value\":\"1\"}");
+            Assert.StartsWith("pdf:writer_pdf_Export:", result);
+            Assert.Contains("\"SelectPdfVersion\":{\"type\":\"long\",\"value\":\"1\"}", result);
         }
 
         /// <summary>
@@ -62,8 +60,8 @@ namespace PdfConverter.Tests.Services
 
             string result = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object);
 
-            result.Should().Contain("\"ReduceImageResolution\":{\"type\":\"boolean\",\"value\":\"true\"}");
-            result.Should().Contain("\"Quality\":{\"type\":\"long\",\"value\":\"75\"}");
+            Assert.Contains("\"ReduceImageResolution\":{\"type\":\"boolean\",\"value\":\"true\"}", result);
+            Assert.Contains("\"Quality\":{\"type\":\"long\",\"value\":\"75\"}", result);
         }
 
         /// <summary>
@@ -80,7 +78,7 @@ namespace PdfConverter.Tests.Services
 
             string result = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object);
 
-            result.Should().Contain("\"ExportNotes\":{\"type\":\"boolean\",\"value\":\"true\"}");
+            Assert.Contains("\"ExportNotes\":{\"type\":\"boolean\",\"value\":\"true\"}", result);
         }
 
         /// <summary>
@@ -97,7 +95,7 @@ namespace PdfConverter.Tests.Services
 
             string result = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object);
 
-            result.Should().Contain("\"ExportBookmarks\":{\"type\":\"boolean\",\"value\":\"false\"}");
+            Assert.Contains("\"ExportBookmarks\":{\"type\":\"boolean\",\"value\":\"false\"}", result);
         }
 
 

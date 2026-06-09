@@ -1,4 +1,3 @@
-using FluentAssertions;
 using Microsoft.Win32;
 using PdfConverter.Models;
 using PdfConverter.Themes;
@@ -23,7 +22,7 @@ namespace PdfConverter.Tests.Themes
         [InlineData("System", ThemeMode.System)]
         public void ParseThemeMode_ValidValue_ReturnsParsedMode(string input, ThemeMode expected)
         {
-            ThemeManager.ParseThemeMode(input).Should().Be(expected);
+            Assert.Equal(expected, ThemeManager.ParseThemeMode(input));
         }
 
         /// <summary>
@@ -35,7 +34,7 @@ namespace PdfConverter.Tests.Themes
         [InlineData("invalid")]
         public void ParseThemeMode_InvalidValue_ReturnsSystem(string input)
         {
-            ThemeManager.ParseThemeMode(input).Should().Be(ThemeMode.System);
+            Assert.Equal(ThemeMode.System, ThemeManager.ParseThemeMode(input));
         }
 
         /// <summary>
@@ -51,7 +50,7 @@ namespace PdfConverter.Tests.Themes
             UserPreferenceCategory category,
             bool expected)
         {
-            ThemeManager.ShouldReactToUserPreferenceChange(selectedMode, category).Should().Be(expected);
+            Assert.Equal(expected, ThemeManager.ShouldReactToUserPreferenceChange(selectedMode, category));
         }
     }
 }

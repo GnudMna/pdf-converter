@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
-using FluentAssertions;
 using PdfConverter.Commands;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.Views.Behaviors;
@@ -33,7 +32,7 @@ namespace PdfConverter.Tests.Views.Behaviors
                 textBox.RaiseEvent(new RoutedEventArgs(UIElement.LostFocusEvent));
             });
 
-            executed.Should().BeTrue();
+            Assert.True(executed);
         }
 
         /// <summary>
@@ -52,7 +51,7 @@ namespace PdfConverter.Tests.Views.Behaviors
                 textBox.RaiseEvent(new RoutedEventArgs(UIElement.LostFocusEvent));
             });
 
-            executed.Should().BeFalse();
+            Assert.False(executed);
         }
 
         /// <summary>
@@ -72,7 +71,7 @@ namespace PdfConverter.Tests.Views.Behaviors
                 textBox.RaiseEvent(new RoutedEventArgs(UIElement.LostFocusEvent));
             });
 
-            executed.Should().BeFalse();
+            Assert.False(executed);
         }
 
         /// <summary>
@@ -103,7 +102,7 @@ namespace PdfConverter.Tests.Views.Behaviors
                 window.Close();
             });
 
-            executed.Should().BeTrue();
+            Assert.True(executed);
         }
 
         /// <summary>
@@ -134,7 +133,7 @@ namespace PdfConverter.Tests.Views.Behaviors
                 window.Close();
             });
 
-            executed.Should().BeFalse();
+            Assert.False(executed);
         }
     }
 }

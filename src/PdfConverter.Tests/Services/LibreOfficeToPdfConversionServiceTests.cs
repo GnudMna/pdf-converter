@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -31,11 +30,11 @@ namespace PdfConverter.Tests.Services
 
             string arguments = LibreOfficeToPdfConversionService.BuildArguments(outputDirectory, wordPath, settings.Object);
 
-            arguments.Should().Contain("--headless");
-            arguments.Should().Contain("--convert-to");
-            arguments.Should().Contain("--outdir");
-            arguments.Should().Contain(LibreOfficeToPdfConversionService.QuoteArgument(outputDirectory));
-            arguments.Should().Contain(LibreOfficeToPdfConversionService.QuoteArgument(wordPath));
+            Assert.Contains("--headless", arguments);
+            Assert.Contains("--convert-to", arguments);
+            Assert.Contains("--outdir", arguments);
+            Assert.Contains(LibreOfficeToPdfConversionService.QuoteArgument(outputDirectory), arguments);
+            Assert.Contains(LibreOfficeToPdfConversionService.QuoteArgument(wordPath), arguments);
         }
 
         /// <summary>
@@ -44,8 +43,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void QuoteArgument_EscapesEmbeddedQuotes()
         {
-            LibreOfficeToPdfConversionService.QuoteArgument(@"C:\path ""quoted""\file.docx")
-                .Should().Be(@"""C:\path \""quoted\""\file.docx""");
+            Assert.Equal(@"""C:\path \""quoted\""\file.docx""", LibreOfficeToPdfConversionService.QuoteArgument(@"C:\path ""quoted""\file.docx"));
         }
 
         /// <summary>
@@ -59,7 +57,7 @@ namespace PdfConverter.Tests.Services
 
             Func<Task> act = () => service.ConvertToPdfAsync(missingPath);
 
-            await act.Should().ThrowAsync<FileNotFoundException>();
+            await Assert.ThrowsAsync<FileNotFoundException>(act);
         }
 
         /// <summary>
@@ -77,7 +75,7 @@ namespace PdfConverter.Tests.Services
                 {
                     cts.Cancel();
                     Func<Task> act = () => service.ConvertToPdfAsync(wordPath, cts.Token);
-                    await act.Should().ThrowAsync<OperationCanceledException>();
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(act);
                 }
             }
             finally
@@ -101,9 +99,9 @@ namespace PdfConverter.Tests.Services
             {
                 string pdfPath = await service.ConvertToPdfAsync(wordPath);
 
-                pdfPath.Should().NotBeNullOrWhiteSpace();
-                File.Exists(pdfPath).Should().BeTrue();
-                File.ReadAllText(pdfPath).Should().Contain("%PDF");
+                Assert.False(string.IsNullOrWhiteSpace(pdfPath));
+                Assert.True(File.Exists(pdfPath));
+                Assert.Contains("%PDF", File.ReadAllText(pdfPath));
             }
             finally
             {
@@ -127,8 +125,8 @@ namespace PdfConverter.Tests.Services
             {
                 Func<Task> act = () => service.ConvertToPdfAsync(wordPath);
 
-                await act.Should().ThrowAsync<InvalidOperationException>()
-                    .WithMessage($"*終了コード {FakeSofficeHelper.FailureExitCode}*");
+                var ex = await Assert.ThrowsAsync<InvalidOperationException>(act);
+                Assert.Contains($"終了コード {FakeSofficeHelper.FailureExitCode}", ex.Message);
             }
             finally
             {

@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -21,8 +20,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void IsOrContainsCancellation_OperationCanceledException_ReturnsTrue()
         {
-            CancellationExceptionHelper.IsOrContainsCancellation(new OperationCanceledException())
-                .Should().BeTrue();
+            Assert.True(CancellationExceptionHelper.IsOrContainsCancellation(new OperationCanceledException()));
         }
 
         /// <summary>
@@ -35,8 +33,7 @@ namespace PdfConverter.Tests.Services
                 new OperationCanceledException(),
                 new TaskCanceledException());
 
-            CancellationExceptionHelper.IsOrContainsCancellation(aggregate)
-                .Should().BeTrue();
+            Assert.True(CancellationExceptionHelper.IsOrContainsCancellation(aggregate));
         }
 
         /// <summary>
@@ -45,8 +42,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void IsOrContainsCancellation_OtherException_ReturnsFalse()
         {
-            CancellationExceptionHelper.IsOrContainsCancellation(new InvalidOperationException())
-                .Should().BeFalse();
+            Assert.False(CancellationExceptionHelper.IsOrContainsCancellation(new InvalidOperationException()));
         }
 
         /// <summary>
@@ -59,8 +55,7 @@ namespace PdfConverter.Tests.Services
                 new OperationCanceledException(),
                 new InvalidOperationException());
 
-            CancellationExceptionHelper.IsOrContainsCancellation(aggregate)
-                .Should().BeFalse();
+            Assert.False(CancellationExceptionHelper.IsOrContainsCancellation(aggregate));
         }
     }
 }

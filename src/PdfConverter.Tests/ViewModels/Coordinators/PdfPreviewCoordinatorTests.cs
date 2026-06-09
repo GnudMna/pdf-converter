@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -31,7 +30,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             coordinator.LoadFromPath(host);
 
-            host.StatusMessage.Should().BeNull();
+            Assert.Null(host.StatusMessage);
         }
 
         /// <summary>
@@ -48,10 +47,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             coordinator.LoadFromPath(host);
 
-            host.PageCount.Should().Be(0);
-            host.PreviewImage.Should().BeNull();
-            host.LoadedFilePath.Should().BeNull();
-            host.StatusMessage.Should().Contain("見つかりません");
+            Assert.Equal(0, host.PageCount);
+            Assert.Null(host.PreviewImage);
+            Assert.Null(host.LoadedFilePath);
+            Assert.Contains("見つかりません", host.StatusMessage);
         }
 
         /// <summary>
@@ -68,7 +67,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 coordinator.LoadFromPath(host);
 
-                host.StatusMessage.Should().Contain("Word");
+                Assert.Contains("Word", host.StatusMessage);
             }
             finally
             {
@@ -152,12 +151,12 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 coordinator.LoadFromPath(host, forceReload: true);
                 await Task.Delay(50);
 
-                host.IsBusy.Should().BeTrue();
+                Assert.True(host.IsBusy);
 
                 pageCountGate.SetResult(1);
                 await WaitForAsyncOperations();
 
-                host.IsBusy.Should().BeFalse();
+                Assert.False(host.IsBusy);
             }
             finally
             {
@@ -198,10 +197,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 coordinator.LoadFromPath(host, forceReload: true);
                 await WaitForAsyncOperations();
 
-                host.PageCount.Should().Be(3);
-                host.PreviewImage.Should().BeSameAs(bitmap);
-                host.StatusMessage.Should().Contain("更新");
-                host.IsBusy.Should().BeFalse();
+                Assert.Equal(3, host.PageCount);
+                Assert.Same(bitmap, host.PreviewImage);
+                Assert.Contains("更新", host.StatusMessage);
+                Assert.False(host.IsBusy);
             }
             finally
             {
@@ -239,7 +238,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 await coordinator.GoToPreviousPageAsync(host);
 
-                host.PageNumber.Should().Be("1");
+                Assert.Equal("1", host.PageNumber);
             }
             finally
             {
@@ -278,10 +277,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 await coordinator.GoToNextPageAsync(host);
 
-                host.PageNumber.Should().Be("2");
-                host.IsBusy.Should().BeFalse();
-                host.StatusMessage.Should().Be("初期状態");
-                host.StatusKind.Should().Be(StatusKind.Info);
+                Assert.Equal("2", host.PageNumber);
+                Assert.False(host.IsBusy);
+                Assert.Equal("初期状態", host.StatusMessage);
+                Assert.Equal(StatusKind.Info, host.StatusKind);
             }
             finally
             {
@@ -320,14 +319,14 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 Task navigationTask = coordinator.GoToNextPageAsync(host);
                 await Task.Delay(PreviewUiFeedback.ActivationDelayMilliseconds + 100);
 
-                host.IsBusy.Should().BeTrue();
-                host.StatusKind.Should().Be(StatusKind.Progress);
+                Assert.True(host.IsBusy);
+                Assert.Equal(StatusKind.Progress, host.StatusKind);
 
                 convertGate.SetResult(previewBitmap);
                 await navigationTask;
 
-                host.IsBusy.Should().BeFalse();
-                host.StatusMessage.Should().Contain("更新");
+                Assert.False(host.IsBusy);
+                Assert.Contains("更新", host.StatusMessage);
             }
             finally
             {
@@ -387,8 +386,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 firstConvertGate.SetResult(firstBitmap);
                 await WaitForAsyncOperations();
 
-                host.PreviewImage.Should().BeSameAs(secondBitmap);
-                host.IsBusy.Should().BeFalse();
+                Assert.Same(secondBitmap, host.PreviewImage);
+                Assert.False(host.IsBusy);
             }
             finally
             {

@@ -1,5 +1,4 @@
 using System;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -21,7 +20,7 @@ namespace PdfConverter.Tests.Services
         {
             var result = PageRangeParser.Parse("3", 10);
 
-            result.Should().Equal(2);
+            Assert.Equal(new[] { 2 }, result);
         }
 
         /// <summary>
@@ -32,7 +31,7 @@ namespace PdfConverter.Tests.Services
         {
             var result = PageRangeParser.Parse("2-4", 10);
 
-            result.Should().Equal(1, 2, 3);
+            Assert.Equal(new[] { 1, 2, 3 }, result);
         }
 
         /// <summary>
@@ -43,7 +42,7 @@ namespace PdfConverter.Tests.Services
         {
             var result = PageRangeParser.Parse("1,3-5,3", 10);
 
-            result.Should().Equal(0, 2, 3, 4);
+            Assert.Equal(new[] { 0, 2, 3, 4 }, result);
         }
 
         /// <summary>
@@ -54,7 +53,7 @@ namespace PdfConverter.Tests.Services
         {
             var result = PageRangeParser.Parse(" 1 , 2 ", 5);
 
-            result.Should().Equal(0, 1);
+            Assert.Equal(new[] { 0, 1 }, result);
         }
 
         /// <summary>
@@ -67,7 +66,7 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => PageRangeParser.Parse(pageRange, 10);
 
-            act.Should().Throw<ArgumentOutOfRangeException>();
+            Assert.Throws<ArgumentOutOfRangeException>(act);
         }
 
         /// <summary>
@@ -81,7 +80,7 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => PageRangeParser.Parse(pageRange, 10);
 
-            act.Should().Throw<Exception>();
+            Assert.ThrowsAny<Exception>(act);
         }
 
         /// <summary>
@@ -92,8 +91,8 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => PageRangeParser.Parse("a", 10);
 
-            act.Should().Throw<FormatException>()
-                .WithMessage("*数字*");
+            var ex = Assert.Throws<FormatException>(act);
+            Assert.Contains("数字", ex.Message);
         }
 
         /// <summary>
@@ -104,8 +103,8 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => PageRangeParser.Parse(",", 10);
 
-            act.Should().Throw<ArgumentException>()
-                .WithMessage("*空*");
+            var ex = Assert.Throws<ArgumentException>(act);
+            Assert.Contains("空", ex.Message);
         }
     }
 }

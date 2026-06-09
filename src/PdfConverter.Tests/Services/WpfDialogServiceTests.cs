@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -18,7 +17,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void WpfDialogService_ImplementsIDialogService()
         {
-            typeof(WpfDialogService).Should().Implement<IDialogService>();
+            Assert.True(typeof(IDialogService).IsAssignableFrom(typeof(WpfDialogService)));
         }
 
         /// <summary>
@@ -29,8 +28,8 @@ namespace PdfConverter.Tests.Services
         {
             var service = new WpfDialogService();
 
-            service.Should().NotBeNull();
-            service.Should().BeAssignableTo<IDialogService>();
+            Assert.NotNull(service);
+            Assert.IsAssignableFrom<IDialogService>(service);
         }
     }
 }

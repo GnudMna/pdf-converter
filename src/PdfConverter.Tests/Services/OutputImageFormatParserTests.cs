@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -25,7 +24,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("Unknown", OutputImageFormat.Png)]
         public void Parse_ConvertsKnownValues(string value, OutputImageFormat expected)
         {
-            OutputImageFormatParser.Parse(value).Should().Be(expected);
+            Assert.Equal(expected, OutputImageFormatParser.Parse(value));
         }
     }
 }

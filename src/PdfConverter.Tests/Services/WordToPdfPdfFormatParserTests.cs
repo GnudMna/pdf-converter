@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -24,7 +23,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("Unknown", WordToPdfPdfFormat.Standard)]
         public void Parse_ConvertsKnownValues(string value, WordToPdfPdfFormat expected)
         {
-            WordToPdfPdfFormatParser.Parse(value).Should().Be(expected);
+            Assert.Equal(expected, WordToPdfPdfFormatParser.Parse(value));
         }
     }
 }

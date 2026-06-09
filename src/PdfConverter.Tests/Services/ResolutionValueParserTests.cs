@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -23,7 +22,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(ResolutionMode.Default, "")]
         public void GetDefaultValue_ReturnsExpectedValue(ResolutionMode mode, string expected)
         {
-            ResolutionValueParser.GetDefaultValue(mode).Should().Be(expected);
+            Assert.Equal(expected, ResolutionValueParser.GetDefaultValue(mode));
         }
 
         /// <summary>
@@ -34,9 +33,9 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(ResolutionMode.Default, "", out double value, out string error);
 
-            success.Should().BeTrue();
-            value.Should().Be(0);
-            error.Should().BeNull();
+            Assert.True(success);
+            Assert.Equal(0, value);
+            Assert.Null(error);
         }
 
         /// <summary>
@@ -50,8 +49,8 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(mode, input, out _, out string error);
 
-            success.Should().BeFalse();
-            error.Should().NotBeNullOrWhiteSpace();
+            Assert.False(success);
+            Assert.False(string.IsNullOrWhiteSpace(error));
         }
 
         /// <summary>
@@ -64,8 +63,8 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(mode, input, out _, out string error);
 
-            success.Should().BeFalse();
-            error.Should().Contain("数値");
+            Assert.False(success);
+            Assert.Contains("数値", error);
         }
 
         /// <summary>
@@ -78,8 +77,8 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(mode, input, out _, out string error);
 
-            success.Should().BeFalse();
-            error.Should().Contain("0 より大きい");
+            Assert.False(success);
+            Assert.Contains("0 より大きい", error);
         }
 
         /// <summary>
@@ -90,8 +89,8 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(ResolutionMode.Dpi, "1201", out _, out string error);
 
-            success.Should().BeFalse();
-            error.Should().Contain("1200");
+            Assert.False(success);
+            Assert.Contains("1200", error);
         }
 
         /// <summary>
@@ -102,8 +101,8 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(ResolutionMode.Width, "30001", out _, out string error);
 
-            success.Should().BeFalse();
-            error.Should().Contain("30000");
+            Assert.False(success);
+            Assert.Contains("30000", error);
         }
 
         /// <summary>
@@ -117,9 +116,9 @@ namespace PdfConverter.Tests.Services
         {
             var success = ResolutionValueParser.TryParse(mode, input, out double value, out string error);
 
-            success.Should().BeTrue();
-            value.Should().Be(expected);
-            error.Should().BeNull();
+            Assert.True(success);
+            Assert.Equal(expected, value);
+            Assert.Null(error);
         }
     }
 }

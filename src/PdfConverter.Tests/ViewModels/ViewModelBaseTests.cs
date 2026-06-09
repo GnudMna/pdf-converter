@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using FluentAssertions;
 using PdfConverter.ViewModels;
 using Xunit;
 
@@ -38,8 +37,8 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.Name = "test";
 
-            changedProperty.Should().Be(nameof(TestViewModel.Name));
-            viewModel.Name.Should().Be("test");
+            Assert.Equal(nameof(TestViewModel.Name), changedProperty);
+            Assert.Equal("test", viewModel.Name);
         }
 
         /// <summary>
@@ -54,7 +53,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.Name = "same";
 
-            eventCount.Should().Be(0);
+            Assert.Equal(0, eventCount);
         }
 
         /// <summary>
@@ -69,7 +68,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.Notify("Custom");
 
-            changedProperty.Should().Be("Custom");
+            Assert.Equal("Custom", changedProperty);
         }
     }
 }
