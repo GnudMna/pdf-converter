@@ -208,6 +208,7 @@ namespace PdfConverter.Infrastructure
             }
 
             viewModel.IsBusy = false;
+            viewModel.IsProgressBarVisible = false;
             viewModel.SetStatus(message, StatusKind.Error);
             return true;
         }

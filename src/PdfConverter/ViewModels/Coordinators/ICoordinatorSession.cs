@@ -21,6 +21,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>進捗値</summary>
         double ProgressValue { get; set; }
 
+        /// <summary>プログレスバーを表示するかどうか</summary>
+        bool IsProgressBarVisible { get; set; }
+
 
         /********************************************************************************/
         /*                                 抽象メソッド                                 */

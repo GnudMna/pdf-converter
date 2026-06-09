@@ -58,6 +58,40 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
+        /// ページ数が 0 のときはページ移動 UI を非表示にすることを検証する
+        /// </summary>
+        [Fact]
+        public void IsPageNavigationVisible_WhenNoPages_IsFalse()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+
+            viewModel.IsPageNavigationVisible.Should().BeFalse();
+
+            viewModel.PageCount = 3;
+
+            viewModel.IsPageNavigationVisible.Should().BeTrue();
+        }
+
+        /// <summary>
+        /// 総ページ数の桁数に応じてページ番号入力欄の最小幅が広がることを検証する
+        /// </summary>
+        [Fact]
+        public void PageNumberInputMinWidth_ExpandsForLargePageCount()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.PageCount = 12;
+            viewModel.PageNumber = "1";
+
+            var narrowWidth = viewModel.PageNumberInputMinWidth;
+
+            viewModel.PageCount = 1234;
+            viewModel.PageNumber = "1234";
+
+            viewModel.PageNumberInputMinWidth.Should().BeGreaterThan(narrowWidth);
+            viewModel.PageCountDisplayMinWidth.Should().BeGreaterThan(16);
+        }
+
+        /// <summary>
         /// 存在しないファイルを読み込もうとした場合にエラーステータスが設定され、PDF サービスが呼ばれないことを検証する
         /// </summary>
         [Fact]

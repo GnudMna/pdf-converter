@@ -185,6 +185,7 @@
     <Compile Include="ViewModels\Coordinators\IPdfPreviewCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\IPdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PdfPreviewCoordinator.cs" />
+    <Compile Include="ViewModels\Coordinators\PreviewUiFeedback.cs" />
     <Compile Include="ViewModels\Coordinators\PdfSaveCoordinator.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="App.xaml.cs">
@@ -248,6 +249,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <Page Include="Views\BusyOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
     <Page Include="Views\DropOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -258,6 +263,9 @@
     </Page>
     <Compile Include="Views\ConfirmDialog.xaml.cs">
       <DependentUpon>ConfirmDialog.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\BusyOverlay.xaml.cs">
+      <DependentUpon>BusyOverlay.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\DropOverlay.xaml.cs">
       <DependentUpon>DropOverlay.xaml</DependentUpon>

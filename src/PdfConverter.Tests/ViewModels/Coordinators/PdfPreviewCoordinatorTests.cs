@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
+using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels.Coordinators;
@@ -239,6 +240,94 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 await coordinator.GoToPreviousPageAsync(host);
 
                 host.PageNumber.Should().Be("1");
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// プレビュー切り替えが短時間で完了した場合は処理中 UI を出さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToNextPageAsync_WhenPreviewCompletesQuickly_DoesNotShowBusyUi()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                PageCount = 3,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+                StatusMessage = "初期状態",
+                StatusKind = StatusKind.Info,
+            };
+            System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
+            StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(previewBitmap);
+
+            try
+            {
+                await coordinator.GoToNextPageAsync(host);
+
+                host.PageNumber.Should().Be("2");
+                host.IsBusy.Should().BeFalse();
+                host.StatusMessage.Should().Be("初期状態");
+                host.StatusKind.Should().Be(StatusKind.Info);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// プレビュー切り替えが遅い場合のみ処理中 UI を出すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToNextPageAsync_WhenPreviewIsSlow_ActivatesBusyUi()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                PageCount = 3,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+            };
+            var convertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
+            System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
+            StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(convertGate.Task);
+
+            try
+            {
+                Task navigationTask = coordinator.GoToNextPageAsync(host);
+                await Task.Delay(PreviewUiFeedback.ActivationDelayMilliseconds + 100);
+
+                host.IsBusy.Should().BeTrue();
+                host.StatusKind.Should().Be(StatusKind.Progress);
+
+                convertGate.SetResult(previewBitmap);
+                await navigationTask;
+
+                host.IsBusy.Should().BeFalse();
+                host.StatusMessage.Should().Contain("更新");
             }
             finally
             {
