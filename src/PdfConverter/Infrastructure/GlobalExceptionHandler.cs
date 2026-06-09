@@ -20,7 +20,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>ハンドラ登録済みかどうか</summary>
         private static bool _isRegistered;
 
-        /// <summary>ログ出力先ディレクトリ(テスト時に上書き可能)</summary>
+        /// <summary>ログ出力先ディレクトリ (テスト時に上書き可能)</summary>
         internal static string LogDirectory { get; set; }
 
 
@@ -89,10 +89,10 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>現在のアプリケーションのDispatcherを取得する</summary>
+        /// <summary>現在のアプリケーションの Dispatcher を取得する</summary>
         private static Dispatcher CurrentDispatcher => Application.Current?.Dispatcher;
 
-        /// <summary>UIスレッド上で未処理例外が発生したときのハンドラ</summary>
+        /// <summary>UI スレッド上で未処理例外が発生したときのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -121,7 +121,7 @@ namespace PdfConverter.Infrastructure
             }
         }
 
-        /// <summary>AggregateExceptionを単一の根本原因例外に展開する</summary>
+        /// <summary>AggregateException を単一の根本原因例外に展開する</summary>
         /// <param name="exception">展開する例外</param>
         /// <returns>展開後の例外</returns>
         private static Exception Unwrap(Exception exception)
@@ -197,7 +197,7 @@ namespace PdfConverter.Infrastructure
                 MessageBoxImage.Error);
         }
 
-        /// <summary>メインウィンドウのViewModelのステータスバーへエラーを表示する</summary>
+        /// <summary>メインウィンドウの ViewModel のステータスバーへエラーを表示する</summary>
         /// <param name="message">メッセージ</param>
         /// <returns>true: 更新できた / false: 更新できなかった</returns>
         private static bool TryUpdateMainViewModelStatus(string message)
@@ -208,6 +208,7 @@ namespace PdfConverter.Infrastructure
             }
 
             viewModel.IsBusy = false;
+            viewModel.IsProgressBarVisible = false;
             viewModel.SetStatus(message, StatusKind.Error);
             return true;
         }

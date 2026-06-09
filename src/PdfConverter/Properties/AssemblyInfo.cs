@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Resources;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -8,7 +8,7 @@ using System.Windows;
 // アセンブリに関連付けられている情報を変更するには、
 // これらの属性値を変更してください。
 [assembly: AssemblyTitle("PDF Converter")]
-[assembly: AssemblyDescription("PDFのページを高品質な画像（PNG / JPEG / BMP）へ変換するWindowsアプリ")]
+[assembly: AssemblyDescription("PDF のページを高品質な画像 (PNG / JPEG / BMP) へ変換する Windows アプリ")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("y_hirata")]
 [assembly: AssemblyProduct("PDF Converter")]
@@ -48,7 +48,7 @@ using System.Windows;
 //      ビルド番号
 //      リビジョン
 //
-[assembly: AssemblyVersion("0.1.0.0")]
-[assembly: AssemblyFileVersion("0.1.0.0")]
-[assembly: AssemblyInformationalVersion("0.1.0")]
+[assembly: AssemblyVersion("0.2.0.0")]
+[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyInformationalVersion("0.2.0")]
 [assembly: InternalsVisibleTo("PdfConverter.Tests")]

@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Windows;
-using FluentAssertions;
 using PdfConverter.Converters;
 using Xunit;
 
@@ -12,16 +11,23 @@ namespace PdfConverter.Tests.Converters
     /// </summary>
     public class NullToVisibilityConverterTests
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly NullToVisibilityConverter _converter = new NullToVisibilityConverter();
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
+
         /// <summary>
-        /// バインド値が null のとき Visible が返されることを検証する（プレースホルダー表示用）
+        /// バインド値が null のとき Visible が返されることを検証する (プレースホルダー表示用)
         /// </summary>
         [Fact]
         public void Convert_Null_ReturnsVisible()
         {
-            _converter.Convert(null, typeof(Visibility), null, CultureInfo.InvariantCulture)
-                .Should().Be(Visibility.Visible);
+            Assert.Equal(Visibility.Visible, _converter.Convert(null, typeof(Visibility), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -30,8 +36,7 @@ namespace PdfConverter.Tests.Converters
         [Fact]
         public void Convert_NonNull_ReturnsCollapsed()
         {
-            _converter.Convert("value", typeof(Visibility), null, CultureInfo.InvariantCulture)
-                .Should().Be(Visibility.Collapsed);
+            Assert.Equal(Visibility.Collapsed, _converter.Convert("value", typeof(Visibility), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -42,7 +47,7 @@ namespace PdfConverter.Tests.Converters
         {
             Action act = () => _converter.ConvertBack(Visibility.Visible, typeof(object), null, CultureInfo.InvariantCulture);
 
-            act.Should().Throw<NotSupportedException>();
+            Assert.Throws<NotSupportedException>(act);
         }
     }
 }

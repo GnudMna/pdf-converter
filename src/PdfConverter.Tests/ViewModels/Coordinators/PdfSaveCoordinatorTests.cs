@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -18,6 +17,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
     /// </summary>
     public class PdfSaveCoordinatorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパスが空の場合に保存処理が開始されないことを検証する
         /// </summary>
@@ -59,9 +61,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            host.StatusMessage.Should().Contain("キャンセル");
-            host.IsBusy.Should().BeFalse();
-            host.IsSaving.Should().BeFalse();
+            Assert.Contains("キャンセル", host.StatusMessage);
+            Assert.False(host.IsBusy);
+            Assert.False(host.IsSaving);
         }
 
         /// <summary>
@@ -83,8 +85,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            host.PageRangeValidationMessage.Should().NotBeNullOrWhiteSpace();
-            host.StatusKind.Should().Be(StatusKind.Warning);
+            Assert.False(string.IsNullOrWhiteSpace(host.PageRangeValidationMessage));
+            Assert.Equal(StatusKind.Warning, host.StatusKind);
             pdf.Verify(p => p.SavePdfPagesToImagesAsync(
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<int>>(),
@@ -121,7 +123,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            host.StatusMessage.Should().Contain("キャンセル");
+            Assert.Contains("キャンセル", host.StatusMessage);
             pdf.Verify(p => p.SavePdfPagesToImagesAsync(
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<int>>(),
@@ -168,8 +170,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            host.StatusMessage.Should().Contain("キャンセル");
-            host.StatusKind.Should().NotBe(StatusKind.Success);
+            Assert.Contains("キャンセル", host.StatusMessage);
+            Assert.NotEqual(StatusKind.Success, host.StatusKind);
             Directory.Delete(folder, recursive: true);
         }
 
@@ -205,9 +207,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SaveAsync(host);
 
-            host.ProgressValue.Should().Be(100);
-            host.StatusMessage.Should().Contain("完了");
-            host.StatusKind.Should().Be(StatusKind.Success);
+            Assert.Equal(100, host.ProgressValue);
+            Assert.Contains("完了", host.StatusMessage);
+            Assert.Equal(StatusKind.Success, host.StatusKind);
             Directory.Delete(folder, recursive: true);
         }
 
@@ -245,8 +247,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SavePdfAsync(host);
 
-            host.StatusMessage.Should().Contain("キャンセル");
-            host.IsBusy.Should().BeFalse();
+            Assert.Contains("キャンセル", host.StatusMessage);
+            Assert.False(host.IsBusy);
         }
 
         /// <summary>
@@ -273,10 +275,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SavePdfAsync(host);
 
-            File.ReadAllText(destinationPdf).Should().Be("pdf-content");
-            host.StatusKind.Should().Be(StatusKind.Success);
-            host.StatusMessage.Should().Contain("PDFを保存しました");
-            host.IsBusy.Should().BeFalse();
+            Assert.Equal("pdf-content", File.ReadAllText(destinationPdf));
+            Assert.Equal(StatusKind.Success, host.StatusKind);
+            Assert.Contains("PDF を保存しました", host.StatusMessage);
+            Assert.False(host.IsBusy);
             Directory.Delete(tempDir, recursive: true);
         }
 
@@ -312,11 +314,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.SavePdfAsync(host);
 
-            File.ReadAllText(destinationPdf).Should().Be("existing-content");
-            host.StatusMessage.Should().Contain("キャンセル");
-            host.IsBusy.Should().BeFalse();
+            Assert.Equal("existing-content", File.ReadAllText(destinationPdf));
+            Assert.Contains("キャンセル", host.StatusMessage);
+            Assert.False(host.IsBusy);
             Directory.Delete(tempDir, recursive: true);
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static PdfSaveCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf, out Mock<IDialogService> dialog)
         {

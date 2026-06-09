@@ -1,7 +1,7 @@
 namespace PdfConverter.Models
 {
     /// <summary>
-    /// Word → PDF変換エンジン選択ComboBox用の表示項目
+    /// Word → PDF 変換エンジン選択 ComboBox 用の表示項目
     /// </summary>
     public sealed class WordToPdfBackendOption
     {

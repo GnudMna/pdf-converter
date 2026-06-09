@@ -1,4 +1,3 @@
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using Xunit;
@@ -10,6 +9,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class WordToPdfBackendParserTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 設定文字列を正しく変換することを検証する
         /// </summary>
@@ -21,7 +23,7 @@ namespace PdfConverter.Tests.Services
         [InlineData("Unknown", WordToPdfBackend.MicrosoftWord)]
         public void Parse_ConvertsKnownValues(string value, WordToPdfBackend expected)
         {
-            WordToPdfBackendParser.Parse(value).Should().Be(expected);
+            Assert.Equal(expected, WordToPdfBackendParser.Parse(value));
         }
     }
 }

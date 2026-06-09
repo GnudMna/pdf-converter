@@ -4,7 +4,7 @@ using System.Windows.Media.Imaging;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// WPFクリップボードAPIを使用する<see cref="IClipboardService"/>の実装
+    /// WPF クリップボード API を使用する <see cref="IClipboardService"/> の実装
     /// </summary>
     public class WpfClipboardService : IClipboardService
     {

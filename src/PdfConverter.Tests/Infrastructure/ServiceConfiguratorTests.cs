@@ -1,5 +1,4 @@
 using System;
-using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
 using PdfConverter.Services;
@@ -14,19 +13,23 @@ namespace PdfConverter.Tests.Infrastructure
     /// </summary>
     public class ServiceConfiguratorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
-        /// 主要サービス（PDF 変換・ダイアログ・クリップボード）が DI コンテナに登録されることを検証する
+        /// 主要サービス (PDF 変換・ダイアログ・クリップボード) が DI コンテナに登録されることを検証する
         /// </summary>
         [Fact]
         public void Configure_RegistersCoreServices()
         {
             var provider = ServiceConfigurator.Configure();
 
-            provider.GetService(typeof(IPdfConversionService)).Should().NotBeNull();
-            provider.GetService(typeof(IWordToPdfConversionService)).Should().NotBeNull();
-            provider.GetService(typeof(IDocumentPdfSourceService)).Should().NotBeNull();
-            provider.GetService(typeof(IDialogService)).Should().NotBeNull();
-            provider.GetService(typeof(IClipboardService)).Should().NotBeNull();
+            Assert.NotNull(provider.GetService(typeof(IPdfConversionService)));
+            Assert.NotNull(provider.GetService(typeof(IWordToPdfConversionService)));
+            Assert.NotNull(provider.GetService(typeof(IDocumentPdfSourceService)));
+            Assert.NotNull(provider.GetService(typeof(IDialogService)));
+            Assert.NotNull(provider.GetService(typeof(IClipboardService)));
+            Assert.NotNull(provider.GetService(typeof(IImageExportSettings)));
         }
 
         /// <summary>
@@ -42,10 +45,10 @@ namespace PdfConverter.Tests.Infrastructure
             var saveCoordinator1 = provider.GetService(typeof(IPdfSaveCoordinator));
             var saveCoordinator2 = provider.GetService(typeof(IPdfSaveCoordinator));
 
-            previewCoordinator1.Should().NotBeNull();
-            saveCoordinator1.Should().NotBeNull();
-            previewCoordinator1.Should().NotBeSameAs(previewCoordinator2);
-            saveCoordinator1.Should().NotBeSameAs(saveCoordinator2);
+            Assert.NotNull(previewCoordinator1);
+            Assert.NotNull(saveCoordinator1);
+            Assert.NotSame(previewCoordinator2, previewCoordinator1);
+            Assert.NotSame(saveCoordinator2, saveCoordinator1);
         }
 
         /// <summary>
@@ -58,9 +61,9 @@ namespace PdfConverter.Tests.Infrastructure
             var viewModel1 = (MainViewModel)provider.GetService(typeof(MainViewModel));
             var viewModel2 = (MainViewModel)provider.GetService(typeof(MainViewModel));
 
-            viewModel1.Should().NotBeNull();
-            viewModel2.Should().NotBeNull();
-            viewModel1.Should().NotBeSameAs(viewModel2);
+            Assert.NotNull(viewModel1);
+            Assert.NotNull(viewModel2);
+            Assert.NotSame(viewModel2, viewModel1);
         }
 
         /// <summary>
@@ -73,7 +76,7 @@ namespace PdfConverter.Tests.Infrastructure
             var service1 = provider.GetService(typeof(IPdfConversionService));
             var service2 = provider.GetService(typeof(IPdfConversionService));
 
-            service1.Should().BeSameAs(service2);
+            Assert.Same(service2, service1);
         }
 
         /// <summary>
@@ -84,7 +87,7 @@ namespace PdfConverter.Tests.Infrastructure
         {
             var provider = ServiceConfigurator.Configure();
 
-            provider.GetService(typeof(IMainWindowViewModel)).Should().NotBeNull();
+            Assert.NotNull(provider.GetService(typeof(IMainWindowViewModel)));
         }
 
         /// <summary>
@@ -96,7 +99,7 @@ namespace PdfConverter.Tests.Infrastructure
             var provider = ServiceConfigurator.Configure();
 
             var service = provider.GetRequiredService<IDocumentPdfSourceService>();
-            service.Should().BeAssignableTo<IDisposable>();
+            Assert.IsAssignableFrom<IDisposable>(service);
 
             ((IDisposable)provider).Dispose();
         }

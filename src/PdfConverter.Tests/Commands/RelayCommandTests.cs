@@ -1,5 +1,4 @@
 using System;
-using FluentAssertions;
 using PdfConverter.Commands;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -11,6 +10,9 @@ namespace PdfConverter.Tests.Commands
     /// </summary>
     public class RelayCommandTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// Execute 呼び出し時に登録したアクションが実行されることを検証する
         /// </summary>
@@ -24,7 +26,7 @@ namespace PdfConverter.Tests.Commands
 
                 command.Execute(null);
 
-                executed.Should().BeTrue();
+                Assert.True(executed);
             });
         }
 
@@ -38,7 +40,7 @@ namespace PdfConverter.Tests.Commands
             {
                 var command = new RelayCommand(() => { });
 
-                command.CanExecute(null).Should().BeTrue();
+                Assert.True(command.CanExecute(null));
             });
         }
 
@@ -53,10 +55,10 @@ namespace PdfConverter.Tests.Commands
                 var enabled = false;
                 var command = new RelayCommand(() => { }, () => enabled);
 
-                command.CanExecute(null).Should().BeFalse();
+                Assert.False(command.CanExecute(null));
 
                 enabled = true;
-                command.CanExecute(null).Should().BeTrue();
+                Assert.True(command.CanExecute(null));
             });
         }
 
@@ -70,7 +72,7 @@ namespace PdfConverter.Tests.Commands
             {
                 Action act = () => new RelayCommand(null);
 
-                act.Should().Throw<ArgumentNullException>();
+                Assert.Throws<ArgumentNullException>(act);
             });
         }
 
@@ -88,7 +90,7 @@ namespace PdfConverter.Tests.Commands
 
                 command.RaiseCanExecuteChanged();
 
-                notified.Should().BeTrue();
+                Assert.True(notified);
             });
         }
     }

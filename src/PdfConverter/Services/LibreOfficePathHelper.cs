@@ -6,7 +6,7 @@ using System.Linq;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// LibreOfficeの<c>soffice.exe</c>のパス解決
+    /// LibreOffice の <c>soffice.exe</c> のパス解決
     /// </summary>
     public static class LibreOfficePathHelper
     {
@@ -16,7 +16,7 @@ namespace PdfConverter.Services
         /// <summary>
         /// 使用する<c>soffice.exe</c>の絶対パスを解決する
         /// </summary>
-        /// <param name="configuredPath">ユーザー指定パス（空の場合は自動検出）</param>
+        /// <param name="configuredPath">ユーザー指定パス (空の場合は自動検出)</param>
         /// <returns><c>soffice.exe</c>の絶対パス</returns>
         public static string Resolve(string configuredPath)
         {
@@ -56,7 +56,7 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// Windows標準インストール先の候補一覧を返す
+        /// Windows 標準インストール先の候補一覧を返す
         /// </summary>
         /// <returns>候補パス一覧</returns>
         internal static IEnumerable<string> GetDefaultCandidates()
@@ -88,7 +88,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// PATH環境変数から実行ファイルを検索する
+        /// PATH 環境変数から実行ファイルを検索する
         /// </summary>
         /// <param name="fileName">ファイル名</param>
         /// <returns>見つかった絶対パス。見つからない場合は<c>null</c></returns>

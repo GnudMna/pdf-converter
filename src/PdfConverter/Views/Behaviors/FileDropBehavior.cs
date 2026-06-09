@@ -8,7 +8,7 @@ using PdfConverter.ViewModels;
 namespace PdfConverter.Views.Behaviors
 {
     /// <summary>
-    /// ウィンドウへのPDFファイルのドラッグ&amp;ドロップを<see cref="IMainWindowViewModel"/>に委譲する
+    /// ウィンドウへの PDF ファイルのドラッグ&amp;ドロップを <see cref="IMainWindowViewModel"/> に委譲する
     /// </summary>
     public static class FileDropBehavior
     {
@@ -26,6 +26,7 @@ namespace PdfConverter.Views.Behaviors
                 typeof(bool),
                 typeof(FileDropBehavior),
                 new PropertyMetadata(false, OnIsEnabledChanged));
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -105,22 +106,9 @@ namespace PdfConverter.Views.Behaviors
         /// <param name="e">イベントの引数</param>
         private static void OnDrop(object sender, DragEventArgs e)
         {
-            if (!TryGetViewModel(sender, out IMainWindowViewModel viewModel))
+            if (TryGetViewModel(sender, out IMainWindowViewModel viewModel))
             {
-                return;
-            }
-
-            viewModel.IsDropOverlayVisible = false;
-
-            if (viewModel.IsBusy)
-            {
-                e.Handled = true;
-                return;
-            }
-
-            if (DocumentFileHelper.TryGetFirstSupportedPath(e.Data, out string filePath))
-            {
-                viewModel.HandleDroppedDocument(filePath);
+                TryProcessDrop(viewModel, e.Data);
             }
 
             e.Handled = true;
@@ -136,23 +124,57 @@ namespace PdfConverter.Views.Behaviors
                 return;
             }
 
-            if (viewModel.IsBusy)
-            {
-                viewModel.IsDropOverlayVisible = false;
-                e.Effects = DragDropEffects.None;
-                e.Handled = true;
-                return;
-            }
-
-            bool acceptable = DocumentFileHelper.ContainsSupportedDocument(e.Data);
-            viewModel.IsDropOverlayVisible = acceptable;
-            e.Effects = acceptable ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Effects = EvaluateDragEffects(viewModel, e.Data, out bool showOverlay);
+            viewModel.IsDropOverlayVisible = showOverlay;
             e.Handled = true;
         }
 
-        /// <summary>ViewModelを取得する</summary>
+        /// <summary>ドラッグ中のデータからドロップ効果とオーバーレイ表示を判定する</summary>
+        /// <param name="viewModel">メインウィンドウ ViewModel</param>
+        /// <param name="data">ドラッグ中のデータ</param>
+        /// <param name="showOverlay">オーバーレイを表示するかどうか</param>
+        /// <returns>ドロップ効果</returns>
+        internal static DragDropEffects EvaluateDragEffects(
+            IMainWindowViewModel viewModel,
+            IDataObject data,
+            out bool showOverlay)
+        {
+            if (viewModel.IsBusy)
+            {
+                showOverlay = false;
+                return DragDropEffects.None;
+            }
+
+            bool acceptable = DocumentFileHelper.ContainsSupportedDocument(data);
+            showOverlay = acceptable;
+            return acceptable ? DragDropEffects.Copy : DragDropEffects.None;
+        }
+
+        /// <summary>ドロップされたデータを処理する</summary>
+        /// <param name="viewModel">メインウィンドウ ViewModel</param>
+        /// <param name="data">ドロップされたデータ</param>
+        /// <returns>true: ドキュメントを受け付けた / false: 受け付けなかった</returns>
+        internal static bool TryProcessDrop(IMainWindowViewModel viewModel, IDataObject data)
+        {
+            viewModel.IsDropOverlayVisible = false;
+
+            if (viewModel.IsBusy)
+            {
+                return false;
+            }
+
+            if (DocumentFileHelper.TryGetFirstSupportedPath(data, out string filePath))
+            {
+                viewModel.HandleDroppedDocument(filePath);
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>ViewModel を取得する</summary>
         /// <param name="sender">イベントの送信元</param>
-        /// <param name="viewModel">取得したViewModel</param>
+        /// <param name="viewModel">取得した ViewModel</param>
         /// <returns>true: 取得できた / false: 取得できなかった</returns>
         private static bool TryGetViewModel(object sender, out IMainWindowViewModel viewModel)
         {

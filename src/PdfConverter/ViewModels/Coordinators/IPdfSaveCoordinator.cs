@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 namespace PdfConverter.ViewModels.Coordinators
 {
     /// <summary>
-    /// PDFページの一括保存と上書き確認を担当する
+    /// PDF ページの一括保存と上書き確認を担当する
     /// </summary>
     public interface IPdfSaveCoordinator
     {
@@ -13,15 +13,15 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>
         /// 指定ページを画像ファイルとして保存する
         /// </summary>
-        /// <param name="host">メインビューモデル</param>
+        /// <param name="host">保存操作ホスト</param>
         /// <returns>非同期操作のタスク</returns>
-        Task SaveAsync(IMainViewModelHost host);
+        Task SaveAsync(ISaveCoordinatorHost host);
 
         /// <summary>
-        /// Word から変換したPDFをファイルとして保存する
+        /// Word から変換した PDF をファイルとして保存する
         /// </summary>
-        /// <param name="host">メインビューモデル</param>
+        /// <param name="host">保存操作ホスト</param>
         /// <returns>非同期操作のタスク</returns>
-        Task SavePdfAsync(IMainViewModelHost host);
+        Task SavePdfAsync(ISaveCoordinatorHost host);
     }
 }

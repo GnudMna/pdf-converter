@@ -21,7 +21,7 @@ namespace PdfConverter.Services
         /// <param name="source">元画像</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <returns>加工後のビットマップ</returns>
-        /// <exception cref="ArgumentNullException">sourceがnullの場合</exception>
+        /// <exception cref="ArgumentNullException">source が null の場合</exception>
         public static BitmapSource ApplyTransparency(BitmapSource source, bool preserveTransparency)
         {
             if (source == null)
@@ -43,8 +43,8 @@ namespace PdfConverter.Services
         /// <param name="source">保存する画像</param>
         /// <param name="outputPath">出力ファイルの絶対パス</param>
         /// <param name="format">出力形式</param>
-        /// <exception cref="ArgumentNullException">sourceがnullの場合</exception>
-        /// <exception cref="ArgumentException">outputPathが空の場合</exception>
+        /// <exception cref="ArgumentNullException">source が null の場合</exception>
+        /// <exception cref="ArgumentException">outputPath が空の場合</exception>
         public static void SaveToFile(BitmapSource source, string outputPath, OutputImageFormat format)
         {
             if (source == null)
@@ -67,10 +67,10 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 出力形式に対応するファイル拡張子を返す(先頭のドットを含む)
+        /// 出力形式に対応するファイル拡張子を返す (先頭のドットを含む)
         /// </summary>
         /// <param name="format">出力形式</param>
-        /// <returns>ファイル拡張子(先頭のドットを含む)</returns>
+        /// <returns>ファイル拡張子 (先頭のドットを含む)</returns>
         /// <exception cref="ArgumentOutOfRangeException">未対応の出力形式の場合</exception>
         public static string GetFileExtension(OutputImageFormat format)
         {

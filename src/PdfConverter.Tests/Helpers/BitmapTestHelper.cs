@@ -8,6 +8,9 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal static class BitmapTestHelper
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public static BitmapSource CreateBitmap(int width = 8, int height = 8)
         {
             var bitmap = new WriteableBitmap(width, height, 96, 96, PixelFormats.Bgra32, null);

@@ -1,5 +1,4 @@
 using System.Globalization;
-using FluentAssertions;
 using PdfConverter.Converters;
 using Xunit;
 
@@ -10,7 +9,15 @@ namespace PdfConverter.Tests.Converters
     /// </summary>
     public class InverseBooleanConverterTests
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly InverseBooleanConverter _converter = new InverseBooleanConverter();
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
 
         /// <summary>
         /// Convert で bool 値が反転されることを検証する
@@ -20,8 +27,7 @@ namespace PdfConverter.Tests.Converters
         [InlineData(false, true)]
         public void Convert_InvertsBoolean(bool input, bool expected)
         {
-            _converter.Convert(input, typeof(bool), null, CultureInfo.InvariantCulture)
-                .Should().Be(expected);
+            Assert.Equal(expected, _converter.Convert(input, typeof(bool), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -30,8 +36,7 @@ namespace PdfConverter.Tests.Converters
         [Fact]
         public void Convert_NonBoolean_ReturnsFalse()
         {
-            _converter.Convert("invalid", typeof(bool), null, CultureInfo.InvariantCulture)
-                .Should().Be(false);
+            Assert.Equal(false, _converter.Convert("invalid", typeof(bool), null, CultureInfo.InvariantCulture));
         }
 
         /// <summary>
@@ -42,8 +47,7 @@ namespace PdfConverter.Tests.Converters
         [InlineData(false, true)]
         public void ConvertBack_InvertsBoolean(bool input, bool expected)
         {
-            _converter.ConvertBack(input, typeof(bool), null, CultureInfo.InvariantCulture)
-                .Should().Be(expected);
+            Assert.Equal(expected, _converter.ConvertBack(input, typeof(bool), null, CultureInfo.InvariantCulture));
         }
     }
 }

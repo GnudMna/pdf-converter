@@ -1,17 +1,17 @@
 namespace PdfConverter.Models
 {
     /// <summary>
-    /// 出力形式のComboBox表示用モデル
+    /// 出力形式の ComboBox 表示用モデル
     /// </summary>
     public sealed class OutputImageFormatOption
     {
         /********************************************************************************/
-        /*                                 プロパティ                                  */
+        /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>出力画像形式</summary>
         public OutputImageFormat Format { get; }
 
-        /// <summary>UIに表示するラベル</summary>
+        /// <summary>UI に表示するラベル</summary>
         public string DisplayName { get; }
 
 

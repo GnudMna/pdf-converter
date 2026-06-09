@@ -11,8 +11,15 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal sealed class TestMainViewModelHost : IMainViewModelHost
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private CancellationTokenSource _cancellationTokenSource;
 
+
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
         public string FilePath { get; set; }
 
         public string LoadedFilePath { get; set; }
@@ -51,10 +58,16 @@ namespace PdfConverter.Tests.Helpers
 
         public double ProgressValue { get; set; }
 
+        public bool IsProgressBarVisible { get; set; }
+
         public int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
             ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
             : 1;
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         public void PrepareCancellation()
         {
             _cancellationTokenSource?.Cancel();
@@ -64,7 +77,7 @@ namespace PdfConverter.Tests.Helpers
 
         public CancellationToken GetCancellationToken() => _cancellationTokenSource.Token;
 
-        /// <summary>進行中の操作をキャンセルする(テスト用)</summary>
+        /// <summary>進行中の操作をキャンセルする (テスト用)</summary>
         public void Cancel() => _cancellationTokenSource?.Cancel();
 
         public void DisposeCancellation()

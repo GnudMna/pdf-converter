@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// COMコンポーネント向けにSTAスレッド上で処理を実行する
+    /// COM コンポーネント向けに STA スレッド上で処理を実行する
     /// </summary>
     internal static class StaTaskRunner
     {
@@ -13,7 +13,7 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 指定した処理をSTAスレッド上で実行する
+        /// 指定した処理を STA スレッド上で実行する
         /// </summary>
         /// <typeparam name="T">戻り値の型</typeparam>
         /// <param name="func">実行する処理</param>
