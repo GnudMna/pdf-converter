@@ -39,6 +39,9 @@ namespace PdfConverter.Services
         /// <summary>並列度を 2 に制限する PDF サイズの上限 (バイト)</summary>
         private const long MediumPdfThresholdBytes = 32L * 1024 * 1024;
 
+        /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
+        private const double PdfiumNativeDpi = 72.0;
+
         /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
         private readonly object _cacheLock = new object();
 
@@ -68,16 +71,27 @@ namespace PdfConverter.Services
             return await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
-                {
-                    int pageCount = docReader.GetPageCount();
 
+                double renderScale;
+                using (var docReader1x = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                {
+                    int pageCount = docReader1x.GetPageCount();
                     if (pageIndex < 0 || pageIndex >= pageCount)
                     {
                         throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
                     }
 
-                    return RenderScaledPage(docReader, pageIndex, mode, value, preserveTransparency, cancellationToken);
+                    renderScale = ComputeRenderScale(docReader1x, pageIndex, mode, value);
+
+                    if (Math.Abs(renderScale - 1.0) < 1e-9)
+                    {
+                        return RenderPage(docReader1x, pageIndex, preserveTransparency, cancellationToken);
+                    }
+                }
+
+                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
+                {
+                    return RenderPage(docReader, pageIndex, preserveTransparency, cancellationToken);
                 }
             }, cancellationToken);
         }
@@ -117,9 +131,11 @@ namespace PdfConverter.Services
             }
 
             int pageCount;
-            using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+            double renderScale;
+            using (var docReader1x = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
             {
-                pageCount = docReader.GetPageCount();
+                pageCount = docReader1x.GetPageCount();
+                renderScale = pageCount > 0 ? ComputeRenderScale(docReader1x, 0, mode, value) : 1.0;
             }
 
             List<int> pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
@@ -141,7 +157,7 @@ namespace PdfConverter.Services
                         return;
                     }
 
-                    using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                    using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
                     {
                         foreach (int pageIndex in partition)
                         {
@@ -150,7 +166,7 @@ namespace PdfConverter.Services
                                 return;
                             }
 
-                            SavePageToFile(docReader, pageIndex, folderPath, mode, value, format, preserveTransparency);
+                            SavePageToFile(docReader, pageIndex, folderPath, format, preserveTransparency);
                             int completed = Interlocked.Increment(ref completedCount);
                             var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
                             lock (progressLock)
@@ -320,24 +336,55 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 指定ページをスケーリング済みビットマップとして描画する
+        /// 解像度モードと値から PDFium のレンダリングスケールを計算する
         /// </summary>
-        /// <param name="docReader">DocReader</param>
-        /// <param name="pageIndex">ページインデックス</param>
+        /// <param name="docReader1x">scale 1.0 で開いた DocReader</param>
+        /// <param name="samplePageIndex">Width/Height モードで自然サイズを取得するページインデックス</param>
         /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
+        /// <param name="value">解像度の値</param>
+        /// <returns>PDFium レンダリングスケール (1.0 = 72 DPI)</returns>
+        private static double ComputeRenderScale(IDocReader docReader1x, int samplePageIndex, ResolutionMode mode, double value)
+        {
+            if (mode == ResolutionMode.Default || value <= 0)
+            {
+                return 1.0;
+            }
+
+            if (mode == ResolutionMode.Dpi)
+            {
+                return value / PdfiumNativeDpi;
+            }
+
+            using (var pageReader = docReader1x.GetPageReader(samplePageIndex))
+            {
+                double naturalWidth = pageReader.GetPageWidth();
+                double naturalHeight = pageReader.GetPageHeight();
+
+                if (mode == ResolutionMode.Width)
+                {
+                    return value / naturalWidth;
+                }
+
+                return value / naturalHeight;
+            }
+        }
+
+        /// <summary>
+        /// 指定ページをビットマップとして描画する
+        /// </summary>
+        /// <param name="docReader">目標スケールで開いた DocReader</param>
+        /// <param name="pageIndex">ページインデックス</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        /// <returns>スケーリング済みビットマップ</returns>
+        /// <returns>ビットマップ</returns>
         /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
-        private static BitmapSource RenderScaledPage(IDocReader docReader, int pageIndex, ResolutionMode mode, double value, bool preserveTransparency, CancellationToken cancellationToken)
+        private static BitmapSource RenderPage(IDocReader docReader, int pageIndex, bool preserveTransparency, CancellationToken cancellationToken)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 BitmapSource source = CreateBitmapFromPageReader(pageReader);
-                BitmapSource scaled = ScaleBitmap(source, mode, value);
-                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(scaled, preserveTransparency);
+                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency);
                 if (processed.CanFreeze)
                 {
                     processed.Freeze();
@@ -375,21 +422,18 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定ページを画像ファイルとして保存する
         /// </summary>
-        /// <param name="docReader">DocReader</param>
+        /// <param name="docReader">目標スケールで開いた DocReader</param>
         /// <param name="pageIndex">ページインデックス</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
-        /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
         /// <param name="format">出力画像形式</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
-        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value, OutputImageFormat format, bool preserveTransparency)
+        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, OutputImageFormat format, bool preserveTransparency)
         {
             using (var pageReader = docReader.GetPageReader(pageIndex))
             {
                 BitmapSource source = CreateBitmapFromPageReader(pageReader);
-                BitmapSource scaled = ScaleBitmap(source, mode, value);
                 bool effectivePreserveTransparency = preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
-                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(scaled, effectivePreserveTransparency);
+                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, effectivePreserveTransparency);
                 string extension = ImageBitmapHelper.GetFileExtension(format);
                 string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}{extension}");
                 ImageBitmapHelper.SaveToFile(processed, outputPath, format);
@@ -415,50 +459,6 @@ namespace PdfConverter.Services
             {
                 throw new InvalidDataException("PDF ファイルではありません。ファイルが破損している可能性があります。");
             }
-        }
-
-        /// <summary>
-        /// <see cref="ResolutionMode"/> に基づいて<paramref name="source"/> をスケーリングする
-        /// </summary>
-        /// <param name="source">元ビットマップ</param>
-        /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
-        /// <returns>スケーリング済みビットマップ</returns>
-        private static BitmapSource ScaleBitmap(BitmapSource source, ResolutionMode mode, double value)
-        {
-            if (mode == ResolutionMode.Default || value <= 0)
-            {
-                return source;
-            }
-
-            double targetWidth = source.PixelWidth;
-            double targetHeight = source.PixelHeight;
-            double aspectRatio = (double)source.PixelWidth / source.PixelHeight;
-
-            if (mode == ResolutionMode.Width)
-            {
-                targetWidth = value;
-                targetHeight = value / aspectRatio;
-            }
-            else if (mode == ResolutionMode.Height)
-            {
-                targetHeight = value;
-                targetWidth = value * aspectRatio;
-            }
-            else if (mode == ResolutionMode.Dpi)
-            {
-                double scale = value / source.DpiX;
-                targetWidth = source.PixelWidth * scale;
-                targetHeight = source.PixelHeight * scale;
-            }
-
-            var scaled = new TransformedBitmap(source, new ScaleTransform(targetWidth / source.PixelWidth, targetHeight / source.PixelHeight));
-            if (scaled.CanFreeze)
-            {
-                scaled.Freeze();
-            }
-
-            return scaled;
         }
     }
 }
