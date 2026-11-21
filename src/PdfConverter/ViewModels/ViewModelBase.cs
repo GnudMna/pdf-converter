@@ -35,7 +35,7 @@ namespace PdfConverter.ViewModels
         /// <param name="field">バッキングフィールド</param>
         /// <param name="value">新しい値</param>
         /// <param name="propertyName">プロパティ名</param>
-        /// <returns>値が更新された場合は <c>true</c></returns>
+        /// <returns>true: 値が更新された / false: 値が更新されなかった</returns>
         protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, value))

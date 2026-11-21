@@ -15,7 +15,7 @@ namespace PdfConverter.Services
         /// 指定した例外がキャンセル由来かどうかを判定する
         /// </summary>
         /// <param name="exception">判定する例外</param>
-        /// <returns>true: キャンセル由来, false: キャンセル由来ではない</returns>
+        /// <returns>true: キャンセル由来 / false: キャンセル由来ではない</returns>
         public static bool IsOrContainsCancellation(Exception exception)
         {
             if (exception == null)

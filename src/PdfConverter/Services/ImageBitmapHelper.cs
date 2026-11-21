@@ -21,6 +21,7 @@ namespace PdfConverter.Services
         /// <param name="source">元画像</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <returns>加工後のビットマップ</returns>
+        /// <exception cref="ArgumentNullException">sourceがnullの場合</exception>
         public static BitmapSource ApplyTransparency(BitmapSource source, bool preserveTransparency)
         {
             if (source == null)
@@ -90,8 +91,7 @@ namespace PdfConverter.Services
         /// 指定形式が透明度をサポートするかどうかを返す
         /// </summary>
         /// <param name="format">出力形式</param>
-        /// <returns>透明度をサポートするかどうか</returns>
-        /// <exception cref="ArgumentOutOfRangeException">未対応の出力形式の場合</exception>
+        /// <returns>true: 透明度をサポートする / false: 透明度をサポートしない</returns>
         public static bool SupportsTransparency(OutputImageFormat format)
         {
             return format != OutputImageFormat.Jpeg;

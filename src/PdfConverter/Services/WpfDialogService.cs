@@ -1,11 +1,12 @@
 using System.Windows;
 using Microsoft.Win32;
 using Ookii.Dialogs.Wpf;
+using PdfConverter.Views;
 
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// WPF 標準ダイアログを使用する<see cref="IDialogService"/>の実装
+    /// WPF標準ダイアログを使用する<see cref="IDialogService"/>の実装
     /// </summary>
     public class WpfDialogService : IDialogService
     {
@@ -31,37 +32,20 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
-        public void ShowMessage(string message, string title = "PDF Converter")
+        public bool ShowYesNo(
+            string message,
+            string title,
+            DialogIcon icon = DialogIcon.None,
+            string yesText = "はい",
+            string noText = "いいえ")
         {
-            MessageBox.Show(message, title);
-        }
-
-        /// <inheritdoc/>
-        public bool ShowYesNo(string message, string title, DialogIcon icon = DialogIcon.None)
-        {
-            return MessageBox.Show(message, title, MessageBoxButton.YesNo, ToMessageBoxImage(icon)) == MessageBoxResult.Yes;
-        }
-
-
-        /********************************************************************************/
-        /*                             プライベートメソッド                             */
-        /********************************************************************************/
-        /// <summary>
-        /// <see cref="DialogIcon"/>をWPFの<see cref="MessageBoxImage"/>に変換する
-        /// </summary>
-        private static MessageBoxImage ToMessageBoxImage(DialogIcon icon)
-        {
-            switch (icon)
+            var owner = Application.Current?.MainWindow;
+            var confirmDialog = new ConfirmDialog(message, title, icon, yesText, noText)
             {
-                case DialogIcon.Warning:
-                    return MessageBoxImage.Warning;
-                case DialogIcon.Error:
-                    return MessageBoxImage.Error;
-                case DialogIcon.Information:
-                    return MessageBoxImage.Information;
-                default:
-                    return MessageBoxImage.None;
-            }
+                Owner = owner,
+            };
+
+            return confirmDialog.ShowDialog() == true;
         }
     }
 }

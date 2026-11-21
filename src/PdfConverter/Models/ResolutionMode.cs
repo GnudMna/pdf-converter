@@ -5,9 +5,7 @@ namespace PdfConverter.Models
     /// </summary>
     public enum ResolutionMode
     {
-        /// <summary>
-        /// PDFページの元のピクセルサイズをそのまま使用する
-        /// </summary>
+        /// <summary>PDFページの元のピクセルサイズをそのまま使用する</summary>
         Default,
 
         /// <summary>
@@ -23,7 +21,7 @@ namespace PdfConverter.Models
         Height,
 
         /// <summary>
-        /// 出力 DPI を指定する<br/>
+        /// 出力DPIを指定する<br/>
         /// 元画像のDPIに対するスケール比で拡縮される
         /// </summary>
         Dpi,

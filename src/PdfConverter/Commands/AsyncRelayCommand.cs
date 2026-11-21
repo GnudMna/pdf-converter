@@ -18,7 +18,7 @@ namespace PdfConverter.Commands
         private readonly Func<Task> _execute;
 
         /// <summary>
-        /// 実行可否を判定する述語<br/>
+        /// 実行可否を判定する関数<br/>
         /// <c>null</c>の場合は常に実行可能
         /// </summary>
         private readonly Func<bool> _canExecute;
@@ -40,7 +40,7 @@ namespace PdfConverter.Commands
         /// 非同期アクションでコマンドを初期化する
         /// </summary>
         /// <param name="execute">コマンド実行時に呼び出される非同期アクション</param>
-        /// <param name="canExecute">実行可否を判定する述語<br/><c>null</c>の場合は常に実行可能</param>
+        /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c>の場合は常に実行可能</param>
         /// <param name="onException">非同期処理で発生した未処理例外を受け取るコールバック<br/><c>null</c>の場合は無視する</param>
         public AsyncRelayCommand(Func<Task> execute, Func<bool> canExecute = null, Action<Exception> onException = null)
         {
@@ -56,18 +56,6 @@ namespace PdfConverter.Commands
         /********************************************************************************/
         /// <inheritdoc/>
         public event EventHandler CanExecuteChanged;
-
-
-        /********************************************************************************/
-        /*                             プライベートメソッド                             */
-        /********************************************************************************/
-        /// <summary>
-        /// <see cref="CommandManager.RequerySuggested"/>発火時に実行可否の再評価を通知する
-        /// </summary>
-        private void OnCommandManagerRequerySuggested(object sender, EventArgs e)
-        {
-            RaiseCanExecuteChanged();
-        }
 
 
         /********************************************************************************/
@@ -117,6 +105,18 @@ namespace PdfConverter.Commands
         public void RaiseCanExecuteChanged()
         {
             CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>
+        /// <see cref="CommandManager.RequerySuggested"/>発火時に実行可否の再評価を通知する
+        /// </summary>
+        private void OnCommandManagerRequerySuggested(object sender, EventArgs e)
+        {
+            RaiseCanExecuteChanged();
         }
     }
 }

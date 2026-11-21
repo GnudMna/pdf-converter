@@ -48,7 +48,7 @@ using System.Windows;
 //      ビルド番号
 //      リビジョン
 //
-[assembly: AssemblyVersion("0.0.1.0")]
-[assembly: AssemblyFileVersion("0.0.1.0")]
-[assembly: AssemblyInformationalVersion("0.0.1")]
+[assembly: AssemblyVersion("0.0.2.0")]
+[assembly: AssemblyFileVersion("0.0.2.0")]
+[assembly: AssemblyInformationalVersion("0.0.2")]
 [assembly: InternalsVisibleTo("PdfConverter.Tests")]

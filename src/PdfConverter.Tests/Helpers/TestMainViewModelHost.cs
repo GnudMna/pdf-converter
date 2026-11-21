@@ -41,6 +41,14 @@ namespace PdfConverter.Tests.Helpers
 
         public string StatusMessage { get; set; }
 
+        public StatusKind StatusKind { get; set; }
+
+        public string ResolutionValidationMessage { get; set; }
+
+        public string PageRangeValidationMessage { get; set; }
+
+        public string PageNumberValidationMessage { get; set; }
+
         public double ProgressValue { get; set; }
 
         public int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
@@ -71,6 +79,19 @@ namespace PdfConverter.Tests.Helpers
 
         public void RaiseActionCanExecuteChanged()
         {
+        }
+
+        public void SetStatus(string message, StatusKind kind = StatusKind.Info)
+        {
+            StatusMessage = message;
+            StatusKind = kind;
+        }
+
+        public void ClearFieldValidationMessages()
+        {
+            ResolutionValidationMessage = null;
+            PageRangeValidationMessage = null;
+            PageNumberValidationMessage = null;
         }
     }
 }

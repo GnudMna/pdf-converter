@@ -178,6 +178,8 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
             System.Windows.Media.Imaging.BitmapSource image = null;
             StaTestHelper.Run(() => image = BitmapTestHelper.CreateBitmap());
+            viewModel.OutputImageFormat = OutputImageFormat.Png;
+            viewModel.PreserveTransparency = true;
             viewModel.PreviewImage = image;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
@@ -209,6 +211,19 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.IsBusy = false;
 
             viewModel.SaveCommand.CanExecute(null).Should().BeTrue();
+        }
+
+        /// <summary>
+        /// 処理中（IsBusy）のときに BrowseCommand が実行不可能であることを検証する
+        /// </summary>
+        [Fact]
+        public void BrowseCommand_WhenBusy_CannotExecute()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.IsBusy = true;
+
+            ((IRelayCommand)viewModel.BrowseCommand).RaiseCanExecuteChanged();
+            viewModel.BrowseCommand.CanExecute(null).Should().BeFalse();
         }
 
         /// <summary>
@@ -292,6 +307,65 @@ namespace PdfConverter.Tests.ViewModels
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.pdf");
             File.WriteAllText(path, "placeholder");
             return path;
+        }
+
+        /// <summary>
+        /// 処理中でないとき LoadPdfFromPathCommand が実行可能であることを検証する
+        /// </summary>
+        [Fact]
+        public void LoadPdfFromPathCommand_WhenIdle_CanExecute()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+
+            viewModel.LoadPdfFromPathCommand.CanExecute(null).Should().BeTrue();
+        }
+
+        /// <summary>
+        /// 処理中は LoadPdfFromPathCommand が実行不可であることを検証する
+        /// </summary>
+        [Fact]
+        public void LoadPdfFromPathCommand_WhenBusy_CannotExecute()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.IsBusy = true;
+
+            viewModel.LoadPdfFromPathCommand.CanExecute(null).Should().BeFalse();
+        }
+
+        /// <summary>
+        /// ドロップされた PDF パスが FilePath に設定されることを検証する
+        /// </summary>
+        [Fact]
+        public void HandleDroppedPdf_SetsFilePath()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            string pdfPath = CreateTempPdfPath();
+
+            try
+            {
+                viewModel.HandleDroppedPdf(pdfPath);
+
+                viewModel.FilePath.Should().Be(pdfPath);
+            }
+            finally
+            {
+                File.Delete(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 処理中はドロップされた PDF を無視することを検証する
+        /// </summary>
+        [Fact]
+        public void HandleDroppedPdf_WhenBusy_DoesNothing()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.IsBusy = true;
+            viewModel.FilePath = "C:\\existing.pdf";
+
+            viewModel.HandleDroppedPdf("C:\\dropped.pdf");
+
+            viewModel.FilePath.Should().Be("C:\\existing.pdf");
         }
     }
 }
