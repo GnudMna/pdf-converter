@@ -33,5 +33,22 @@ namespace PdfConverter.Tests.Helpers
                 userSettings.Object);
             return (viewModel, pdf, dialog, clipboard);
         }
+
+        /// <summary>
+        /// プレビュー コーディネーターを差し替えた <see cref="MainViewModel"/> を生成する
+        /// </summary>
+        /// <param name="previewCoordinator">プレビュー コーディネーター</param>
+        /// <returns>生成した ViewModel</returns>
+        public static MainViewModel Create(IPdfPreviewCoordinator previewCoordinator)
+        {
+            return new MainViewModel(
+                new Mock<IDialogService>().Object,
+                new Mock<IClipboardService>().Object,
+                previewCoordinator,
+                new Mock<IPdfSaveCoordinator>().Object,
+                WordToPdfConversionSettingsTestHelper.Create().Object,
+                ImageExportSettingsTestHelper.Create().Object,
+                new Mock<IUserSettingsService>().Object);
+        }
     }
 }

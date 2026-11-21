@@ -45,6 +45,30 @@ namespace PdfConverter.Infrastructure
             Console.Error.WriteLine(message ?? string.Empty);
         }
 
+        /// <summary>
+        /// 親プロセスのコンソールがあれば接続する (無い場合に新しいコンソールは作らない)<br/>
+        /// Ctrl+C の受信は、コンソールへ接続した後に登録したハンドラーでないと届かないため、受信を登録する前に呼び出す
+        /// </summary>
+        /// <returns>true: コンソールへ接続済み / false: 親のコンソールが無い</returns>
+        public static bool TryAttachParentConsole()
+        {
+            lock (ConsoleLock)
+            {
+                if (_consoleReady)
+                {
+                    return true;
+                }
+
+                if (!AttachConsole(AttachParentProcess))
+                {
+                    return false;
+                }
+
+                InitializeWriters();
+                return true;
+            }
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
@@ -69,18 +93,24 @@ namespace PdfConverter.Infrastructure
                     AllocConsole();
                 }
 
-                try
-                {
-                    // Console.SetOut / SetError は同期化されたライターを設定するため、複数スレッドからの書き込みも安全
-                    Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
-                    Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
-                }
-                catch (IOException)
-                {
-                }
-
-                _consoleReady = true;
+                InitializeWriters();
             }
+        }
+
+        /// <summary>接続済みのコンソールへ書き込むライターを設定し、利用可能にする (<see cref="ConsoleLock"/> 取得中に呼ぶ)</summary>
+        private static void InitializeWriters()
+        {
+            try
+            {
+                // Console.SetOut / SetError は同期化されたライターを設定するため、複数スレッドからの書き込みも安全
+                Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+                Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+            }
+            catch (IOException)
+            {
+            }
+
+            _consoleReady = true;
         }
 
 

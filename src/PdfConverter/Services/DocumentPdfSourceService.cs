@@ -34,6 +34,9 @@ namespace PdfConverter.Services
         /// <summary>設定変更時にキャッシュを破棄するハンドラー</summary>
         private readonly EventHandler _settingsChangedHandler;
 
+        /// <summary>キャッシュを破棄するたびに進める世代番号 (変換中に設定が変わったことの検出用)</summary>
+        private int _cacheGeneration;
+
         /// <summary>破棄済みかどうか</summary>
         private bool _disposed;
 
@@ -78,36 +81,48 @@ namespace PdfConverter.Services
                 return normalizedPath;
             }
 
-            // 変換中に編集された場合も次回再変換されるよう、変換前の状態を記録する
-            var sourceInfo = new FileInfo(normalizedPath);
-            DateTime sourceLastWriteUtc = sourceInfo.LastWriteTimeUtc;
-            long sourceLength = sourceInfo.Length;
-
-            lock (_cacheLock)
+            while (true)
             {
-                if (_pdfBySourcePath.TryGetValue(normalizedPath, out CachedPdf? cached))
+                // 変換中に編集された場合も次回再変換されるよう、変換前の状態を記録する
+                var sourceInfo = new FileInfo(normalizedPath);
+                DateTime sourceLastWriteUtc = sourceInfo.LastWriteTimeUtc;
+                long sourceLength = sourceInfo.Length;
+                int generation;
+
+                lock (_cacheLock)
                 {
-                    if (cached.SourceLastWriteUtc == sourceLastWriteUtc
-                        && cached.SourceLength == sourceLength
-                        && File.Exists(cached.PdfPath))
+                    generation = _cacheGeneration;
+
+                    if (_pdfBySourcePath.TryGetValue(normalizedPath, out CachedPdf? cached))
                     {
-                        return cached.PdfPath;
+                        if (cached.SourceLastWriteUtc == sourceLastWriteUtc
+                            && cached.SourceLength == sourceLength
+                            && File.Exists(cached.PdfPath))
+                        {
+                            return cached.PdfPath;
+                        }
+
+                        // 元ファイルが更新された、または一時 PDF が失われたため破棄して再変換する
+                        RemoveCacheEntryUnsafe(normalizedPath, cached);
                     }
-
-                    // 元ファイルが更新された、または一時 PDF が失われたため破棄して再変換する
-                    RemoveCacheEntryUnsafe(normalizedPath, cached);
                 }
+
+                string pdfPath = await _wordToPdfService.ConvertToPdfAsync(normalizedPath, cancellationToken);
+
+                lock (_cacheLock)
+                {
+                    if (generation == _cacheGeneration)
+                    {
+                        _pdfBySourcePath[normalizedPath] = new CachedPdf(pdfPath, sourceLastWriteUtc, sourceLength);
+                        _temporaryPdfPaths.Add(pdfPath);
+                        return pdfPath;
+                    }
+                }
+
+                // 変換中に設定が変わったため、古い設定の PDF は使わずに破棄して現在の設定で変換し直す
+                PdfConverterTempDirectory.TryDeleteFile(pdfPath);
+                cancellationToken.ThrowIfCancellationRequested();
             }
-
-            string pdfPath = await _wordToPdfService.ConvertToPdfAsync(normalizedPath, cancellationToken);
-
-            lock (_cacheLock)
-            {
-                _pdfBySourcePath[normalizedPath] = new CachedPdf(pdfPath, sourceLastWriteUtc, sourceLength);
-                _temporaryPdfPaths.Add(pdfPath);
-            }
-
-            return pdfPath;
         }
 
         /// <inheritdoc/>
@@ -141,6 +156,7 @@ namespace PdfConverter.Services
 
                 _temporaryPdfPaths.Clear();
                 _pdfBySourcePath.Clear();
+                _cacheGeneration++;
             }
         }
 

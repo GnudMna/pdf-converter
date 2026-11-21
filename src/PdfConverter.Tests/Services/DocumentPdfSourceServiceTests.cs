@@ -229,6 +229,50 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 変換中に設定が変わった場合は古い設定の PDF をキャッシュせず、破棄して変換し直すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_SettingsChangedDuringConversion_DiscardsStalePdfAndReconverts()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var settings = WordToPdfConversionSettingsTestHelper.Create();
+            var service = CreateService(wordToPdf, settings);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string stalePdfPath = CreateTempPdfPath();
+            string freshPdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+
+            var firstConversion = new TaskCompletionSource<string>();
+            wordToPdf
+                .SetupSequence(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .Returns(firstConversion.Task)
+                .ReturnsAsync(freshPdfPath);
+
+            try
+            {
+                Task<string> pending = service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                settings.Raise(s => s.SettingsChanged += null, EventArgs.Empty);
+                firstConversion.SetResult(stalePdfPath);
+                string result = await pending;
+
+                Assert.Equal(freshPdfPath, result);
+                Assert.False(File.Exists(stalePdfPath));
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Exactly(2));
+
+                string cached = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+                Assert.Equal(freshPdfPath, cached);
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(stalePdfPath);
+                File.Delete(freshPdfPath);
+            }
+        }
+
+        /// <summary>
         /// Dispose 時にキャッシュ済みの一時 PDF が削除されることを検証する
         /// </summary>
         [Fact]

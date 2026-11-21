@@ -769,6 +769,63 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// メモリキャッシュの上限を超える PDF でも、全ページを画像ファイルとして保存できることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_FileLargerThanCacheLimit_WritesAllPageFiles()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPadding(LargePdfPaddingBytes, pageCount: 3);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.True(File.Exists(Path.Combine(outputDirectory, "page_1.png")));
+                Assert.True(File.Exists(Path.Combine(outputDirectory, "page_2.png")));
+                Assert.True(File.Exists(Path.Combine(outputDirectory, "page_3.png")));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// メモリキャッシュの上限を超える PDF ヘッダーのないファイルは、保存でも InvalidDataException になり何も書き出さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_LargeFileWithoutPdfHeader_ThrowsInvalidDataException()
+        {
+            string path = PdfTestAssetFactory.CreateTempInvalidPdfFileOfSize(LargePdfPaddingBytes);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+
+            try
+            {
+                await Assert.ThrowsAsync<InvalidDataException>(() => _service.SavePdfPagesToImagesAsync(
+                    path,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    cancellationToken: TestContext.Current.CancellationToken));
+
+                Assert.Empty(Directory.GetFiles(outputDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(path);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
         /// メモリキャッシュの上限を超える PDF を開いたままでも、ファイルを削除できることを検証する
         /// </summary>
         [Fact]

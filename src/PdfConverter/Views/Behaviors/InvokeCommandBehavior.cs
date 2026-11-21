@@ -132,6 +132,12 @@ namespace PdfConverter.Views.Behaviors
                 return;
             }
 
+            // フォーカス喪失時に反映するバインディングでも、入力した値でコマンドを実行できるよう先に反映する
+            if (element is TextBox textBox)
+            {
+                textBox.GetBindingExpression(TextBox.TextProperty)?.UpdateSource();
+            }
+
             if (command.CanExecute(null))
             {
                 command.Execute(null);

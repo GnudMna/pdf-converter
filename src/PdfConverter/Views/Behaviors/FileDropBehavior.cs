@@ -1,7 +1,10 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System;
 using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
@@ -109,7 +112,7 @@ namespace PdfConverter.Views.Behaviors
         {
             if (TryGetViewModel(sender, out IMainWindowViewModel? viewModel))
             {
-                TryProcessDrop(viewModel, e.Data);
+                TryProcessDrop(viewModel, e.Data, () => CommitFocusedTextBox((DependencyObject)sender));
             }
 
             e.Handled = true;
@@ -154,8 +157,9 @@ namespace PdfConverter.Views.Behaviors
         /// <summary>ドロップされたデータを処理する</summary>
         /// <param name="viewModel">メインウィンドウ ViewModel</param>
         /// <param name="data">ドロップされたデータ</param>
+        /// <param name="commitPendingInput">ドキュメントを受け付けたとき、読み込みの前に入力途中の値を反映する処理</param>
         /// <returns>true: ドキュメントを受け付けた / false: 受け付けなかった</returns>
-        internal static bool TryProcessDrop(IMainWindowViewModel viewModel, IDataObject data)
+        internal static bool TryProcessDrop(IMainWindowViewModel viewModel, IDataObject data, Action? commitPendingInput = null)
         {
             viewModel.IsDropOverlayVisible = false;
 
@@ -166,6 +170,12 @@ namespace PdfConverter.Views.Behaviors
 
             if (DocumentFileHelper.TryGetFirstSupportedPath(data, out string? filePath))
             {
+                // フォーカスを残したままドロップされた入力欄の値を、読み込みに使う設定へ反映する
+                if (commitPendingInput != null)
+                {
+                    viewModel.CommitPendingInput(commitPendingInput);
+                }
+
                 viewModel.HandleDroppedDocument(filePath);
 
                 int droppedCount = DocumentFileHelper.GetDroppedFileCount(data);
@@ -178,6 +188,25 @@ namespace PdfConverter.Views.Behaviors
             }
 
             return false;
+        }
+
+        /// <summary>フォーカスのある TextBox に入力途中の値があれば、バインディングのソースへ反映する</summary>
+        /// <remarks>
+        /// ドラッグ中はウィンドウが非アクティブでキーボードフォーカスを持たないため、論理フォーカスから対象を探す
+        /// </remarks>
+        /// <param name="element">ドロップ先の要素</param>
+        private static void CommitFocusedTextBox(DependencyObject element)
+        {
+            DependencyObject? focusScope = FocusManager.GetFocusScope(element);
+            if (focusScope == null
+                || !(FocusManager.GetFocusedElement(focusScope) is TextBox textBox)
+                || !(textBox.GetBindingExpression(TextBox.TextProperty) is BindingExpression binding)
+                || !binding.IsDirty)
+            {
+                return;
+            }
+
+            binding.UpdateSource();
         }
 
         /// <summary>ViewModel を取得する</summary>

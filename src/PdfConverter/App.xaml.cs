@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -18,6 +17,13 @@ namespace PdfConverter
     /// </summary>
     public partial class App : Application
     {
+        /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
+        /// <summary>バッチ終了時に Word の終了処理を待つ時間のうち、正常終了の待機上限を超えて許容する分 (強制終了の完了待ち)</summary>
+        private static readonly TimeSpan PendingCleanupMargin = TimeSpan.FromSeconds(5);
+
+
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
@@ -118,7 +124,11 @@ namespace PdfConverter
                 {
                     _serviceProvider = ServiceConfigurator.Configure(settingsBootstrap);
                     var batchExportService = _serviceProvider.GetRequiredService<IBatchExportService>();
-                    exitCode = batchExportService.RunAsync(options, CancellationToken.None).GetAwaiter().GetResult();
+
+                    using (var cancellationScope = new BatchCancellationScope())
+                    {
+                        exitCode = batchExportService.RunAsync(options, cancellationScope.Token).GetAwaiter().GetResult();
+                    }
                 }
             }
             catch (Exception ex)
@@ -129,6 +139,10 @@ namespace PdfConverter
             }
             finally
             {
+                // キャンセル直後は Word の終了処理が裏で続いているため、終わる前にプロセスを閉じて Word を残さないよう待つ
+                MicrosoftWordToPdfConversionService.WaitForPendingCleanup(
+                    MicrosoftWordToPdfConversionService.CleanupGracePeriod + PendingCleanupMargin);
+
                 if (_serviceProvider is IDisposable disposable)
                 {
                     disposable.Dispose();

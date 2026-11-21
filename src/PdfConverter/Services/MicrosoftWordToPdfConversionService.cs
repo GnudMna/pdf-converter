@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,6 +19,9 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>まだ終わっていない Word の変換スレッドと、キャンセルにより開始した終了処理 (値は使わない)</summary>
+        private static readonly ConcurrentDictionary<Task, byte> PendingCleanups = new ConcurrentDictionary<Task, byte>();
+
         /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
@@ -64,18 +69,70 @@ namespace PdfConverter.Services
             DocumentFileHelper.ValidateWordFilePath(wordFilePath);
 
             var comHolder = new WordComHolder();
+
             Task<string> conversionTask = StaTaskRunner.RunAsync(
-                token => ConvertOnStaThread(wordFilePath, _settings, comHolder, token),
-                () => _ = comHolder.CleanupWithKillFallbackAsync(),
+                token =>
+                {
+                    // キャンセルは STA スレッドの終了を待たずに通知されるため、スレッド側の後片付けも待てるよう実行中は記録する
+                    var threadFinished = new TaskCompletionSource();
+                    PendingCleanups.TryAdd(threadFinished.Task, 0);
+                    try
+                    {
+                        return ConvertOnStaThread(wordFilePath, _settings, comHolder, token);
+                    }
+                    finally
+                    {
+                        PendingCleanups.TryRemove(threadFinished.Task, out _);
+                        threadFinished.TrySetResult();
+                    }
+                },
+                () => TrackCleanup(comHolder),
                 cancellationToken);
 
             return WaitWithTimeoutAsync(conversionTask, comHolder, cancellationToken);
+        }
+
+        /// <summary>
+        /// 実行中の Word の変換スレッドと、キャンセルによる終了処理がすべて終わるまで待つ<br/>
+        /// キャンセルは終了処理の完了を待たずに通知されるため、直後にプロセスを閉じる呼び出し元 (バッチ実行) が Word を残さないために使う
+        /// </summary>
+        /// <param name="timeout">待機上限時間</param>
+        internal static void WaitForPendingCleanup(TimeSpan timeout)
+        {
+            try
+            {
+                Task.WaitAll(PendingCleanups.Keys.ToArray(), timeout);
+            }
+            catch (AggregateException ex)
+            {
+                ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Word cleanup failed", ex);
+            }
         }
 
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>
+        /// Word の終了処理を開始し、完了を <see cref="WaitForPendingCleanup"/> で待てるよう記録する
+        /// </summary>
+        /// <param name="comHolder">Word COM オブジェクトの参照</param>
+        private static void TrackCleanup(WordComHolder comHolder)
+        {
+            Task cleanupTask = comHolder.CleanupWithKillFallbackAsync();
+            if (cleanupTask.IsCompleted)
+            {
+                return;
+            }
+
+            PendingCleanups.TryAdd(cleanupTask, 0);
+            _ = cleanupTask.ContinueWith(
+                completed => PendingCleanups.TryRemove(completed, out _),
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
         /// <summary>
         /// 変換処理にタイムアウトを適用する
         /// </summary>

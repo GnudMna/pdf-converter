@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Input;
 using PdfConverter.Commands;
 using PdfConverter.Tests.Helpers;
@@ -106,6 +107,45 @@ namespace PdfConverter.Tests.Views.Behaviors
         }
 
         /// <summary>
+        /// Enter キー押下時は入力した値をバインディングのソースへ反映してからコマンドを実行することを検証する
+        /// </summary>
+        [Fact]
+        public void EnterKey_UpdatesTextSourceBeforeExecutingCommand()
+        {
+            string textAtExecution = null;
+
+            StaTestHelper.Run(() =>
+            {
+                var source = new TextSource { Text = "before" };
+                var command = new RelayCommand(() => textAtExecution = source.Text);
+                var window = new Window { Width = 100, Height = 100 };
+                var textBox = new TextBox();
+                textBox.SetBinding(TextBox.TextProperty, new Binding(nameof(TextSource.Text))
+                {
+                    Source = source,
+                    Mode = BindingMode.TwoWay,
+                    UpdateSourceTrigger = UpdateSourceTrigger.Explicit,
+                });
+                window.Content = textBox;
+                InvokeCommandBehavior.SetEnterKeyCommand(textBox, command);
+                window.Show();
+                textBox.Focus();
+                textBox.Text = "after";
+                textBox.RaiseEvent(new KeyEventArgs(
+                    Keyboard.PrimaryDevice,
+                    PresentationSource.FromVisual(textBox),
+                    0,
+                    Key.Enter)
+                {
+                    RoutedEvent = UIElement.PreviewKeyDownEvent,
+                });
+                window.Close();
+            });
+
+            Assert.Equal("after", textAtExecution);
+        }
+
+        /// <summary>
         /// コマンドが実行不可のときは Enter キー押下でも実行されないことを検証する
         /// </summary>
         [Fact]
@@ -134,6 +174,17 @@ namespace PdfConverter.Tests.Views.Behaviors
             });
 
             Assert.False(executed);
+        }
+
+
+        /********************************************************************************/
+        /*                                 ネスト型                                 */
+        /********************************************************************************/
+        /// <summary>バインディングのソース</summary>
+        private sealed class TextSource
+        {
+            /// <summary>バインドする文字列</summary>
+            public string Text { get; set; }
         }
     }
 }

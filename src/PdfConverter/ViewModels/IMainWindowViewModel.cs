@@ -1,3 +1,4 @@
+using System;
 using System.Windows.Input;
 using PdfConverter.Models;
 
@@ -30,6 +31,13 @@ namespace PdfConverter.ViewModels
         /// <summary>ドロップされたドキュメントファイルを読み込む</summary>
         /// <param name="filePath">ドキュメントファイルのパス</param>
         void HandleDroppedDocument(string filePath);
+
+        /// <summary>
+        /// 入力欄に入力途中の値を反映する<br/>
+        /// 続けてドキュメントを読み込む前に使い、反映による読み込み済みドキュメントの再読み込み・再描画は行わない
+        /// </summary>
+        /// <param name="commitInput">入力途中の値を反映する処理</param>
+        void CommitPendingInput(Action commitInput);
 
         /// <summary>複数のファイルがドロップされ、1 件だけを読み込んだことを利用者へ通知する</summary>
         /// <param name="droppedCount">ドロップされたファイルの総数</param>

@@ -53,7 +53,7 @@
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource FieldLabelForegroundBrush}" />
                 </Expander.Header>
-                <StackPanel>
+                <StackPanel IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}">
                     <TextBlock x:Name="WordBackendLabel"
                                Text="Word → PDF 変換"
                                Style="{StaticResource FieldLabel}"
@@ -70,11 +70,13 @@
                         <TextBlock x:Name="LibreOfficePathLabel"
                                    Text="LibreOffice 実行ファイル"
                                    Style="{StaticResource FieldLabel}"
-                                   ToolTip="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。" />
+                                   ToolTip="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。入力後 Enter またはフォーカスを外すと反映します。" />
                         <TextBox Margin="0,8,0,0"
-                                 Text="{Binding WordSettings.LibreOfficePath, UpdateSourceTrigger=PropertyChanged}"
+                                 Text="{Binding WordSettings.LibreOfficePath}"
+                                 ToolTip="入力後 Enter またはフォーカスを外すと反映します"
                                  AutomationProperties.LabeledBy="{Binding ElementName=LibreOfficePathLabel}"
-                                 AutomationProperties.HelpText="空欄の場合は一般的なインストール先から soffice.exe を自動検出します" />
+                                 AutomationProperties.HelpText="空欄の場合は一般的なインストール先から soffice.exe を自動検出します"
+                                 behaviors:TextBoxBehavior.UpdateSourceOnEnter="True" />
                     </StackPanel>
                     <TextBlock x:Name="PdfFormatLabel"
                                Margin="0,14,0,0"

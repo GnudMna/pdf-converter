@@ -8,7 +8,7 @@ paths:
 
 # 日本語テキストのスタイル
 
-コメント (`///`, `//`, XAML コメント)、ユーザー向け文字列、Markdown 文書 (README・CHANGELOG・`docs/user/` など) に適用する。C# の構文 (`Method(arg)`, `List<int>`) には適用しない。
+コメント (`///`, `//`, XAML コメント)、ユーザー向け文字列、Markdown 文書 (README・CHANGELOG・`docs/` など) に適用する。C# の構文 (`Method(arg)`, `List<int>`) には適用しない。
 
 ## 括弧
 

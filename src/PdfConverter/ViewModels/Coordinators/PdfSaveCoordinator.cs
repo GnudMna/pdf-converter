@@ -88,6 +88,9 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
 
+                // Word 文書が更新されて再変換された場合、読み込み時の host.PageCount は古い可能性があるため、保存対象の PDF から取り直す
+                int pageCount = await _pdfService.GetPdfPageCountAsync(pdfPath, cancellationToken);
+
                 string? folderPath = _dialogService.ShowFolderBrowserDialog();
                 if (folderPath == null)
                 {
@@ -107,13 +110,14 @@ namespace PdfConverter.ViewModels.Coordinators
 
                     try
                     {
-                        pageIndexes = PageRangeParser.Parse(host.PageRange, host.PageCount);
+                        pageIndexes = PageRangeParser.Parse(host.PageRange, pageCount);
                         host.PageRangeValidationMessage = null;
                     }
                     catch (Exception ex)
                     {
-                        host.PageRangeValidationMessage = ex.Message;
-                        host.SetStatus($"ページ範囲の指定が不正です: {ex.Message}", StatusKind.Warning);
+                        string message = ExceptionFormattingHelper.GetUserMessage(ex);
+                        host.PageRangeValidationMessage = message;
+                        host.SetStatus($"ページ範囲の指定が不正です: {message}", StatusKind.Warning);
                         return;
                     }
                 }
@@ -122,7 +126,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageRangeValidationMessage = null;
                 }
 
-                if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes))
+                if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes, pageCount))
                 {
                     host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
                     return;
@@ -148,7 +152,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 host.ProgressValue = 100;
                 host.SetStatus("画像の保存が完了しました。", StatusKind.Success);
-                ApplicationLogger.Info("Save", $"Image export completed: folder={folderPath}, pages={host.PageCount}");
+                ApplicationLogger.Info("Save", $"Image export completed: folder={folderPath}, pages={pageCount}");
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
@@ -241,15 +245,16 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="host">メインビューモデル</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
+        /// <param name="pageCount">保存対象の PDF の総ページ数 (ファイル名の桁数の決定に使う)</param>
         /// <returns>true: 上書き確認を行う / false: 上書き確認を行わない / キャンセルされた場合は<c>null</c></returns>
-        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int>? pageIndexes)
+        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int>? pageIndexes, int pageCount)
         {
             IEnumerable<int> pagesToSave = host.IsAllPagesSelected || pageIndexes == null
-                ? Enumerable.Range(0, host.PageCount)
+                ? Enumerable.Range(0, pageCount)
                 : pageIndexes;
 
             var existingFiles = pagesToSave
-                .Select(index => Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(index, host.PageCount, host.OutputImageFormat)))
+                .Select(index => Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(index, pageCount, host.OutputImageFormat)))
                 .Where(File.Exists)
                 .Select(Path.GetFileName)
                 .ToList();

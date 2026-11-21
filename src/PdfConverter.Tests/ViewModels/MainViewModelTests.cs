@@ -7,6 +7,8 @@ using PdfConverter.Commands;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
+using PdfConverter.ViewModels;
+using PdfConverter.ViewModels.Coordinators;
 using Xunit;
 
 namespace PdfConverter.Tests.ViewModels
@@ -289,6 +291,7 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.ExportSettings.PageRange = "1";
             viewModel.ExportSettings.ResolutionValue = "1080";
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
             pdf.Setup(p => p.SavePdfPagesToImagesAsync(
                     It.IsAny<string>(),
                     It.IsAny<System.Collections.Generic.IEnumerable<int>>(),
@@ -397,6 +400,68 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.HandleDroppedDocument("C:\\dropped.pdf");
 
             Assert.Equal("C:\\existing.pdf", viewModel.FilePath);
+        }
+
+        /// <summary>
+        /// Word 文書の読み込み後に Word 設定を変えると、文書を再読み込みすることを検証する
+        /// </summary>
+        [Fact]
+        public void WordSettingsChange_WhenWordDocumentLoaded_ReloadsDocument()
+        {
+            var previewCoordinator = new Mock<IPdfPreviewCoordinator>();
+            MainViewModel viewModel = MainViewModelTestFactory.Create(previewCoordinator.Object);
+            viewModel.FilePath = "C:\\document.docx";
+
+            viewModel.WordSettings.ExportBookmarks = !viewModel.WordSettings.ExportBookmarks;
+
+            previewCoordinator.Verify(c => c.LoadFromPath(It.IsAny<IPreviewCoordinatorHost>(), true), Times.Once);
+        }
+
+        /// <summary>
+        /// 入力途中の値の反映で Word 設定が変わっても、文書を再読み込みしないことを検証する
+        /// </summary>
+        [Fact]
+        public void CommitPendingInput_WordSettingsChange_DoesNotReloadDocument()
+        {
+            var previewCoordinator = new Mock<IPdfPreviewCoordinator>();
+            MainViewModel viewModel = MainViewModelTestFactory.Create(previewCoordinator.Object);
+            viewModel.FilePath = "C:\\document.docx";
+
+            bool exportBookmarks = !viewModel.WordSettings.ExportBookmarks;
+
+            viewModel.CommitPendingInput(() => viewModel.WordSettings.ExportBookmarks = exportBookmarks);
+
+            Assert.Equal(exportBookmarks, viewModel.WordSettings.ExportBookmarks);
+            previewCoordinator.Verify(c => c.LoadFromPath(It.IsAny<IPreviewCoordinatorHost>(), It.IsAny<bool>()), Times.Never);
+        }
+
+        /// <summary>
+        /// 入力途中の値の反映で画像出力設定が変わっても、プレビューを再生成しないことを検証する
+        /// </summary>
+        [Fact]
+        public void CommitPendingInput_ExportSettingsChange_DoesNotRefreshPreview()
+        {
+            var previewCoordinator = new Mock<IPdfPreviewCoordinator>();
+            MainViewModel viewModel = MainViewModelTestFactory.Create(previewCoordinator.Object);
+
+            viewModel.CommitPendingInput(() => viewModel.ExportSettings.ResolutionValue = "1234");
+
+            previewCoordinator.Verify(c => c.RequestRefreshIfLoaded(It.IsAny<IPreviewCoordinatorHost>()), Times.Never);
+        }
+
+        /// <summary>
+        /// 入力途中の値の反映が終わった後は、設定変更でプレビューを再生成することを検証する
+        /// </summary>
+        [Fact]
+        public void ExportSettingsChange_AfterCommitPendingInput_RefreshesPreview()
+        {
+            var previewCoordinator = new Mock<IPdfPreviewCoordinator>();
+            MainViewModel viewModel = MainViewModelTestFactory.Create(previewCoordinator.Object);
+            viewModel.CommitPendingInput(() => viewModel.ExportSettings.ResolutionValue = "1234");
+
+            viewModel.ExportSettings.ResolutionValue = "2345";
+
+            previewCoordinator.Verify(c => c.RequestRefreshIfLoaded(It.IsAny<IPreviewCoordinatorHost>()), Times.Once);
         }
 
         /// <summary>

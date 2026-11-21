@@ -131,6 +131,40 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 変換中にキャンセルされた場合は失敗終了コードを返し、残りの入力ファイルを処理しないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_CanceledDuringConversion_ReturnsFailureAndSkipsRemainingFiles()
+        {
+            string outputDir = CreateTempDirectory();
+            string firstPdfPath = CreateTempPdfPath();
+            string secondPdfPath = CreateTempPdfPath();
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(firstPdfPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException());
+
+            var service = CreateService(documentPdfSourceService: documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+                Quiet = true,
+            };
+            options.InputFiles.Add(firstPdfPath);
+            options.InputFiles.Add(secondPdfPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            documentService.Verify(
+                s => s.GetPdfPathAsync(secondPdfPath, It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
         /// Word の PDF 出力時に変換結果をコピーすることを検証する
         /// </summary>
         [Fact]

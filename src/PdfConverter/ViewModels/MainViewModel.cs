@@ -60,6 +60,9 @@ namespace PdfConverter.ViewModels
         /// <summary>読み込み済みドキュメントのパス</summary>
         private string? _loadedFilePath;
 
+        /// <summary>入力途中の値を反映中かどうか (反映中は設定変更による再読み込み・再描画を行わない)</summary>
+        private bool _isCommittingPendingInput;
+
         /* ----------------------------- オーバーレイ関連 ----------------------------- */
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
         private bool _isDropOverlayVisible;
@@ -94,7 +97,7 @@ namespace PdfConverter.ViewModels
             WordSettings = new WordConversionSettingsViewModel(wordToPdfSettings, ReloadWordDocumentIfLoaded);
             ExportSettings = new ImageExportSettingsViewModel(
                 imageExportSettings,
-                () => _previewCoordinator.RequestRefreshIfLoaded(_coordinatorHost),
+                RefreshPreviewIfLoaded,
                 RaiseActionCanExecuteChanged);
 
             BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
@@ -288,6 +291,20 @@ namespace PdfConverter.ViewModels
         }
 
         /// <inheritdoc/>
+        public void CommitPendingInput(Action commitInput)
+        {
+            _isCommittingPendingInput = true;
+            try
+            {
+                commitInput();
+            }
+            finally
+            {
+                _isCommittingPendingInput = false;
+            }
+        }
+
+        /// <inheritdoc/>
         public void NotifyMultipleFilesDropped(int droppedCount, string loadedFilePath)
         {
             string message =
@@ -378,13 +395,27 @@ namespace PdfConverter.ViewModels
         /// <summary>Word ファイルが読み込み済みの場合にプレビューを再生成する</summary>
         private void ReloadWordDocumentIfLoaded()
         {
-            if (string.IsNullOrEmpty(FilePath) || !DocumentFileHelper.IsWordFile(FilePath) || IsBusy)
+            if (_isCommittingPendingInput
+                || string.IsNullOrEmpty(FilePath)
+                || !DocumentFileHelper.IsWordFile(FilePath)
+                || IsBusy)
             {
                 return;
             }
 
             LoadedFilePath = null;
             LoadPdfFromPath(forceReload: true);
+        }
+
+        /// <summary>ドキュメントが読み込み済みの場合に現在の画像出力設定でプレビューを再生成する</summary>
+        private void RefreshPreviewIfLoaded()
+        {
+            if (_isCommittingPendingInput)
+            {
+                return;
+            }
+
+            _previewCoordinator.RequestRefreshIfLoaded(_coordinatorHost);
         }
 
         /// <summary>ファイルを選択する</summary>

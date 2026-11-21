@@ -1,6 +1,6 @@
 # PDF Converter
 
-PDF / Word 文書のページを画像 (PNG / JPEG / BMP) へ変換する Windows デスクトップアプリ。機能・使い方は [README.md](README.md)、利用者向けドキュメントの原稿は [docs/user/](docs/user/)、変更履歴は [CHANGELOG.md](CHANGELOG.md) を参照する。
+PDF / Word 文書のページを画像 (PNG / JPEG / BMP) へ変換する Windows デスクトップアプリ。機能・使い方は [README.md](README.md)、利用者向けドキュメントの原稿は [docs/user/](docs/user/)、設計・ビルド・リリース手順は開発者向けの [docs/dev/](docs/dev/README.md)、変更履歴は [CHANGELOG.md](CHANGELOG.md) を参照する。
 
 ## 技術スタック
 
@@ -18,6 +18,7 @@ PDF / Word 文書のページを画像 (PNG / JPEG / BMP) へ変換する Window
 - `src/PdfConverter.Tests/` — 単体テスト (本体と同じフォルダ構成)
 - `installer/` — Inno Setup スクリプトとビルド用 PowerShell。共通処理は `build-common.ps1`
 - `docs/user/` — 利用者向けドキュメント (mdBook の原稿。`changelog.md` は `CHANGELOG.md` を取り込むだけのため直接編集しない)
+- `docs/dev/` — 開発者向けドキュメント (構成・設計・テスト・インストーラー・リリース・開発の進め方)
 
 ## コマンド
 
@@ -51,6 +52,7 @@ dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64
 | CLI オプション・終了コード | `docs/user/cli.md`、必要なら `README.md` |
 | 既知の不具合・回避策 | `docs/user/troubleshooting.md` |
 | 利用者に見える挙動 | `CHANGELOG.md` の `[Unreleased]` (スキル `/changelog`) |
+| 構成・設計・ビルド手順・リリース手順 | `docs/dev/` の該当ページ |
 | mdBook の版 | `installer/licenses/user-docs-notices.txt` (出力に含まれる素材を確認する。不一致は `build-user-docs.ps1` がエラーにする) |
 | PDFiumCore の版 | `installer/licenses/PDFium.txt` を同じ版の pdfium-binaries リリースのライセンスに差し替える (不一致は `generate-third-party-notices.ps1` がエラーにする) |
 

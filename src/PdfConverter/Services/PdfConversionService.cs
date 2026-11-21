@@ -22,7 +22,7 @@ namespace PdfConverter.Services
     /// 並列化で短縮されるのはビットマップ生成・画像エンコード・ファイル書き込みのみ<br/>
     /// PDF 解析やファイル反映が UI スレッドで実行されないよう、内部の await はすべて ConfigureAwait(false) とする<br/>
     /// ページ数取得とページ単位の描画 (プレビュー) では、直近に開いた PDFium の文書を開いたまま再利用し、ページ移動ごとの読み込み・解析を省く<br/>
-    /// メモリキャッシュの上限を超える PDF はファイル全体を読み込まず、PDFium が必要とした範囲だけをファイルから読む
+    /// メモリキャッシュの上限を超える PDF は、プレビュー・保存ともファイル全体を読み込まず、PDFium が必要とした範囲だけをファイルから読む
     /// </remarks>
     public sealed class PdfConversionService : IPdfConversionService, IDisposable
     {
@@ -163,8 +163,22 @@ namespace PdfConverter.Services
                 throw new ArgumentException("保存先フォルダーのパスが指定されていません。", nameof(folderPath));
             }
 
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-            cancellationToken.ThrowIfCancellationRequested();
+            // メモリキャッシュの上限を超える PDF は、プレビューと同じくファイル全体を読み込まずに開く
+            long fileSize = new FileInfo(filePath).Length;
+            Func<PdfiumDocument> openDocument;
+            PdfiumDocument firstDocument;
+            if (fileSize <= MaxCacheableFileSizeBytes)
+            {
+                byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+                fileSize = fileBytes.Length;
+                openDocument = () => new PdfiumDocument(fileBytes);
+                firstDocument = await Task.Run(openDocument, cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                openDocument = () => PdfiumDocument.OpenFile(filePath);
+                firstDocument = await Task.Run(() => OpenLargeFile(filePath), cancellationToken).ConfigureAwait(false);
+            }
 
             // 幅・高さ指定ではページサイズが混在する PDF でも各ページが指定サイズになるよう、ページごとに倍率を求める
             // 描画サイズが上限を超えるページがあれば、何も書き出さないうちに中断する
@@ -172,8 +186,10 @@ namespace PdfConverter.Services
             List<int> pagesToSave;
             Dictionary<int, double> renderScaleByPage;
             long maxPagePixels = 0;
-            using (var document = new PdfiumDocument(fileBytes))
+            using (PdfiumDocument document = firstDocument)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 pageCount = document.PageCount;
                 pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
                 renderScaleByPage = pagesToSave.ToDictionary(
@@ -199,14 +215,14 @@ namespace PdfConverter.Services
                 // ワーカー内では 1 つの文書を担当ページすべてで再利用し、ページごとの読み込みコストを削減する
                 // 大容量 PDF では文書ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
                 // 高解像度ではページごとのビットマップが大きくなるため、描画サイズに応じても並列度を抑える
-                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length, maxPagePixels, SaveRenderPixelBudget);
+                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileSize, maxPagePixels, SaveRenderPixelBudget);
                 List<List<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
                 var tasks = partitions
                     .Where(partition => partition.Count > 0)
                     .Select(partition => Task.Run(() =>
                     {
-                        using (var document = new PdfiumDocument(fileBytes))
+                        using (PdfiumDocument document = openDocument())
                         {
                             foreach (int pageIndex in partition)
                             {
@@ -365,7 +381,7 @@ namespace PdfConverter.Services
         /// <param name="filePath">PDF ファイルのパス</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>PDF ファイルのバイト配列</returns>
-        /// <remarks><see cref="MaxCacheableFileSizeBytes"/> を超える PDF はキャッシュせず、都度ディスクから読み込む</remarks>
+        /// <remarks>呼び出し後にファイルが <see cref="MaxCacheableFileSizeBytes"/> を超えた場合はキャッシュせず、ディスクから読み込む</remarks>
         private async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
         {
             var fileInfo = new FileInfo(filePath);

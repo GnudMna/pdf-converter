@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Windows;
 using System.Windows.Input;
@@ -187,6 +189,62 @@ namespace PdfConverter.Tests.Views.Behaviors
 
                 Assert.False(accepted);
                 viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        /// <summary>
+        /// ドロップを受け付けたとき、読み込みの前に入力途中の値を反映することを検証する
+        /// </summary>
+        [Fact]
+        public void TryProcessDrop_SupportedDocument_CommitsPendingInputBeforeLoading()
+        {
+            string filePath = CreateTempPdfPath();
+
+            try
+            {
+                var calls = new List<string>();
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                viewModel.Setup(v => v.CommitPendingInput(It.IsAny<Action>()))
+                    .Callback<Action>(commit => commit());
+                viewModel.Setup(v => v.HandleDroppedDocument(It.IsAny<string>()))
+                    .Callback(() => calls.Add("load"));
+                var data = CreateFileDropData(filePath);
+
+                FileDropBehavior.TryProcessDrop(viewModel.Object, data, () => calls.Add("commit"));
+
+                Assert.Equal(new[] { "commit", "load" }, calls);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        /// <summary>
+        /// 処理中でドロップを受け付けないときは、入力途中の値を反映しないことを検証する
+        /// </summary>
+        [Fact]
+        public void TryProcessDrop_WhenBusy_DoesNotCommitPendingInput()
+        {
+            string filePath = CreateTempPdfPath();
+
+            try
+            {
+                bool committed = false;
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(true);
+                viewModel.Setup(v => v.CommitPendingInput(It.IsAny<Action>()))
+                    .Callback<Action>(commit => commit());
+                var data = CreateFileDropData(filePath);
+
+                FileDropBehavior.TryProcessDrop(viewModel.Object, data, () => committed = true);
+
+                Assert.False(committed);
             }
             finally
             {

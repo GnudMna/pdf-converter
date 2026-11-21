@@ -57,30 +57,32 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// ページ番号が 1 未満または総ページ数を超える場合に ArgumentOutOfRangeException がスローされることを検証する
+        /// ページ番号が 1 未満または総ページ数を超える場合に引数名を含まない FormatException がスローされることを検証する
         /// </summary>
         [Theory]
         [InlineData("0")]
         [InlineData("11")]
-        public void Parse_PageOutOfRange_ThrowsArgumentOutOfRangeException(string pageRange)
+        public void Parse_PageOutOfRange_ThrowsFormatException(string pageRange)
         {
             Action act = () => PageRangeParser.Parse(pageRange, 10);
 
-            Assert.Throws<ArgumentOutOfRangeException>(act);
+            var ex = Assert.Throws<FormatException>(act);
+            Assert.DoesNotContain("Parameter", ex.Message);
         }
 
         /// <summary>
-        /// 逆順・範囲外など不正な範囲指定で例外がスローされることを検証する
+        /// 逆順・範囲外など不正な範囲指定で引数名を含まない FormatException がスローされることを検証する
         /// </summary>
         [Theory]
         [InlineData("0-2")]
         [InlineData("5-2")]
         [InlineData("11-12")]
-        public void Parse_InvalidRange_Throws(string pageRange)
+        public void Parse_InvalidRange_ThrowsFormatException(string pageRange)
         {
             Action act = () => PageRangeParser.Parse(pageRange, 10);
 
-            Assert.ThrowsAny<Exception>(act);
+            var ex = Assert.Throws<FormatException>(act);
+            Assert.DoesNotContain("Parameter", ex.Message);
         }
 
         /// <summary>
@@ -96,14 +98,14 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// 有効なページが 1 件も解析されない場合に ArgumentException がスローされることを検証する
+        /// 有効なページが 1 件も解析されない場合に FormatException がスローされることを検証する
         /// </summary>
         [Fact]
-        public void Parse_EmptyResult_ThrowsArgumentException()
+        public void Parse_EmptyResult_ThrowsFormatException()
         {
             Action act = () => PageRangeParser.Parse(",", 10);
 
-            var ex = Assert.Throws<ArgumentException>(act);
+            var ex = Assert.Throws<FormatException>(act);
             Assert.Contains("空", ex.Message);
         }
     }

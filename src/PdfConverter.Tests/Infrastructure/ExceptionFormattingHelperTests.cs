@@ -54,6 +54,47 @@ namespace PdfConverter.Tests.Infrastructure
         }
 
         /// <summary>
+        /// ArgumentException が自動付加する引数名を取り除くことを検証する
+        /// </summary>
+        [Fact]
+        public void GetUserMessage_RemovesParameterNameFromArgumentException()
+        {
+            var exception = new ArgumentException("パスが不正です。", "path");
+
+            string message = ExceptionFormattingHelper.GetUserMessage(exception);
+
+            Assert.Equal("パスが不正です。", message);
+        }
+
+        /// <summary>
+        /// ArgumentOutOfRangeException が付加する引数名と実際の値を取り除くことを検証する
+        /// </summary>
+        [Fact]
+        public void GetUserMessage_RemovesParameterNameAndActualValueFromArgumentOutOfRangeException()
+        {
+            var exception = new ArgumentOutOfRangeException("pageIndex", 5, "ページインデックスが範囲外です。");
+
+            string message = ExceptionFormattingHelper.GetUserMessage(exception);
+
+            Assert.Equal("ページインデックスが範囲外です。", message);
+        }
+
+        /// <summary>
+        /// 内部例外の引数名も取り除いて付加することを検証する
+        /// </summary>
+        [Fact]
+        public void GetUserMessage_RemovesParameterNameFromInnerException()
+        {
+            var exception = new InvalidOperationException(
+                "変換に失敗しました。",
+                new ArgumentException("入力が空です。", "input"));
+
+            string message = ExceptionFormattingHelper.GetUserMessage(exception);
+
+            Assert.Equal("変換に失敗しました。 (入力が空です。)", message);
+        }
+
+        /// <summary>
         /// null を渡した場合は空文字列を返すことを検証する
         /// </summary>
         [Fact]

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -118,6 +119,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 ResolutionValue = "1080",
                 OutputImageFormat = OutputImageFormat.Png,
             };
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
             dialog.Setup(d => d.ShowYesNo(It.IsAny<string>(), It.IsAny<string>(), DialogIcon.Warning)).Returns(false);
 
@@ -139,6 +141,90 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
+        /// 保存の直前の再変換でページ数の桁数が変わった場合、保存対象の PDF のページ数でファイル名を求めて上書き確認することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_PageCountChangedByReconversion_ConfirmsOverwriteWithRefreshedPageCount()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            File.WriteAllText(Path.Combine(folder, "page_01.png"), "existing");
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 9,
+                IsAllPagesSelected = true,
+                ResolutionValue = "1080",
+                OutputImageFormat = OutputImageFormat.Png,
+            };
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(10);
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+            dialog.Setup(d => d.ShowYesNo(
+                    It.Is<string>(m => m.Contains("page_01.png")),
+                    It.IsAny<string>(),
+                    DialogIcon.Warning,
+                    It.IsAny<string>(),
+                    It.IsAny<string>()))
+                .Returns(false);
+
+            await coordinator.SaveAsync(host);
+
+            dialog.Verify(d => d.ShowYesNo(
+                It.Is<string>(m => m.Contains("page_01.png")),
+                It.IsAny<string>(),
+                DialogIcon.Warning,
+                It.IsAny<string>(),
+                It.IsAny<string>()), Times.Once);
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<int>>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>(),
+                It.IsAny<ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<OutputImageFormat>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
+        /// 保存の直前の再変換でページ数が増えた場合、増えたページを含むページ範囲を受け付けることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_PageCountIncreasedByReconversion_AcceptsRangeWithinRefreshedPageCount()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "3",
+                ResolutionValue = "1080",
+            };
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(3);
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+
+            await coordinator.SaveAsync(host);
+
+            Assert.Null(host.PageRangeValidationMessage);
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.Is<IEnumerable<int>>(indexes => indexes != null && indexes.Single() == 2),
+                folder,
+                false,
+                It.IsAny<ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<OutputImageFormat>(),
+                It.IsAny<bool>(),
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
         /// 保存処理中にキャンセルされた場合、完了メッセージを表示せずキャンセル文言を設定することを検証する
         /// </summary>
         [Fact]
@@ -153,6 +239,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 PageRange = "1-2",
                 ResolutionValue = "1080",
             };
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(2);
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
             pdf.Setup(p => p.SavePdfPagesToImagesAsync(
                     It.IsAny<string>(),
@@ -191,6 +278,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 ResolutionValue = "1080",
                 OutputImageFormat = OutputImageFormat.Png,
             };
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(2);
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
             pdf.Setup(p => p.SavePdfPagesToImagesAsync(
                     host.FilePath,
