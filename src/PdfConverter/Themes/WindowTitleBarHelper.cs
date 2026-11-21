@@ -90,8 +90,14 @@ namespace PdfConverter.Themes
 
 
         /********************************************************************************/
-        /*                               Win32 API 定義                                 */
+        /*                                Win32 API 定義                                */
         /********************************************************************************/
+        /// <summary>ウィンドウの DWM 属性を設定する</summary>
+        /// <param name="hwnd">ウィンドウハンドル</param>
+        /// <param name="dwAttribute">設定する属性</param>
+        /// <param name="pvAttribute">属性の値</param>
+        /// <param name="cbAttribute">値のバイト数</param>
+        /// <returns>成功した場合は 0 (<c>S_OK</c>)</returns>
         [DllImport("dwmapi.dll")]
         private static extern int DwmSetWindowAttribute(IntPtr hwnd, int dwAttribute, ref int pvAttribute, int cbAttribute);
     }

@@ -375,10 +375,10 @@ namespace PdfConverter.Services
         /// 保存対象ページ一覧を解決する
         /// </summary>
         /// <param name="pageIndexes">保存対象のページインデックス一覧</param>
-        /// <param name="saveAllPages"><c>true</c>の場合は全ページを保存する</param>
+        /// <param name="saveAllPages"><c>true</c> の場合は全ページを保存する</param>
         /// <param name="pageCount">PDF のページ数</param>
         /// <returns>保存対象のページインデックス一覧</returns>
-        /// <exception cref="ArgumentException">有効なページインデックス一覧または"全ページを保存"を選択してください</exception>
+        /// <exception cref="ArgumentException">全ページ保存が指定されておらず、ページインデックス一覧が <c>null</c> または空の場合</exception>
         /// <exception cref="ArgumentOutOfRangeException">範囲外のページインデックスが含まれている場合</exception>
         private static List<int> ResolvePagesToSave(IEnumerable<int>? pageIndexes, bool saveAllPages, int pageCount)
         {
@@ -413,7 +413,7 @@ namespace PdfConverter.Services
         /// <param name="fileSizeBytes">PDF ファイルサイズ (バイト)</param>
         /// <param name="maxPagePixels">保存対象ページのうち最大の描画画素数</param>
         /// <param name="pixelBudget">全ワーカーで同時に描画してよい画素数の合計</param>
-        /// <returns>1以上の並列ワーカー数</returns>
+        /// <returns>1 以上の並列ワーカー数</returns>
         internal static int ResolveSaveParallelism(int processorCount, long fileSizeBytes, long maxPagePixels, long pixelBudget)
         {
             int cpuBound = Math.Max(1, Math.Min(processorCount, MaxSaveParallelism));
@@ -444,7 +444,7 @@ namespace PdfConverter.Services
         /// <summary>
         /// ページ一覧を並列ワーカー数に応じて分割する
         /// </summary>
-        /// <param name="pages">0始まりのページインデックス一覧</param>
+        /// <param name="pages">0 始まりのページインデックス一覧</param>
         /// <param name="partitionCount">分割するパーティション数</param>
         /// <returns>分割されたページインデックスのリスト</returns>
         private static List<List<int>> PartitionPages(List<int> pages, int partitionCount)
@@ -467,7 +467,7 @@ namespace PdfConverter.Services
         /// <param name="filePath">PDF ファイルのパス</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>PDF ファイルのバイト配列</returns>
-        /// <remarks>呼び出し後にファイルが <see cref="MaxCacheableFileSizeBytes"/> を超えた場合はキャッシュせず、ディスクから読み込む</remarks>
+        /// <remarks>ファイルが <see cref="MaxCacheableFileSizeBytes"/> を超える場合はキャッシュせず、ディスクから読み込んだバイト列をそのまま返す</remarks>
         private async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
         {
             var fileInfo = new FileInfo(filePath);
@@ -707,7 +707,7 @@ namespace PdfConverter.Services
         /// <param name="document">PDF 文書</param>
         /// <param name="pageIndex">ページインデックス</param>
         /// <param name="renderScale">描画倍率</param>
-        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
+        /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>ビットマップ</returns>
         /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
@@ -733,7 +733,7 @@ namespace PdfConverter.Services
         /// <param name="pageCount">PDF の総ページ数 (ファイル名のゼロ埋め桁数に使用)</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="format">出力画像形式</param>
-        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
+        /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
         private static void SavePageToFile(PdfiumDocument document, int pageIndex, double renderScale, int pageCount, string folderPath, OutputImageFormat format, bool preserveTransparency)
         {
             BitmapSource source = document.RenderPage(pageIndex, renderScale);
@@ -946,7 +946,7 @@ namespace PdfConverter.Services
 
 
         /********************************************************************************/
-        /*                                    ネスト型                                  */
+        /*                                   ネスト型                                   */
         /********************************************************************************/
         /// <summary>
         /// 開いたまま再利用する PDFium の文書と、その使用数を管理する

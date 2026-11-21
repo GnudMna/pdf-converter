@@ -12,12 +12,12 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal static class PdfTestAssetFactory
     {
-        /// <summary>
-        /// 指定ページ数の最小限の有効な PDF を一時ファイルとして書き出す
-        /// </summary>
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// 指定ページ数の最小限の有効な PDF を一時ファイルとして書き出す
+        /// </summary>
         public static string CreateTempPdf(int pageCount = 1)
         {
             if (pageCount < 1)

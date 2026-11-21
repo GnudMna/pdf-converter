@@ -12,7 +12,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                                 抽象メソッド                                 */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF / Word ファイルを検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="host">プレビュー操作ホスト</param>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
@@ -30,6 +30,12 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">プレビュー操作ホスト</param>
         void RequestRefreshIfLoaded(IPreviewCoordinatorHost host);
+
+        /// <summary>
+        /// 保存中・出力解像度の画像の生成中に保留したプレビュー再生成を、処理の完了後に 1 回だけ実行する
+        /// </summary>
+        /// <param name="host">プレビュー操作ホスト</param>
+        void ResumeDeferredRefresh(IPreviewCoordinatorHost host);
 
         /// <summary>
         /// 指定されたページに移動し、プレビューを更新する

@@ -61,9 +61,13 @@ namespace PdfConverter.Tests.Helpers
 
         public bool IsProgressBarVisible { get; set; }
 
-        public int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
-            ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
-            : 1;
+        public int DisplayedPageNumber { get; set; }
+
+        public int CurrentPreviewPage => DisplayedPageNumber > 0
+            ? DisplayedPageNumber
+            : int.TryParse(PageNumber, out int value)
+                ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
+                : 1;
 
         public int PreviewViewportPixelWidth { get; set; }
 

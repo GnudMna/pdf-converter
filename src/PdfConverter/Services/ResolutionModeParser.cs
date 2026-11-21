@@ -15,7 +15,7 @@ namespace PdfConverter.Services
         /// 文字列を <see cref="ResolutionMode"/> に変換する
         /// </summary>
         /// <param name="value">設定文字列</param>
-        /// <returns>解像度の指定方法</returns>
+        /// <returns>解像度の指定方法 (空・不正な値と <see cref="ResolutionMode.Default"/> は <see cref="ResolutionMode.Width"/> にする)</returns>
         public static ResolutionMode Parse(string value)
         {
             if (string.IsNullOrWhiteSpace(value))

@@ -33,7 +33,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// バージョン文字列を解析する (<c>v</c> 付き可)
+        /// バージョン文字列を解析する (<c>v</c> 付き可。2～4 個の数値をドットで区切った形式で、<c>+</c> 以降のビルドメタデータは無視し、<c>-</c> を含むプレリリースは失敗とする)
         /// </summary>
         /// <param name="value">バージョン文字列</param>
         /// <param name="version">解析結果</param>
@@ -110,9 +110,16 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>バージョンの 1 要素 (符号なしの 10 進数) を解析する</summary>
+        /// <param name="text">要素の文字列</param>
+        /// <param name="value">解析結果</param>
+        /// <returns>解析に成功すれば <c>true</c></returns>
         private static bool TryParseComponent(string text, out int value) =>
             int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value) && value >= 0;
 
+        /// <summary>未指定のビルド・リビジョン (-1) を 0 に置き換えて比較できる形にする</summary>
+        /// <param name="version">対象のバージョン</param>
+        /// <returns>4 要素すべてを持つバージョン</returns>
         private static Version Normalize(Version version) =>
             new Version(
                 version.Major,

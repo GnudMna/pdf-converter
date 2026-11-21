@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
 using PdfConverter.Services;
+using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels;
 using PdfConverter.ViewModels.Coordinators;
 using Xunit;
@@ -73,8 +74,13 @@ namespace PdfConverter.Tests.Infrastructure
         public void Configure_RegistersTransientViewModel()
         {
             var provider = CreateProvider();
-            var viewModel1 = (MainViewModel)provider.GetService(typeof(MainViewModel));
-            var viewModel2 = (MainViewModel)provider.GetService(typeof(MainViewModel));
+            MainViewModel viewModel1 = null;
+            MainViewModel viewModel2 = null;
+            StaTestHelper.Run(() =>
+            {
+                viewModel1 = (MainViewModel)provider.GetService(typeof(MainViewModel));
+                viewModel2 = (MainViewModel)provider.GetService(typeof(MainViewModel));
+            });
 
             Assert.NotNull(viewModel1);
             Assert.NotNull(viewModel2);
@@ -101,8 +107,10 @@ namespace PdfConverter.Tests.Infrastructure
         public void Configure_ResolvesIMainWindowViewModel()
         {
             var provider = CreateProvider();
+            object viewModel = null;
+            StaTestHelper.Run(() => viewModel = provider.GetService(typeof(IMainWindowViewModel)));
 
-            Assert.NotNull(provider.GetService(typeof(IMainWindowViewModel)));
+            Assert.NotNull(viewModel);
         }
 
         /// <summary>

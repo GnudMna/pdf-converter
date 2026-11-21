@@ -7,6 +7,9 @@ namespace PdfConverter.Views.Panels
     /// </summary>
     public partial class MainWindowHeaderPanel : UserControl
     {
+        /// <summary>
+        /// メインウィンドウのヘッダーパネルを初期化する
+        /// </summary>
         public MainWindowHeaderPanel()
         {
             InitializeComponent();

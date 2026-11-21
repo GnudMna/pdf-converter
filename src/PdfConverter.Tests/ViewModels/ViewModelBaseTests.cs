@@ -22,6 +22,7 @@ namespace PdfConverter.Tests.ViewModels
             public void Notify(string propertyName) => OnPropertyChanged(propertyName);
         }
 
+
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/

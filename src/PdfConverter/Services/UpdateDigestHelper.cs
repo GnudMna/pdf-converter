@@ -111,6 +111,9 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>16 進数の文字だけで構成されているかどうかを判定する</summary>
+        /// <param name="value">判定する文字列</param>
+        /// <returns>すべて <c>0-9</c> / <c>a-f</c> / <c>A-F</c> なら <c>true</c></returns>
         private static bool IsHex(string value)
         {
             foreach (char c in value)

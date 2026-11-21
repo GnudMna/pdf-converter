@@ -26,9 +26,9 @@ namespace PdfConverter.Services
         /// 透明度設定に応じてビットマップを加工する
         /// </summary>
         /// <param name="source">元画像</param>
-        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
+        /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
         /// <returns>加工後のビットマップ</returns>
-        /// <exception cref="ArgumentNullException">source が null の場合</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> が <c>null</c> の場合</exception>
         public static BitmapSource ApplyTransparency(BitmapSource source, bool preserveTransparency)
         {
             ArgumentNullException.ThrowIfNull(source);
@@ -47,8 +47,8 @@ namespace PdfConverter.Services
         /// <param name="source">保存する画像</param>
         /// <param name="outputPath">出力ファイルの絶対パス</param>
         /// <param name="format">出力形式</param>
-        /// <exception cref="ArgumentNullException">source が null の場合</exception>
-        /// <exception cref="ArgumentException">outputPath が空の場合</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="source"/> が <c>null</c> の場合</exception>
+        /// <exception cref="ArgumentException"><paramref name="outputPath"/> が <c>null</c>・空文字・空白のみの場合</exception>
         public static void SaveToFile(BitmapSource source, string outputPath, OutputImageFormat format)
         {
             ArgumentNullException.ThrowIfNull(source);

@@ -17,8 +17,10 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>更新サービス (バージョン情報ダイアログに渡す)</summary>
         private readonly IUpdateService _updateService;
 
+        /// <summary>ユーザー設定サービス (バージョン情報ダイアログに渡す)</summary>
         private readonly IUserSettingsService _userSettingsService;
 
 
@@ -117,10 +119,10 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
-        public void ShowAbout()
+        public void ShowAbout(Func<bool> isBusy)
         {
             var owner = Application.Current?.MainWindow;
-            var aboutDialog = new AboutDialog(_updateService, _userSettingsService, this)
+            var aboutDialog = new AboutDialog(_updateService, _userSettingsService, this, isBusy)
             {
                 Owner = owner,
             };

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:behaviors="clr-namespace:PdfConverter.Views.Behaviors"
              mc:Ignorable="d"
              d:DesignHeight="420"
              d:DesignWidth="320">
@@ -53,6 +54,7 @@
                             <TextBox Grid.Column="2"
                                      Text="{Binding ResolutionValue}"
                                      Width="80"
+                                     behaviors:TextBoxBehavior.UpdateSourceOnEnter="True"
                                      AutomationProperties.LabeledBy="{Binding ElementName=ResolutionLabel}"
                                      AutomationProperties.Name="解像度の値"
                                      AutomationProperties.HelpText="幅・高さ (px) または DPI の数値を入力してください" />

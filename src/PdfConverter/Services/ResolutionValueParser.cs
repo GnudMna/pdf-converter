@@ -63,7 +63,7 @@ namespace PdfConverter.Services
                 return false;
             }
 
-            if (value <= 0)
+            if (!double.IsFinite(value) || value <= 0)
             {
                 errorMessage = "解像度には 0 より大きい値を入力してください。";
                 return false;

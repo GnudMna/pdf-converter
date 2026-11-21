@@ -140,6 +140,33 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 小数サイズのページを高倍率で描画しても、右端・下端の画素まで描画されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(300.0 / 72.0)]
+        [InlineData(600.0 / 72.0)]
+        [InlineData(1.0)]
+        public void RenderPage_FractionalPageSize_FillsEdgePixels(double scale)
+        {
+            // A4 (595.28 x 841.89 pt) 全面を赤で塗りつぶす
+            byte[] pdf = BuildPdf(
+                new[] { (596, 842) },
+                "1 0 0 rg 0 0 595.28 841.89 re f",
+                mediaBox: "[0 0 595.28 841.89]");
+
+            using (var document = new PdfiumDocument(pdf))
+            {
+                BitmapSource bitmap = document.RenderPage(0, scale);
+                int right = bitmap.PixelWidth - 1;
+                int bottom = bitmap.PixelHeight - 1;
+
+                Assert.Equal(255, ReadPixel(bitmap, right, bottom / 2)[3]);
+                Assert.Equal(255, ReadPixel(bitmap, right / 2, bottom)[3]);
+                Assert.Equal(255, ReadPixel(bitmap, right, bottom)[3]);
+            }
+        }
+
+        /// <summary>
         /// 描画倍率に応じたサイズでビットマップが生成されることを検証する
         /// </summary>
         [Fact]
@@ -400,6 +427,7 @@ namespace PdfConverter.Tests.Services
         /// <param name="pageExtras">全ページの辞書に追加するエントリー</param>
         /// <param name="catalogExtras">カタログ辞書に追加するエントリー</param>
         /// <param name="extraObjects">コンテンツストリームの直後に追加するオブジェクト (番号は 4 + ページ数から順に振られる)</param>
+        /// <param name="mediaBox">全ページの MediaBox 配列 (<c>null</c> の場合は <paramref name="pageSizes"/> から決める。小数サイズの指定に使う)</param>
         /// <returns>PDF のバイト列</returns>
         private static byte[] BuildPdf(
             (int Width, int Height)[] pageSizes,
@@ -408,7 +436,8 @@ namespace PdfConverter.Tests.Services
             string trailerExtras = "",
             string pageExtras = "",
             string catalogExtras = "",
-            string[] extraObjects = null)
+            string[] extraObjects = null,
+            string mediaBox = null)
         {
             extraObjects = extraObjects ?? Array.Empty<string>();
             int firstPageObject = 3;
@@ -431,7 +460,8 @@ namespace PdfConverter.Tests.Services
             string contentsEntry = contentStream == null ? string.Empty : $" /Contents {contentObject} 0 R";
             foreach ((int width, int height) in pageSizes)
             {
-                objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}]{contentsEntry} {pageExtras} >>");
+                string box = mediaBox ?? $"[0 0 {width} {height}]";
+                objects.Add($"<< /Type /Page /Parent 2 0 R /MediaBox {box}{contentsEntry} {pageExtras} >>");
             }
 
             objects.Add(contentStream == null

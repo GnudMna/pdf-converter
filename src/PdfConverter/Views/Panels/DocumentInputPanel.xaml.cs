@@ -7,6 +7,9 @@ namespace PdfConverter.Views.Panels
     /// </summary>
     public partial class DocumentInputPanel : UserControl
     {
+        /// <summary>
+        /// ドキュメント入力パネルを初期化する
+        /// </summary>
         public DocumentInputPanel()
         {
             InitializeComponent();

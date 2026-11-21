@@ -156,19 +156,37 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// 正常終了が上限時間内に完了した場合は強制終了しないことを検証する
+        /// 正常終了が上限時間内に完了しプロセスも残っていない場合は強制終了しないことを検証する
         /// </summary>
         [Fact]
-        public async Task RunCleanupWithKillFallbackAsync_CleanupCompletes_DoesNotKill()
+        public async Task RunCleanupWithKillFallbackAsync_CleanupCompletesAndProcessExited_DoesNotKill()
         {
             bool killed = false;
 
             await MicrosoftWordToPdfConversionService.RunCleanupWithKillFallbackAsync(
                 () => { },
                 () => killed = true,
+                () => false,
                 TimeSpan.FromSeconds(30));
 
             Assert.False(killed);
+        }
+
+        /// <summary>
+        /// 正常終了が戻ってもプロセスが残っている場合は、上限時間後に強制終了することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunCleanupWithKillFallbackAsync_CleanupCompletesButProcessRemains_KillsAfterGracePeriod()
+        {
+            bool killed = false;
+
+            await MicrosoftWordToPdfConversionService.RunCleanupWithKillFallbackAsync(
+                () => { },
+                () => killed = true,
+                () => true,
+                TimeSpan.FromMilliseconds(200));
+
+            Assert.True(killed);
         }
 
         /// <summary>
@@ -185,6 +203,7 @@ namespace PdfConverter.Tests.Services
                 await MicrosoftWordToPdfConversionService.RunCleanupWithKillFallbackAsync(
                     () => release.Wait(),
                     () => killed = true,
+                    () => false,
                     TimeSpan.FromMilliseconds(50));
 
                 Assert.True(killed);

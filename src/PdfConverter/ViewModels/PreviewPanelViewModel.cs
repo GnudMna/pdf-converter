@@ -36,6 +36,9 @@ namespace PdfConverter.ViewModels
         /// <summary>表示ページ番号の入力値</summary>
         private string _pageNumber = "1";
 
+        /// <summary>プレビューの描画に成功したページ番号 (未描画の場合は 0)</summary>
+        private int _displayedPageNumber;
+
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
         private string? _pageNumberValidationMessage;
 
@@ -206,10 +209,38 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>現在表示中のページ番号</summary>
-        public int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
-            ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
-            : 1;
+        /// <summary>プレビューの描画に成功したページ番号 (1 始まり、未描画の場合は 0)</summary>
+        public int DisplayedPageNumber
+        {
+            get => _displayedPageNumber;
+            set
+            {
+                if (!SetProperty(ref _displayedPageNumber, value))
+                {
+                    return;
+                }
+
+                OnPropertyChanged(nameof(PageIndicator));
+                OnPropertyChanged(nameof(CurrentPreviewPage));
+                RaiseNavigationCanExecuteChanged();
+            }
+        }
+
+        /// <summary>現在表示中のページ番号 (未描画の間は入力値から求める)</summary>
+        public int CurrentPreviewPage
+        {
+            get
+            {
+                if (DisplayedPageNumber > 0)
+                {
+                    return DisplayedPageNumber;
+                }
+
+                return int.TryParse(PageNumber, out int value)
+                    ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
+                    : 1;
+            }
+        }
 
         /// <summary>プレビュー画像を表示する領域の幅 (デバイス px、未確定の場合は 0)</summary>
         public int PreviewViewportPixelWidth => _previewViewportPixelWidth;
@@ -267,7 +298,7 @@ namespace PdfConverter.ViewModels
             RaiseCanExecuteChanged(GoToPageCommand);
         }
 
-        /// <summary>プレビュー画像コピー等のアクションコマンドの実行可能状態を更新する</summary>
+        /// <summary>プレビュー画像やページ数の変化に応じて、指定ページへ移動するコマンドの実行可能状態を更新する</summary>
         public void RaiseActionCanExecuteChanged()
         {
             RaiseCanExecuteChanged(GoToPageCommand);

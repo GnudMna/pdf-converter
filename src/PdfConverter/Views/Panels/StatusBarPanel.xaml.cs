@@ -7,6 +7,9 @@ namespace PdfConverter.Views.Panels
     /// </summary>
     public partial class StatusBarPanel : UserControl
     {
+        /// <summary>
+        /// ステータスバーパネルを初期化する
+        /// </summary>
         public StatusBarPanel()
         {
             InitializeComponent();

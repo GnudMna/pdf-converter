@@ -7,6 +7,9 @@ namespace PdfConverter.Views.Panels
     /// </summary>
     public partial class ActionBarPanel : UserControl
     {
+        /// <summary>
+        /// 操作ボタンパネルを初期化する
+        /// </summary>
         public ActionBarPanel()
         {
             InitializeComponent();

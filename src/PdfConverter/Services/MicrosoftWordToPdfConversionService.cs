@@ -43,8 +43,17 @@ namespace PdfConverter.Services
         /// <summary>文書内のマクロをすべて無効化する (<c>msoAutomationSecurityForceDisable</c>)</summary>
         internal const int MsoAutomationSecurityForceDisable = 3;
 
-        /// <summary>Word の正常終了 (<c>Quit</c>) を待つ上限時間。超えたら Word プロセスを強制終了する</summary>
+        /// <summary>Word の正常終了 (<c>Quit</c>) を待つ上限時間。超えても Word プロセスが残っていれば強制終了する</summary>
         internal static readonly TimeSpan CleanupGracePeriod = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// 文書を開くときに渡すダミーのパスワード<br/>
+        /// パスワード付き文書で Word の入力ダイアログが表示されたまま止まらず、すぐエラーで返すために指定する (パスワードなしの文書では無視される)
+        /// </summary>
+        private const string DummyPassword = "PdfConverterDummyPassword";
+
+        /// <summary>Word プロセスの終了確認の間隔</summary>
+        private static readonly TimeSpan ExitPollInterval = TimeSpan.FromMilliseconds(100);
 
 
         /********************************************************************************/
@@ -210,6 +219,10 @@ namespace PdfConverter.Services
                     ConfirmConversions: false,
                     ReadOnly: true,
                     AddToRecentFiles: false,
+                    PasswordDocument: DummyPassword,
+                    PasswordTemplate: DummyPassword,
+                    WritePasswordDocument: DummyPassword,
+                    WritePasswordTemplate: DummyPassword,
                     Visible: false);
 
                 comHolder.Set(document, wordApp);
@@ -232,18 +245,27 @@ namespace PdfConverter.Services
             finally
             {
                 comHolder.TryCleanup();
+
+                // Quit が拒否されても Word を残さないよう、プロセスが残っていれば強制終了する
+                comHolder.KillProcessIfRunning(CleanupGracePeriod);
             }
         }
 
         /// <summary>
-        /// 正常終了の処理を別スレッドで実行し、上限時間内に戻らなければ強制終了する
+        /// 正常終了の処理を別スレッドで実行し、上限時間内に戻らない場合、または戻っても Word プロセスが残っている場合に強制終了する
         /// </summary>
         /// <param name="cleanup">正常終了の処理 (Word が応答しないと戻らない場合がある)</param>
         /// <param name="kill">強制終了の処理</param>
-        /// <param name="gracePeriod">正常終了を待つ上限時間</param>
-        /// <returns>正常終了が完了したか強制終了を試みた時点で完了するタスク</returns>
-        internal static async Task RunCleanupWithKillFallbackAsync(Action cleanup, Action kill, TimeSpan gracePeriod)
+        /// <param name="isProcessRunning">Word プロセスがまだ残っているかを返す処理</param>
+        /// <param name="gracePeriod">正常終了とプロセス終了を待つ上限時間</param>
+        /// <returns>正常終了が確認できたか強制終了を試みた時点で完了するタスク</returns>
+        internal static async Task RunCleanupWithKillFallbackAsync(
+            Action cleanup,
+            Action kill,
+            Func<bool> isProcessRunning,
+            TimeSpan gracePeriod)
         {
+            var stopwatch = Stopwatch.StartNew();
             Task cleanupTask = Task.Run(cleanup);
             Task completedTask = await Task.WhenAny(cleanupTask, Task.Delay(gracePeriod)).ConfigureAwait(false);
 
@@ -251,6 +273,20 @@ namespace PdfConverter.Services
             {
                 ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Word did not quit in time. Killing the process");
                 kill();
+                return;
+            }
+
+            // Quit が戻っても、拒否されたりプロセスの終了が遅れたりして Word が残る場合がある
+            while (isProcessRunning())
+            {
+                if (stopwatch.Elapsed >= gracePeriod)
+                {
+                    ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Word process remained after Quit. Killing the process");
+                    kill();
+                    return;
+                }
+
+                await Task.Delay(ExitPollInterval).ConfigureAwait(false);
             }
         }
 
@@ -392,13 +428,23 @@ namespace PdfConverter.Services
             /// Word アプリケーションのプロセスを特定して保持する (強制終了用)
             /// </summary>
             /// <param name="wordApp">Word アプリケーション</param>
+            /// <remarks>
+            /// Word の Application オブジェクトにはウィンドウハンドルのプロパティが無いため、
+            /// 一意なキャプションを設定してメインウィンドウ (<c>OpusApp</c>) を探し、そのプロセスを特定する
+            /// </remarks>
             public void RegisterProcess(dynamic wordApp)
             {
                 try
                 {
-                    int hwnd = wordApp.Hwnd;
-                    if (GetWindowThreadProcessId(new IntPtr(hwnd), out uint processId) == 0 || processId == 0)
+                    string caption = Guid.NewGuid().ToString("N");
+                    wordApp.Caption = caption;
+
+                    IntPtr hwnd = FindWindow("OpusApp", caption);
+                    if (hwnd == IntPtr.Zero
+                        || GetWindowThreadProcessId(hwnd, out uint processId) == 0
+                        || processId == 0)
                     {
+                        ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to find Word window");
                         return;
                     }
 
@@ -415,17 +461,19 @@ namespace PdfConverter.Services
             }
 
             /// <summary>
-            /// Word を正常終了させ、<see cref="MicrosoftWordToPdfConversionService.CleanupGracePeriod"/> 内に終わらなければプロセスを強制終了する<br/>
+            /// Word を正常終了させ、<see cref="MicrosoftWordToPdfConversionService.CleanupGracePeriod"/> 内に終わらない場合、
+            /// または終了処理の後もプロセスが残っている場合は強制終了する<br/>
             /// Word が応答しない場合も呼び出し元をブロックしない
             /// </summary>
             /// <returns>非同期操作</returns>
-            public Task CleanupWithKillFallbackAsync()
+            public async Task CleanupWithKillFallbackAsync()
             {
-                return RunCleanupWithKillFallbackAsync(TryCleanup, TryKillProcess, CleanupGracePeriod);
+                await RunCleanupWithKillFallbackAsync(TryCleanup, TryKillProcess, IsProcessRunning, CleanupGracePeriod).ConfigureAwait(false);
+                Interlocked.Exchange(ref _wordProcess, null)?.Dispose();
             }
 
             /// <summary>
-            /// Word COM オブジェクトを終了して解放する
+            /// Word COM オブジェクトを終了して解放する (プロセスの参照は強制終了のために残す)
             /// </summary>
             public void TryCleanup()
             {
@@ -433,6 +481,36 @@ namespace PdfConverter.Services
                 {
                     ReleaseComObject(ref _document, CloseDocument);
                     ReleaseComObject(ref _wordApp, QuitWordApplication);
+                }
+            }
+
+            /// <summary>
+            /// Word プロセスの終了を待ち、上限時間を過ぎても残っていれば強制終了する
+            /// </summary>
+            /// <param name="timeout">終了を待つ上限時間</param>
+            public void KillProcessIfRunning(TimeSpan timeout)
+            {
+                Process? process = Volatile.Read(ref _wordProcess);
+                if (process == null)
+                {
+                    return;
+                }
+
+                try
+                {
+                    if (!process.HasExited && !process.WaitForExit(timeout))
+                    {
+                        ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Word process remained after Quit. Killing the process");
+                        TryKillProcess();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // 別スレッドの終了処理でプロセスが破棄された場合など
+                    ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to wait for Word process", ex);
+                }
+                finally
+                {
                     Interlocked.Exchange(ref _wordProcess, null)?.Dispose();
                 }
             }
@@ -446,15 +524,34 @@ namespace PdfConverter.Services
             /// </summary>
             private void TryKillProcess()
             {
-                Process? process = Interlocked.Exchange(ref _wordProcess, null);
+                Process? process = Volatile.Read(ref _wordProcess);
                 if (process == null)
                 {
                     return;
                 }
 
-                using (process)
+                ProcessWaitHelper.TryKillProcess(process);
+            }
+
+            /// <summary>
+            /// Word プロセスがまだ残っているかを返す
+            /// </summary>
+            /// <returns>プロセスが特定済みで終了していない場合は true</returns>
+            private bool IsProcessRunning()
+            {
+                Process? process = Volatile.Read(ref _wordProcess);
+                if (process == null)
                 {
-                    ProcessWaitHelper.TryKillProcess(process);
+                    return false;
+                }
+
+                try
+                {
+                    return !process.HasExited;
+                }
+                catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception)
+                {
+                    return false;
                 }
             }
 
@@ -512,10 +609,21 @@ namespace PdfConverter.Services
 
 
             /********************************************************************************/
-            /*                               Win32 API 定義                                 */
+            /*                                Win32 API 定義                                */
             /********************************************************************************/
+            /// <summary>ウィンドウを作成したスレッドとプロセスの ID を取得する</summary>
+            /// <param name="hWnd">ウィンドウハンドル</param>
+            /// <param name="lpdwProcessId">プロセス ID の格納先</param>
+            /// <returns>ウィンドウを作成したスレッドの ID。失敗した場合は 0</returns>
             [DllImport("user32.dll")]
             private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+            /// <summary>クラス名とウィンドウ名が一致するトップレベルウィンドウ (非表示を含む) を取得する</summary>
+            /// <param name="lpClassName">ウィンドウクラス名</param>
+            /// <param name="lpWindowName">ウィンドウ名 (タイトル)</param>
+            /// <returns>ウィンドウハンドル。見つからない場合は <see cref="IntPtr.Zero"/></returns>
+            [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+            private static extern IntPtr FindWindow(string lpClassName, string lpWindowName);
         }
     }
 }

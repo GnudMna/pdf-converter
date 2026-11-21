@@ -1,4 +1,5 @@
 using Moq;
+using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels;
 using PdfConverter.ViewModels.Coordinators;
 using Xunit;
@@ -64,11 +65,13 @@ namespace PdfConverter.Tests.ViewModels
         {
             var previewCoordinator = new Mock<IPdfPreviewCoordinator>();
             host = host ?? CreateHostMock().Object;
-            return new PreviewPanelViewModel(
+            PreviewPanelViewModel viewModel = null;
+            StaTestHelper.Run(() => viewModel = new PreviewPanelViewModel(
                 previewCoordinator.Object,
                 () => host,
                 () => false,
-                _ => { });
+                _ => { }));
+            return viewModel;
         }
 
         private static Mock<IPreviewCoordinatorHost> CreateHostMock()

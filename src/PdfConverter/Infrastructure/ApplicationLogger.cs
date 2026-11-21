@@ -1,7 +1,9 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace PdfConverter.Infrastructure
 {
@@ -21,6 +23,9 @@ namespace PdfConverter.Infrastructure
 
         /// <summary>既定のログファイル最大サイズ (バイト)</summary>
         private const int DefaultMaxLogFileBytes = 2 * 1024 * 1024;
+
+        /// <summary>他プロセスのログ書き込みを待つ最大時間</summary>
+        private static readonly TimeSpan MutexWaitTimeout = TimeSpan.FromSeconds(5);
 
 
         /********************************************************************************/
@@ -96,13 +101,52 @@ namespace PdfConverter.Infrastructure
 
                 lock (SyncRoot)
                 {
-                    RotateIfNeeded(logPath);
-                    File.AppendAllText(logPath, entry, Encoding.UTF8);
+                    // 画面とバッチ変換が同時に動いても、他方のログ行を失ったりローテーションが競合したりしないようプロセス間でも排他する
+                    using Mutex mutex = new Mutex(false, GetMutexName(directory));
+                    bool acquired = AcquireMutex(mutex);
+                    try
+                    {
+                        RotateIfNeeded(logPath);
+                        File.AppendAllText(logPath, entry, Encoding.UTF8);
+                    }
+                    finally
+                    {
+                        if (acquired)
+                        {
+                            mutex.ReleaseMutex();
+                        }
+                    }
                 }
             }
             catch
             {
             }
+        }
+
+        /// <summary>プロセス間の排他用ミューテックスを取得する</summary>
+        /// <param name="mutex">対象のミューテックス</param>
+        /// <returns>取得できた場合は true (待機がタイムアウトした場合は false。ログを落とさないよう排他なしで書き込みを続ける)</returns>
+        private static bool AcquireMutex(Mutex mutex)
+        {
+            try
+            {
+                return mutex.WaitOne(MutexWaitTimeout);
+            }
+            catch (AbandonedMutexException)
+            {
+                // 他プロセスがロックを持ったまま終了した場合。所有権は引き継げている
+                return true;
+            }
+        }
+
+        /// <summary>ログ出力先ディレクトリごとのミューテックス名を返す</summary>
+        /// <param name="directory">ログ出力先ディレクトリ</param>
+        /// <returns>ミューテックス名</returns>
+        internal static string GetMutexName(string directory)
+        {
+            string normalized = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar).ToUpperInvariant();
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(normalized));
+            return $"Local\\PdfConverter.Log.{Convert.ToHexString(hash, 0, 8)}";
         }
 
         /// <summary>ログエントリの文字列を組み立てる</summary>

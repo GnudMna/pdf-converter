@@ -302,6 +302,51 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
+        /// 保存の開始後 (PDF 取得の待機中) に解像度の指定方法・出力形式・透過設定が変更されても、開始時の設定で保存することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_SettingsChangedWhileWaiting_UsesSettingsAtStart()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog, out var documentPdfSource);
+            string folder = CreateTempDirectory();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 1,
+                IsAllPagesSelected = true,
+                ResolutionMode = ResolutionMode.Dpi,
+                ResolutionValue = "300",
+                OutputImageFormat = OutputImageFormat.Png,
+                PreserveTransparency = true,
+            };
+            documentPdfSource.Setup(d => d.GetPdfPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Callback(() =>
+                {
+                    host.ResolutionMode = ResolutionMode.Width;
+                    host.OutputImageFormat = OutputImageFormat.Jpeg;
+                    host.PreserveTransparency = false;
+                })
+                .ReturnsAsync(host.FilePath);
+            pdf.Setup(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync(1);
+            dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
+
+            await coordinator.SaveAsync(host);
+
+            pdf.Verify(p => p.SavePdfPagesToImagesAsync(
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<int>>(),
+                folder,
+                true,
+                ResolutionMode.Dpi,
+                300,
+                OutputImageFormat.Png,
+                true,
+                It.IsAny<IProgress<SaveProgressReport>>(),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
         /// PDF ファイル入力時に PDF 保存処理が開始されないことを検証する
         /// </summary>
         [Fact]

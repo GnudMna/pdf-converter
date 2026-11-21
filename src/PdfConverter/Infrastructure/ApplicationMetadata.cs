@@ -12,7 +12,7 @@ namespace PdfConverter.Infrastructure
     public static class ApplicationMetadata
     {
         /********************************************************************************/
-        /*                                  定数                                        */
+        /*                                     定数                                     */
         /********************************************************************************/
         /// <summary>同梱 OSS のライセンス全文ファイル名</summary>
         public const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
@@ -38,10 +38,10 @@ namespace PdfConverter.Infrastructure
         /// </remarks>
         private static readonly IReadOnlyList<ThirdPartyComponent> BundledComponentsList = new[]
         {
-            new ThirdPartyComponent("PDFiumCore", "156.0.8076", "Apache 2.0", "PDF レンダリング (.NET バインディング)"),
-            new ThirdPartyComponent("PDFium", "156.0.8076", "BSD-3-Clause / Apache 2.0", "PDF ネイティブエンジン (pdfium-binaries)"),
-            new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection", "10.0.8", "MIT", "DI コンテナ"),
-            new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection.Abstractions", "10.0.8", "MIT", "DI 抽象化"),
+            new ThirdPartyComponent("PDFiumCore", "157.0.8100", "Apache 2.0", "PDF レンダリング (.NET バインディング)"),
+            new ThirdPartyComponent("PDFium", "157.0.8100", "BSD-3-Clause / Apache 2.0", "PDF ネイティブエンジン (pdfium-binaries)"),
+            new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection", "10.0.14", "MIT", "DI コンテナ"),
+            new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection.Abstractions", "10.0.14", "MIT", "DI 抽象化"),
             new ThirdPartyComponent("Ookii.Dialogs.Wpf", "5.0.1", "BSD-3-Clause", "フォルダー選択ダイアログ"),
             new ThirdPartyComponent(DotNetRuntimeComponentName, Environment.Version.ToString(), "MIT", "実行ランタイム (self-contained で同梱)"),
         };
@@ -112,6 +112,11 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>
+        /// このアセンブリに付与された属性を取得する
+        /// </summary>
+        /// <typeparam name="T">取得する属性の型</typeparam>
+        /// <returns>属性。付与されていない場合は <c>null</c></returns>
         private static T? GetAssemblyAttribute<T>()
             where T : Attribute
         {
@@ -127,6 +132,13 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                                コンストラクタ                                */
         /********************************************************************************/
+        /// <summary>
+        /// コンポーネントの名前・バージョン・ライセンス・用途を指定して初期化する
+        /// </summary>
+        /// <param name="name">コンポーネント名</param>
+        /// <param name="version">バージョン</param>
+        /// <param name="license">ライセンス名</param>
+        /// <param name="purpose">用途</param>
         public ThirdPartyComponent(string name, string version, string license, string purpose)
         {
             Name = name;
@@ -145,7 +157,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>バージョン</summary>
         public string Version { get; }
 
-        /// <summary>ライセンス (SPDX 式)</summary>
+        /// <summary>ライセンス名 (複数ある場合は <c>/</c> 区切り)</summary>
         public string License { get; }
 
         /// <summary>用途</summary>

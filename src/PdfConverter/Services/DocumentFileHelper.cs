@@ -34,7 +34,7 @@ namespace PdfConverter.Services
     public static class DocumentFileHelper
     {
         /********************************************************************************/
-        /*                                 ローカル定数                                 */
+        /*                                     定数                                     */
         /********************************************************************************/
         /// <summary>サポート対象外拡張子のエラーメッセージ</summary>
         internal const string UnsupportedExtensionMessage =
@@ -87,7 +87,7 @@ namespace PdfConverter.Services
         /// サポート対象ドキュメントのパスを検証し、絶対パスに正規化する
         /// </summary>
         /// <param name="path">入力パス</param>
-        /// <param name="normalizedPath">正規化後の絶対パス (<see cref="SupportedDocumentPathError.None"/> の場合のみ非 <c>null</c>)</param>
+        /// <param name="normalizedPath">正規化後の絶対パス (絶対パスに正規化できた場合のみ非 <c>null</c>。<see cref="SupportedDocumentPathError.FileNotFound"/> の場合も設定される)</param>
         /// <returns>検証結果</returns>
         public static SupportedDocumentPathError ResolveSupportedDocumentPath(string? path, out string? normalizedPath)
         {

@@ -28,7 +28,7 @@ public async Task RunAsync_ShowHelp_ReturnsSuccess()
 
 ## 実行環境に依存するテスト
 
-- WPF のオブジェクトを扱うテストは `StaTestHelper.Run` で STA スレッド上で実行する
+- WPF のオブジェクトを扱うテストは `StaTestHelper.Run` で STA スレッド上で実行する。`RelayCommand`・`AsyncRelayCommand` を持つ ViewModel の生成も含む (スレッドプールで生成すると、テスト終了時に WPF の後始末が 1 スレッドあたり約 300 ms 待つ)
 - 静的な状態 (ログ出力先・一時ディレクトリのルートなど) を書き換えるテストクラスには `[Collection(GlobalStateTestCollection.Name)]` を付け、並列実行から外す。書き換えた状態はテストの終わりに戻す
 - 一時ファイルは `PdfTestAssetFactory` などで作り、`finally` などでテストの終わりに削除する
 - `CancellationToken` を受け取る API には `TestContext.Current.CancellationToken` を渡す

@@ -1,3 +1,5 @@
+using System;
+
 namespace PdfConverter.Services
 {
     /// <summary>
@@ -85,7 +87,8 @@ namespace PdfConverter.Services
         /// <summary>
         /// バージョン情報とオープンソースクレジットのダイアログを表示する
         /// </summary>
-        void ShowAbout();
+        /// <param name="isBusy">本体が処理中かどうかを取得する関数<br/>処理中は更新の適用 (アプリの終了を伴う) を行わない</param>
+        void ShowAbout(Func<bool> isBusy);
 
         /// <summary>
         /// 利用者向けドキュメントを既定のブラウザーで開く

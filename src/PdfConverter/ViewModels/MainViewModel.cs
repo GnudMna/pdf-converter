@@ -71,6 +71,17 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                                コンストラクタ                                */
         /********************************************************************************/
+        /// <summary>
+        /// 指定したサービスと Coordinator を使用してメインウィンドウの ViewModel を初期化する
+        /// </summary>
+        /// <param name="dialogService">ダイアログサービス</param>
+        /// <param name="clipboardService">クリップボードサービス</param>
+        /// <param name="previewCoordinator">PDF プレビュー コーディネーター</param>
+        /// <param name="saveCoordinator">PDF 保存 コーディネーター</param>
+        /// <param name="wordToPdfSettings">Word → PDF 変換設定</param>
+        /// <param name="imageExportSettings">画像出力設定</param>
+        /// <param name="userSettingsService">ユーザー設定サービス</param>
+        /// <exception cref="ArgumentNullException"><paramref name="userSettingsService"/> が <c>null</c> の場合</exception>
         public MainViewModel(
             IDialogService dialogService,
             IClipboardService clipboardService,
@@ -101,12 +112,12 @@ namespace PdfConverter.ViewModels
                 RaiseActionCanExecuteChanged);
 
             BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
-            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(_coordinatorHost), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
-            SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(_coordinatorHost), CanSavePdf, OnAsyncCommandException);
+            SaveCommand = new AsyncRelayCommand(() => RunSaveAsync(_saveCoordinator.SaveAsync), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
+            SavePdfCommand = new AsyncRelayCommand(() => RunSaveAsync(_saveCoordinator.SavePdfAsync), CanSavePdf, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
             CopyToClipboardCommand = new AsyncRelayCommand(OnCopyToClipboardAsync, CanCopyToClipboard, OnAsyncCommandException);
             LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
-            ShowAboutCommand = new RelayCommand(() => _dialogService.ShowAbout());
+            ShowAboutCommand = new RelayCommand(() => _dialogService.ShowAbout(() => IsBusy));
             OpenUserDocsCommand = new RelayCommand(() => _dialogService.OpenUserDocs());
 
             _userSettingsService.SettingsReset += OnUserSettingsReset;
@@ -203,7 +214,7 @@ namespace PdfConverter.ViewModels
             ? Path.GetFileName(FilePath!.Trim())
             : "ファイルが選択されていません";
 
-        /* ------------------------------- 進捗表示関連 (Status 委譲) ------------------------------- */
+        /* ------------------------ 進捗表示関連 (Status 委譲) ------------------------ */
         /// <summary>進捗値</summary>
         public double ProgressValue
         {
@@ -218,7 +229,7 @@ namespace PdfConverter.ViewModels
             set => Status.IsProgressBarVisible = value;
         }
 
-        /* ---------------------------- ステータス表示関連 (Status 委譲) ---------------------------- */
+        /* --------------------- ステータス表示関連 (Status 委譲) --------------------- */
         /// <summary>ステータスメッセージ</summary>
         public string StatusMessage
         {
@@ -283,7 +294,7 @@ namespace PdfConverter.ViewModels
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 指定したファイルパスの PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="FilePath"/> の PDF / Word ファイルを検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
         public void LoadPdfFromPath(bool forceReload = false) => _previewCoordinator.LoadFromPath(_coordinatorHost, forceReload);
@@ -304,6 +315,15 @@ namespace PdfConverter.ViewModels
 
             FilePath = filePath;
             LoadPdfFromPath(forceReload: true);
+        }
+
+        /// <inheritdoc/>
+        public void CancelCurrentOperation()
+        {
+            if (IsBusy)
+            {
+                CancelOperation();
+            }
         }
 
         /// <inheritdoc/>
@@ -445,6 +465,20 @@ namespace PdfConverter.ViewModels
             }
 
             _previewCoordinator.RequestRefreshIfLoaded(_coordinatorHost);
+        }
+
+        /// <summary>保存処理を実行し、保存中に保留されたプレビューの再生成を完了後に実行する</summary>
+        /// <param name="save">保存処理</param>
+        private async Task RunSaveAsync(Func<ISaveCoordinatorHost, Task> save)
+        {
+            try
+            {
+                await save(_coordinatorHost);
+            }
+            finally
+            {
+                _previewCoordinator.ResumeDeferredRefresh(_coordinatorHost);
+            }
         }
 
         /// <summary>ファイルを選択する</summary>

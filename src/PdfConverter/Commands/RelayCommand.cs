@@ -7,7 +7,7 @@ namespace PdfConverter.Commands
     /// MVVM パターンで使用する汎用コマンド実装
     /// </summary>
     /// <remarks>
-    /// <see cref="ICommand"/> をデリゲートでラップし、ViewModel 側でロジックを完結させる
+    /// デリゲートを <see cref="ICommand"/> として公開し、ViewModel 側でロジックを完結させる
     /// </remarks>
     public class RelayCommand : IRelayCommand
     {
@@ -19,7 +19,7 @@ namespace PdfConverter.Commands
 
         /// <summary>
         /// 実行可否を判定する関数<br/>
-        /// <c>null</c>の場合は常に実行可能
+        /// <c>null</c> の場合は常に実行可能
         /// </summary>
         private readonly Func<bool>? _canExecute;
 
@@ -38,7 +38,7 @@ namespace PdfConverter.Commands
         /// 同期アクションでコマンドを初期化
         /// </summary>
         /// <param name="execute">コマンド実行時に呼び出されるアクション</param>
-        /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c>の場合は常に実行可能</param>
+        /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c> の場合は常に実行可能</param>
         public RelayCommand(Action execute, Func<bool>? canExecute = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
@@ -64,7 +64,7 @@ namespace PdfConverter.Commands
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="CommandManager.RequerySuggested"/>発火時に実行可否の再評価を通知する
+        /// <see cref="CommandManager.RequerySuggested"/> 発火時に実行可否の再評価を通知する
         /// </summary>
         private void OnCommandManagerRequerySuggested(object? sender, EventArgs e)
         {

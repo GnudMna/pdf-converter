@@ -120,7 +120,7 @@ namespace PdfConverter.Services
                 catch (Exception ex)
                 {
                     hasFailure = true;
-                    ApplicationLogger.Error("Batch", $"Batch export failed: {normalizedPath}", ex);
+                    ApplicationLogger.Error("Batch", $"Batch export failed: file={Path.GetFileName(normalizedPath)}", ex);
                     WriteError($"エラー: {normalizedPath} ({ExceptionFormattingHelper.GetUserMessage(ex)})");
                 }
                 finally
@@ -170,7 +170,7 @@ namespace PdfConverter.Services
                 Directory.CreateDirectory(destinationDirectory);
             }
 
-            File.Copy(pdfPath, destinationPath, overwrite: options.OverwriteExisting);
+            await AtomicFileCopyHelper.CopyAsync(pdfPath, destinationPath, options.OverwriteExisting, cancellationToken);
             ApplicationLogger.Info("Batch", $"PDF export completed: {destinationPath}");
         }
 
@@ -244,7 +244,7 @@ namespace PdfConverter.Services
 
             ApplicationLogger.Info(
                 "Batch",
-                $"Image export completed: source={sourcePath}, folder={outputFolder}, pages={pageCount}, format={format}");
+                $"Image export completed: file={Path.GetFileName(sourcePath)}, folder={outputFolder}, pages={pageCount}, format={format}");
         }
 
         /// <summary>PDF のページ数を取得する (パスワードの不足・不一致は <c>--password</c> の案内を付けて報告する)</summary>
@@ -268,13 +268,14 @@ namespace PdfConverter.Services
             }
         }
 
-        /// <summary>出力先に既存ファイルがある場合の上書き可否を確認する</summary>
+        /// <summary>上書きが許可されていない場合に、出力先に保存対象と同名の既存ファイルがないことを確認する</summary>
         /// <param name="options">バッチオプション</param>
         /// <param name="outputFolder">出力フォルダー</param>
         /// <param name="pageIndexes">保存対象ページ</param>
         /// <param name="saveAllPages">全ページ保存かどうか</param>
         /// <param name="pageCount">総ページ数</param>
         /// <param name="format">出力形式</param>
+        /// <exception cref="IOException">上書きが許可されておらず、同名の既存ファイルがある場合</exception>
         private static void EnsureOutputDirectoryIsWritable(
             BatchCliOptions options,
             string outputFolder,
@@ -342,7 +343,7 @@ namespace PdfConverter.Services
             if (!string.Equals(outputName, baseName, StringComparison.Ordinal))
             {
                 string message = $"同名の出力先があるため名前を変更します: {baseName} -> {outputName} ({sourcePath})";
-                ApplicationLogger.Info("Batch", message);
+                ApplicationLogger.Info("Batch", $"Output name changed: {baseName} -> {outputName}, file={Path.GetFileName(sourcePath)}");
                 if (!options.Quiet)
                 {
                     BatchConsoleHelper.WriteLine(message);

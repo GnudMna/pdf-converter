@@ -434,6 +434,103 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
+        /// 読み込み中に出力設定を変えても読み込みが取り消されず、新しいファイルのページ数が反映され、変更後の設定で描画されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task RefreshIfLoadedAsync_DuringLoad_KeepsLoadAndAppliesNewSettingsAfterLoad()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            string path = CreateTempPdfPath();
+            var pageCountGate = new TaskCompletionSource<int>();
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageCount = 3,
+                PageNumber = "1",
+                ResolutionMode = Models.ResolutionMode.Width,
+                ResolutionValue = "1080",
+            };
+
+            pdf.Setup(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>())).Returns(pageCountGate.Task);
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+                await Task.Delay(50, cancellationToken: TestContext.Current.CancellationToken);
+
+                host.ResolutionValue = "800";
+                await coordinator.RefreshIfLoadedAsync(host);
+
+                Assert.Equal(0, host.PageCount);
+                Assert.True(host.IsBusy);
+
+                pageCountGate.SetResult(5);
+                await WaitForAsyncOperations();
+
+                Assert.Equal(5, host.PageCount);
+                Assert.Same(bitmap, host.PreviewImage);
+                Assert.False(host.IsBusy);
+                pdf.Verify(p => p.RenderPdfPagePreviewAsync(
+                    path,
+                    0,
+                    Models.ResolutionMode.Width,
+                    800,
+                    true,
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        /// <summary>
+        /// 保存中に出力設定を変えても再描画で保存を取り消さず、保存の完了後に 1 回だけ再描画することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RefreshIfLoadedAsync_WhileSaving_DefersRefreshUntilResumed()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                host.IsSaving = true;
+                await coordinator.RefreshIfLoadedAsync(host);
+                await coordinator.RefreshIfLoadedAsync(host);
+                Assert.Null(host.PreviewImage);
+
+                host.IsSaving = false;
+                coordinator.ResumeDeferredRefresh(host);
+                coordinator.ResumeDeferredRefresh(host);
+                await WaitForAsyncOperations();
+
+                Assert.Same(bitmap, host.PreviewImage);
+                pdf.Verify(p => p.RenderPdfPagePreviewAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
         /// プレビューを表示領域のサイズを上限として描画することを検証する
         /// </summary>
         [Fact]
@@ -481,6 +578,126 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                     PdfPreviewCoordinator.FallbackPreviewMaxPixelSize,
                     PdfPreviewCoordinator.FallbackPreviewMaxPixelSize,
                     Times.Once());
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 総ページ数を超えるページ番号は描画せず、入力欄の検証メッセージを表示することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToPageAsync_PageNumberExceedsPageCount_ShowsValidationMessageWithoutRendering()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PageCount = 3;
+            host.PageNumber = "4";
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+
+                Assert.Equal("1 ～ 3 のページ番号を入力してください。", host.PageNumberValidationMessage);
+                Assert.Equal(StatusKind.Warning, host.StatusKind);
+                Assert.Null(host.PreviewImage);
+                VerifyPreviewRendered(pdf, PdfPreviewCoordinator.FallbackPreviewMaxPixelSize, PdfPreviewCoordinator.FallbackPreviewMaxPixelSize, Times.Never());
+                Assert.False(host.IsBusy);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 総ページ数ちょうどのページ番号は検証メッセージを表示せず描画することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToPageAsync_PageNumberEqualsPageCount_RendersLastPage()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PageCount = 3;
+            host.PageNumber = "3";
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+
+                Assert.Null(host.PageNumberValidationMessage);
+                Assert.Same(bitmap, host.PreviewImage);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// Enter 前のページ番号入力があっても、再生成は描画済みのページを対象にすることを検証する
+        /// </summary>
+        [Fact]
+        public async Task RefreshIfLoadedAsync_PageNumberEditedWithoutEnter_RendersDisplayedPage()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PageCount = 10;
+            host.PageNumber = "2";
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                host.PageNumber = "8";
+                await coordinator.RefreshIfLoadedAsync(host);
+
+                Assert.Equal(2, host.DisplayedPageNumber);
+                pdf.Verify(p => p.RenderPdfPagePreviewAsync(
+                    It.IsAny<string>(),
+                    7,
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 入力欄を空にしたままでも、再生成は描画済みのページで成功することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RefreshIfLoadedAsync_PageNumberCleared_KeepsRenderingDisplayedPage()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PageCount = 10;
+            host.PageNumber = "2";
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                host.PageNumber = string.Empty;
+                await coordinator.RefreshIfLoadedAsync(host);
+
+                Assert.NotEqual(StatusKind.Warning, host.StatusKind);
+                Assert.Equal(2, host.DisplayedPageNumber);
             }
             finally
             {

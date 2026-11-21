@@ -46,6 +46,18 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>プレビュー操作世代番号</summary>
         private long _previewOperationGeneration;
 
+        /// <summary>読み込み中のプレビュー操作世代番号 (読み込み中でない場合は 0)</summary>
+        private long _loadingOperationGeneration;
+
+        /// <summary>読み込み中にプレビューの再生成が要求されたかどうか</summary>
+        private bool _isRefreshRequestedDuringLoad;
+
+        /// <summary>出力解像度の画像を生成中かどうか</summary>
+        private bool _isRenderingOutputImage;
+
+        /// <summary>保存・出力解像度の画像の生成中にプレビューの再生成が要求されたかどうか</summary>
+        private bool _isRefreshRequestedDuringExclusiveOperation;
+
         /// <summary>アクティブなプレビュータスク</summary>
         private Task _activePreviewTask = Task.CompletedTask;
 
@@ -80,7 +92,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF / Word ファイルを検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
@@ -102,6 +114,7 @@ namespace PdfConverter.ViewModels.Coordinators
             if (pathError != SupportedDocumentPathError.None)
             {
                 host.PageCount = 0;
+                host.DisplayedPageNumber = 0;
                 host.PreviewImage = null;
                 host.LoadedFilePath = null;
                 StatusKind statusKind = pathError == SupportedDocumentPathError.UnsupportedExtension
@@ -128,23 +141,51 @@ namespace PdfConverter.ViewModels.Coordinators
             host.SetStatus("ファイルを読み込み中...", StatusKind.Progress);
             ApplicationLogger.Info("Preview", $"Loading document: {Path.GetFileName(host.FilePath)}");
             long operationGeneration = BeginPreviewOperation(host);
+
+            // 前のファイルのページ数を残すと、読み込み中の操作がそれを根拠に読み込みを取り消してしまう
+            host.PageCount = 0;
+            host.DisplayedPageNumber = 0;
+            _loadingOperationGeneration = operationGeneration;
+            _isRefreshRequestedDuringLoad = false;
+            _isRefreshRequestedDuringExclusiveOperation = false;
             TrackPreviewTask(LoadPageCountAndConvertAsync(host, operationGeneration));
         }
 
         /// <summary>
         /// PDF が読み込み済みのとき、現在の解像度設定でプレビューを再生成する
         /// </summary>
+        /// <remarks>
+        /// 読み込み中は読み込みを取り消さず、読み込みの完了後に再生成する<br/>
+        /// 保存中・出力解像度の画像の生成中も処理を取り消さず、<see cref="ResumeDeferredRefresh"/> で 1 回だけ再生成する
+        /// </remarks>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
         public Task RefreshIfLoadedAsync(IPreviewCoordinatorHost host)
         {
-            if (string.IsNullOrEmpty(host.FilePath) || host.PageCount <= 0 || host.IsSaving)
+            if (string.IsNullOrEmpty(host.FilePath))
+            {
+                return Task.CompletedTask;
+            }
+
+            if (host.IsSaving || _isRenderingOutputImage)
+            {
+                _isRefreshRequestedDuringExclusiveOperation = true;
+                return Task.CompletedTask;
+            }
+
+            if (IsLoadInProgress())
+            {
+                _isRefreshRequestedDuringLoad = true;
+                return Task.CompletedTask;
+            }
+
+            if (host.PageCount <= 0)
             {
                 return Task.CompletedTask;
             }
 
             long operationGeneration = BeginPreviewOperation(host);
-            return ConvertAsync(host, operationGeneration, showFieldValidation: false, manageBusyState: true);
+            return ConvertAsync(host, operationGeneration, showFieldValidation: false, manageBusyState: true, useDisplayedPage: true);
         }
 
         /// <summary>
@@ -155,6 +196,18 @@ namespace PdfConverter.ViewModels.Coordinators
         public void RequestRefreshIfLoaded(IPreviewCoordinatorHost host)
         {
             TrackPreviewTask(RefreshIfLoadedAsync(host));
+        }
+
+        /// <inheritdoc/>
+        public void ResumeDeferredRefresh(IPreviewCoordinatorHost host)
+        {
+            if (!_isRefreshRequestedDuringExclusiveOperation || host.IsSaving || _isRenderingOutputImage)
+            {
+                return;
+            }
+
+            _isRefreshRequestedDuringExclusiveOperation = false;
+            RequestRefreshIfLoaded(host);
         }
 
         /// <summary>
@@ -232,11 +285,67 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <remarks>
         /// プレビューが表示サイズに縮小されている場合のみ出力解像度で描画し直し、それ以外は表示中の画像をそのまま返す<br/>
-        /// 描画し直す間は処理中とし、キャンセル操作で中断できる
+        /// 描画し直す間は処理中とし、キャンセル操作で中断できる<br/>
+        /// 設定変更による再描画が進行中の場合は、その完了を待ってから最新の設定の画像を取得する
         /// </remarks>
         /// <param name="host">メインビューモデル</param>
         /// <returns>出力解像度の画像。プレビューがない・キャンセル・失敗の場合は <c>null</c> (キャンセル・失敗時のステータスは設定済み)</returns>
         public async Task<BitmapSource?> GetOutputResolutionPreviewImageAsync(IPreviewCoordinatorHost host)
+        {
+            await WaitForPendingPreviewAsync();
+
+            try
+            {
+                _isRenderingOutputImage = true;
+                return await RenderOutputResolutionPreviewImageAsync(host);
+            }
+            finally
+            {
+                _isRenderingOutputImage = false;
+                ResumeDeferredRefresh(host);
+            }
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>
+        /// 追跡中のプレビュータスクがすべて完了するまで待つ (失敗は <see cref="TrackPreviewTask"/> が報告する)
+        /// </summary>
+        /// <returns>非同期操作のタスク</returns>
+        private async Task WaitForPendingPreviewAsync()
+        {
+            while (true)
+            {
+                Task pendingTask;
+                lock (_previewTaskLock)
+                {
+                    pendingTask = _activePreviewTask;
+                }
+
+                if (pendingTask.IsCompleted)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await pendingTask;
+                }
+                catch (Exception)
+                {
+                    // 例外は TrackPreviewTask の継続で報告済み
+                }
+            }
+        }
+
+        /// <summary>
+        /// 表示中のプレビューと同じページ・設定の画像を出力解像度で生成する
+        /// </summary>
+        /// <param name="host">メインビューモデル</param>
+        /// <returns>出力解像度の画像。プレビューがない・キャンセル・失敗の場合は <c>null</c></returns>
+        private async Task<BitmapSource?> RenderOutputResolutionPreviewImageAsync(IPreviewCoordinatorHost host)
         {
             BitmapSource? displayedImage = host.PreviewImage;
             PreviewRenderState? lastPreview = _lastPreview;
@@ -295,10 +404,6 @@ namespace PdfConverter.ViewModels.Coordinators
             }
         }
 
-
-        /********************************************************************************/
-        /*                             プライベートメソッド                             */
-        /********************************************************************************/
         /// <summary>
         /// 新しいプレビュー操作を開始し、進行中の操作をキャンセルする
         /// </summary>
@@ -318,6 +423,15 @@ namespace PdfConverter.ViewModels.Coordinators
         private bool IsCurrentPreviewOperation(long operationGeneration)
         {
             return operationGeneration == Volatile.Read(ref _previewOperationGeneration);
+        }
+
+        /// <summary>
+        /// 最新のプレビュー操作が読み込みかどうかを判定する
+        /// </summary>
+        /// <returns>true: 読み込み中である / false: 読み込み中ではない</returns>
+        private bool IsLoadInProgress()
+        {
+            return _loadingOperationGeneration != 0 && IsCurrentPreviewOperation(_loadingOperationGeneration);
         }
 
         /// <summary>
@@ -413,6 +527,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     }
 
                     host.PageCount = 0;
+                    host.DisplayedPageNumber = 0;
                     host.PreviewImage = null;
                     host.LoadedFilePath = null;
                     ApplicationLogger.Error("Preview", "Failed to load document", ex);
@@ -431,9 +546,21 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 await ConvertAsync(host, operationGeneration, showFieldValidation: true, manageBusyState: false);
+
+                // 読み込み中に出力設定が変わった場合は、変更後の設定で描画し直す
+                if (_isRefreshRequestedDuringLoad && IsCurrentPreviewOperation(operationGeneration))
+                {
+                    _isRefreshRequestedDuringLoad = false;
+                    await ConvertAsync(host, operationGeneration, showFieldValidation: false, manageBusyState: false, useDisplayedPage: true);
+                }
             }
             finally
             {
+                if (_loadingOperationGeneration == operationGeneration)
+                {
+                    _loadingOperationGeneration = 0;
+                }
+
                 if (IsCurrentPreviewOperation(operationGeneration))
                 {
                     host.IsBusy = false;
@@ -486,12 +613,14 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="operationGeneration">操作世代番号</param>
         /// <param name="showFieldValidation">入力欄の検証メッセージを表示するかどうか</param>
         /// <param name="manageBusyState">処理中フラグとキャンセルソースのライフサイクルをこのメソッドで管理するかどうか</param>
+        /// <param name="useDisplayedPage">入力欄ではなく、描画に成功済みのページを再描画するかどうか (未描画の場合は入力値を使う)</param>
         /// <returns>非同期操作のタスク</returns>
         private async Task ConvertAsync(
             IPreviewCoordinatorHost host,
             long operationGeneration,
             bool showFieldValidation = false,
-            bool manageBusyState = true)
+            bool manageBusyState = true,
+            bool useDisplayedPage = false)
         {
             if (string.IsNullOrEmpty(host.FilePath))
             {
@@ -515,7 +644,9 @@ namespace PdfConverter.ViewModels.Coordinators
 
             try
             {
-                if (!int.TryParse(host.PageNumber, out int pageNumber) || pageNumber < 1)
+                // 再描画は入力途中の値ではなく、描画に成功済みのページを対象にする
+                int pageNumber = useDisplayedPage ? host.DisplayedPageNumber : 0;
+                if (pageNumber < 1 && (!int.TryParse(host.PageNumber, out pageNumber) || pageNumber < 1))
                 {
                     if (!IsCurrentPreviewOperation(operationGeneration))
                     {
@@ -530,6 +661,25 @@ namespace PdfConverter.ViewModels.Coordinators
                     }
 
                     host.SetStatus("有効なページ番号を入力してください。", StatusKind.Warning);
+                    return;
+                }
+
+                // ページ数が未確定 (0) の間は上限を判定できないため、検査しない
+                if (host.PageCount > 0 && pageNumber > host.PageCount)
+                {
+                    if (!IsCurrentPreviewOperation(operationGeneration))
+                    {
+                        return;
+                    }
+
+                    uiFeedback?.Abandon();
+
+                    if (showFieldValidation)
+                    {
+                        host.PageNumberValidationMessage = $"1 ～ {host.PageCount} のページ番号を入力してください。";
+                    }
+
+                    host.SetStatus("ページ番号が PDF のページ数の範囲外です。", StatusKind.Warning);
                     return;
                 }
 
@@ -574,6 +724,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 _lastPreview = new PreviewRenderState(pdfPath, pageIndex, resolutionMode, val, preserveTransparency, preview);
                 host.PreviewImage = preview.Image;
+                host.DisplayedPageNumber = pageNumber;
                 if (manageBusyState)
                 {
                     uiFeedback?.CompleteSuccess();
@@ -677,6 +828,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 host.PageCount = 0;
+                host.DisplayedPageNumber = 0;
                 host.PreviewImage = null;
                 host.LoadedFilePath = null;
                 ApplicationLogger.Error("Preview", isWordDocument ? "Word to PDF conversion failed" : "Failed to open PDF", ex);
@@ -756,7 +908,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
 
         /********************************************************************************/
-        /*                                    ネスト型                                  */
+        /*                                   ネスト型                                   */
         /********************************************************************************/
         /// <summary>
         /// 表示したプレビューの描画条件と結果を保持する

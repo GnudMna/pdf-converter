@@ -68,6 +68,11 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
+            // Word 変換などの待機中に UI で設定が変わっても、検証済みの値と食い違わないよう保存開始時にまとめて確定する
+            ResolutionMode resolutionMode = host.ResolutionMode;
+            OutputImageFormat outputImageFormat = host.OutputImageFormat;
+            bool preserveTransparency = host.PreserveTransparency;
+
             host.ProgressValue = 0;
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
@@ -77,7 +82,7 @@ namespace PdfConverter.ViewModels.Coordinators
             host.SetStatus("保存処理を開始しています...", StatusKind.Progress);
             ApplicationLogger.Info(
                 "Save",
-                $"Starting image export: file={Path.GetFileName(host.FilePath)}, format={host.OutputImageFormat}, mode={host.ResolutionMode}");
+                $"Starting image export: file={Path.GetFileName(host.FilePath)}, format={outputImageFormat}, mode={resolutionMode}");
 
             try
             {
@@ -126,7 +131,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageRangeValidationMessage = null;
                 }
 
-                if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes, pageCount))
+                if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes, pageCount, outputImageFormat))
                 {
                     host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
                     return;
@@ -143,10 +148,10 @@ namespace PdfConverter.ViewModels.Coordinators
                     pageIndexes,
                     folderPath,
                     host.IsAllPagesSelected,
-                    host.ResolutionMode,
+                    resolutionMode,
                     resolutionValue,
-                    host.OutputImageFormat,
-                    host.PreserveTransparency,
+                    outputImageFormat,
+                    preserveTransparency,
                     progress,
                     cancellationToken);
 
@@ -184,6 +189,7 @@ namespace PdfConverter.ViewModels.Coordinators
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
             host.IsBusy = true;
+            host.IsSaving = true;
             host.IsProgressBarVisible = true;
             host.SetStatus("PDF 保存処理を開始しています...", StatusKind.Progress);
             ApplicationLogger.Info("Save", $"Starting PDF export: file={Path.GetFileName(host.FilePath)}");
@@ -214,7 +220,8 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 // 大きな PDF やネットワークドライブへの保存で UI スレッドを塞がないよう、コピーはスレッドプールで行う
-                await Task.Run(() => File.Copy(pdfPath, destinationPath, overwrite: true), cancellationToken);
+                // 失敗・キャンセル時に既存ファイルを壊さないよう、一時ファイルへ書き出してから置き換える
+                await Task.Run(() => AtomicFileCopyHelper.CopyAsync(pdfPath, destinationPath, overwrite: true, cancellationToken), cancellationToken);
                 host.SetStatus($"PDF を保存しました: {destinationPath}", StatusKind.Success);
                 ApplicationLogger.Info("Save", $"PDF export completed: {destinationPath}");
             }
@@ -230,6 +237,7 @@ namespace PdfConverter.ViewModels.Coordinators
             }
             finally
             {
+                host.IsSaving = false;
                 host.IsBusy = false;
                 host.IsProgressBarVisible = false;
                 host.DisposeCancellation();
@@ -247,15 +255,21 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
         /// <param name="pageCount">保存対象の PDF の総ページ数 (ファイル名の桁数の決定に使う)</param>
-        /// <returns>true: 上書き確認を行う / false: 上書き確認を行わない / キャンセルされた場合は<c>null</c></returns>
-        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int>? pageIndexes, int pageCount)
+        /// <param name="outputImageFormat">保存開始時に確定した出力画像形式</param>
+        /// <returns>true: 保存を続行してよい (既存ファイルがない、または上書きが承認された) / false: 上書きが承認されなかった</returns>
+        private bool ConfirmOverwriteExistingFiles(
+            ISaveCoordinatorHost host,
+            string folderPath,
+            IEnumerable<int>? pageIndexes,
+            int pageCount,
+            OutputImageFormat outputImageFormat)
         {
             IEnumerable<int> pagesToSave = host.IsAllPagesSelected || pageIndexes == null
                 ? Enumerable.Range(0, pageCount)
                 : pageIndexes;
 
             var existingFiles = pagesToSave
-                .Select(index => Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(index, pageCount, host.OutputImageFormat)))
+                .Select(index => Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(index, pageCount, outputImageFormat)))
                 .Where(File.Exists)
                 .Select(Path.GetFileName)
                 .ToList();

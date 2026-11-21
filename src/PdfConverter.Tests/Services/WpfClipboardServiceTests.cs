@@ -144,7 +144,7 @@ namespace PdfConverter.Tests.Services
 
 
         /********************************************************************************/
-        /*                               Win32 API 定義                                 */
+        /*                                Win32 API 定義                                */
         /********************************************************************************/
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         private static extern uint RegisterClipboardFormat(string lpszFormat);

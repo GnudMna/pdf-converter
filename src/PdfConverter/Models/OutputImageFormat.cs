@@ -14,7 +14,7 @@ namespace PdfConverter.Models
         /// <summary>JPEG 形式 (透明度非対応)</summary>
         Jpeg,
 
-        /// <summary>BMP 形式</summary>
+        /// <summary>BMP 形式 (透明度非対応)</summary>
         Bmp,
     }
 }

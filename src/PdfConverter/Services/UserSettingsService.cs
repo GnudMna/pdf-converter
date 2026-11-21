@@ -79,7 +79,7 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>ApplicationSettings を既定値へ戻し、移行フラグを下ろす</summary>
+        /// <summary>ユーザー設定 (<c>Settings</c>) を既定値へ戻し、移行フラグを下ろす</summary>
         private static void ResetPersistedSettingsCore()
         {
             Settings.Default.Reset();

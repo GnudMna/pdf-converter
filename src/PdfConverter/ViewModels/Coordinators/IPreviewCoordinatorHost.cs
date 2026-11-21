@@ -33,6 +33,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
         string? PageNumberValidationMessage { get; set; }
 
+        /// <summary>プレビューの描画に成功したページ番号 (1 始まり、未描画の場合は 0)</summary>
+        int DisplayedPageNumber { get; set; }
+
         /// <summary>現在表示中のページ番号</summary>
         int CurrentPreviewPage { get; }
 

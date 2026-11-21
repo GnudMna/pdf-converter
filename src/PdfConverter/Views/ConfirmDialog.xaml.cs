@@ -45,6 +45,15 @@ namespace PdfConverter.Views
         {
         }
 
+        /// <summary>
+        /// 公開コンストラクターの共通処理として、メッセージの要約と詳細・アイコン・ボタンを設定する
+        /// </summary>
+        /// <param name="message">表示するメッセージ (空行 1 行を挟んだ後ろの部分は詳細として別枠に表示する)</param>
+        /// <param name="title">ダイアログのタイトル</param>
+        /// <param name="icon">表示するアイコン</param>
+        /// <param name="yesText">肯定ボタンのラベル</param>
+        /// <param name="noText">否定ボタンのラベル (<paramref name="showNoButton"/> が <c>false</c> の場合は未使用)</param>
+        /// <param name="showNoButton">否定ボタンを表示するかどうか</param>
         private ConfirmDialog(
             string message,
             string title,

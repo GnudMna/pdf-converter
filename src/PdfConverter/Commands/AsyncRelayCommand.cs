@@ -19,13 +19,13 @@ namespace PdfConverter.Commands
 
         /// <summary>
         /// 実行可否を判定する関数<br/>
-        /// <c>null</c>の場合は常に実行可能
+        /// <c>null</c> の場合は常に実行可能
         /// </summary>
         private readonly Func<bool>? _canExecute;
 
         /// <summary>
         /// 非同期処理で発生した未処理例外を受け取るコールバック<br/>
-        /// <c>null</c>の場合は無視する
+        /// <c>null</c> の場合は無視する
         /// </summary>
         private readonly Action<Exception>? _onException;
 
@@ -40,8 +40,8 @@ namespace PdfConverter.Commands
         /// 非同期アクションでコマンドを初期化する
         /// </summary>
         /// <param name="execute">コマンド実行時に呼び出される非同期アクション</param>
-        /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c>の場合は常に実行可能</param>
-        /// <param name="onException">非同期処理で発生した未処理例外を受け取るコールバック<br/><c>null</c>の場合は無視する</param>
+        /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c> の場合は常に実行可能</param>
+        /// <param name="onException">非同期処理で発生した未処理例外を受け取るコールバック<br/><c>null</c> の場合は無視する</param>
         public AsyncRelayCommand(Func<Task> execute, Func<bool>? canExecute = null, Action<Exception>? onException = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
@@ -112,7 +112,7 @@ namespace PdfConverter.Commands
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="CommandManager.RequerySuggested"/>発火時に実行可否の再評価を通知する
+        /// <see cref="CommandManager.RequerySuggested"/> 発火時に実行可否の再評価を通知する
         /// </summary>
         private void OnCommandManagerRequerySuggested(object? sender, EventArgs e)
         {

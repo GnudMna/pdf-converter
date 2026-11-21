@@ -12,11 +12,12 @@ namespace PdfConverter.Services
     /// </summary>
     internal static class ProcessWaitHelper
     {
-        /// <summary>標準出力 / 標準エラーの読み取り完了待機上限</summary>
-        private static readonly TimeSpan StreamReadCompletionTimeout = TimeSpan.FromSeconds(5);
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>標準出力 / 標準エラーの読み取り完了待機上限</summary>
+        private static readonly TimeSpan StreamReadCompletionTimeout = TimeSpan.FromSeconds(5);
+
         /// <summary>終了確認のポーリング間隔 (ms)</summary>
         private const int PollIntervalMs = 100;
 
@@ -26,7 +27,7 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /// <summary>
         /// 標準出力 / 標準エラーをリダイレクトしたプロセスの終了を待機し、出力を収集する<br/>
-        /// 呼び出し前に <see cref="Process.StartInfo"/> でリダイレクトを有効化し、<see cref="Process.Start"/> を実行しておくこと
+        /// 呼び出し前に <see cref="Process.StartInfo"/> でリダイレクトを有効化し、<see cref="Process.Start()"/> を実行しておくこと
         /// </summary>
         /// <param name="process">対象プロセス</param>
         /// <param name="timeout">待機上限時間</param>
@@ -175,7 +176,7 @@ namespace PdfConverter.Services
 
 
         /********************************************************************************/
-        /*                              パブリックプロパティ                            */
+        /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>標準出力</summary>
         public string StandardOutput { get; }

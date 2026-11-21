@@ -7,6 +7,9 @@ namespace PdfConverter.Views.Panels
     /// </summary>
     public partial class ExportSettingsPanel : UserControl
     {
+        /// <summary>
+        /// 画像出力設定パネルを初期化する
+        /// </summary>
         public ExportSettingsPanel()
         {
             InitializeComponent();

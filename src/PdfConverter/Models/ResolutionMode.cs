@@ -25,7 +25,7 @@ namespace PdfConverter.Models
 
         /// <summary>
         /// 出力 DPI を指定する<br/>
-        /// 元画像の DPI に対するスケール比で拡縮される
+        /// PDF の基準 DPI (72) に対する比率で拡縮される
         /// </summary>
         Dpi,
     }

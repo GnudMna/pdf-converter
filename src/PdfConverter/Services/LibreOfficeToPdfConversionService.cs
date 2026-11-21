@@ -64,6 +64,24 @@ namespace PdfConverter.Services
             return Task.Run(() => ConvertInternal(wordFilePath, cancellationToken), cancellationToken);
         }
 
+        /// <summary>
+        /// 実行中の変換が終わり、変換専用プロファイルが使われなくなるまで待つ<br/>
+        /// キャンセルは soffice の終了を待たずに通知されるため、直後にプロファイルを含むインスタンスディレクトリを削除する呼び出し元が、
+        /// 使用中のプロファイルを消さないために使う
+        /// </summary>
+        /// <param name="timeout">待機上限時間</param>
+        internal static void WaitForPendingConversion(TimeSpan timeout)
+        {
+            if (ProfileSemaphore.Wait(timeout))
+            {
+                ProfileSemaphore.Release();
+            }
+            else
+            {
+                ApplicationLogger.Warning(nameof(LibreOfficeToPdfConversionService), "LibreOffice conversion did not finish in time");
+            }
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */

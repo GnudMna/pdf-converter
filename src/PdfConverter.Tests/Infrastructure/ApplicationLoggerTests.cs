@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using PdfConverter.Infrastructure;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -107,6 +109,39 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.True(File.Exists(logPath));
             Assert.Contains("xxxx", File.ReadAllText(archivePath));
             Assert.Contains("rotated", File.ReadAllText(logPath));
+        }
+
+        /// <summary>
+        /// 他プロセスがログ用ミューテックスを保持している間は、書き込みを待機することを検証する
+        /// </summary>
+        [Fact]
+        public async Task Info_WhileMutexHeldByOtherThread_WaitsUntilReleased()
+        {
+            string logPath = Path.Combine(_logDirectory, "app.log");
+            using var held = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+
+            var holder = new Thread(() =>
+            {
+                using var mutex = new Mutex(false, ApplicationLogger.GetMutexName(_logDirectory));
+                mutex.WaitOne();
+                held.Set();
+                release.Wait();
+                mutex.ReleaseMutex();
+            });
+            holder.Start();
+            Assert.True(held.Wait(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken));
+
+            Task writer = Task.Run(() => ApplicationLogger.Info("MutexTest", "waited"), TestContext.Current.CancellationToken);
+            await Task.Delay(300, TestContext.Current.CancellationToken);
+
+            Assert.False(writer.IsCompleted);
+            Assert.False(File.Exists(logPath));
+
+            release.Set();
+            await writer.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            holder.Join();
+            Assert.Contains("waited", File.ReadAllText(logPath));
         }
     }
 }

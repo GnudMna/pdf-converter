@@ -14,15 +14,17 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 使用する<c>soffice.exe</c>の絶対パスを解決する
+        /// 使用する <c>soffice.exe</c> のパスを解決する
         /// </summary>
         /// <param name="configuredPath">ユーザー指定パス (空の場合は自動検出)</param>
-        /// <returns><c>soffice.exe</c>の絶対パス</returns>
+        /// <returns>指定パス、または自動検出した <c>soffice.exe</c> のパス</returns>
+        /// <exception cref="FileNotFoundException"><paramref name="configuredPath"/> が指定されていて、そのファイルが存在しない場合</exception>
+        /// <exception cref="InvalidOperationException">自動検出で <c>soffice.exe</c> が見つからない場合</exception>
         public static string Resolve(string? configuredPath)
         {
             if (!string.IsNullOrWhiteSpace(configuredPath))
             {
-                string trimmedPath = configuredPath.Trim();
+                string trimmedPath = configuredPath.Trim().Trim('"');
                 if (File.Exists(trimmedPath))
                 {
                     return trimmedPath;
@@ -91,7 +93,7 @@ namespace PdfConverter.Services
         /// PATH 環境変数から実行ファイルを検索する
         /// </summary>
         /// <param name="fileName">ファイル名</param>
-        /// <returns>見つかった絶対パス。見つからない場合は<c>null</c></returns>
+        /// <returns>見つかった絶対パス。見つからない場合は <c>null</c></returns>
         private static string? FindOnPath(string fileName)
         {
             string? pathVariable = Environment.GetEnvironmentVariable("PATH");

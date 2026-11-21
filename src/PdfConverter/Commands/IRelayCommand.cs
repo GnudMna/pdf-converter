@@ -3,7 +3,7 @@ using System.Windows.Input;
 namespace PdfConverter.Commands
 {
     /// <summary>
-    /// <see cref="CanExecuteChanged"/> を手動で発火できるコマンド
+    /// <see cref="ICommand.CanExecuteChanged"/> を手動で発火できるコマンド
     /// </summary>
     public interface IRelayCommand : ICommand
     {

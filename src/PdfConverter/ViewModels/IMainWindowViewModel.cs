@@ -39,6 +39,9 @@ namespace PdfConverter.ViewModels
         /// <param name="commitInput">入力途中の値を反映する処理</param>
         void CommitPendingInput(Action commitInput);
 
+        /// <summary>実行中の変換・保存処理にキャンセルを要求する (処理中でなければ何もしない)</summary>
+        void CancelCurrentOperation();
+
         /// <summary>複数のファイルがドロップされ、1 件だけを読み込んだことを利用者へ通知する</summary>
         /// <param name="droppedCount">ドロップされたファイルの総数</param>
         /// <param name="loadedFilePath">読み込んだドキュメントファイルのパス</param>

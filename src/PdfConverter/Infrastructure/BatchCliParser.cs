@@ -34,9 +34,9 @@ namespace PdfConverter.Infrastructure
         /// 起動引数がバッチ / ヘッドレスモードかどうかを判定し、必要なら解析する
         /// </summary>
         /// <param name="args">起動引数</param>
-        /// <param name="options">解析結果</param>
-        /// <param name="errorMessage">解析失敗時のメッセージ</param>
-        /// <returns>true: バッチモードとして処理する / false: GUI 起動</returns>
+        /// <param name="options">解析結果 (GUI 起動の場合と解析失敗時は <c>null</c>)</param>
+        /// <param name="errorMessage">解析失敗時のメッセージ (成功時と GUI 起動の場合は <c>null</c>)</param>
+        /// <returns>true: バッチモードとして処理する (解析失敗を含む) / false: GUI 起動</returns>
         public static bool TryParse(string[] args, out BatchCliOptions? options, out string? errorMessage)
         {
             options = null;
@@ -502,7 +502,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                 normalized = "Jpeg";
             }
 
-            if (Enum.TryParse(normalized, ignoreCase: true, result: out format))
+            if (Enum.TryParse(normalized, ignoreCase: true, result: out format) && Enum.IsDefined(format))
             {
                 return true;
             }
@@ -527,7 +527,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                 return false;
             }
 
-            if (Enum.TryParse(value.Trim(), ignoreCase: true, result: out mode))
+            if (Enum.TryParse(value.Trim(), ignoreCase: true, result: out mode) && Enum.IsDefined(mode))
             {
                 return true;
             }

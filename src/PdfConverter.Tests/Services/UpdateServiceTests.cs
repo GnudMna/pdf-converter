@@ -345,6 +345,76 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+        /// <summary>
+        /// 本体のデータが途中で届かなくなったときは、待ち続けずに失敗し、インストーラーを削除することを検証する
+        /// </summary>
+        [Fact]
+        public async Task ApplyUpdateAsync_BodyStalls_FailsAndDeletesInstaller()
+        {
+            byte[] payload = Encoding.UTF8.GetBytes("setup-bytes");
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
+
+            bool started = false;
+            using (var handler = new StubHandler((_, __) => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new StallingStream(payload)),
+            }))
+            using (var client = new HttpClient(handler))
+            using (var service = new UpdateService(
+                client,
+                ownsHttpClient: false,
+                () => "0.4.0",
+                () => "x64",
+                () => "secret-key",
+                () => "unused-public-key",
+                "https://bridge.test",
+                (_, __) =>
+                {
+                    started = true;
+                    return true;
+                },
+                downloadStallTimeout: TimeSpan.FromMilliseconds(200)))
+            {
+                UpdateApplyResult result = await service.ApplyUpdateAsync(
+                        CreateUpdate(payload, sha256),
+                        TestContext.Current.CancellationToken)
+                    .WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateApplyKind.Failed, result.Kind);
+                Assert.Contains("一定時間", result.ErrorMessage);
+                Assert.False(started);
+                Assert.False(File.Exists(GetInstallerPath()));
+            }
+        }
+
+        /// <summary>
+        /// データが届かない間に呼び出し元がキャンセルすると、失敗扱いにせずキャンセル例外を投げ、インストーラーを削除することを検証する
+        /// </summary>
+        [Fact]
+        public async Task ApplyUpdateAsync_CancelledWhileBodyStalls_ThrowsAndDeletesInstaller()
+        {
+            byte[] payload = Encoding.UTF8.GetBytes("setup-bytes");
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
+
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
+            using (var handler = new StubHandler((_, __) => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StreamContent(new StallingStream(payload)),
+            }))
+            using (var client = new HttpClient(handler))
+            using (var service = CreateService(client))
+            {
+                Task<UpdateApplyResult> task = service.ApplyUpdateAsync(
+                    CreateUpdate(payload, sha256),
+                    cts.Token);
+                cts.CancelAfter(TimeSpan.FromMilliseconds(200));
+
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                    () => task.WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken));
+                Assert.False(File.Exists(GetInstallerPath()));
+            }
+        }
+
         private static UpdateService CreateService(
             HttpClient client,
             string signingPublicKey = "unused-public-key",
@@ -392,6 +462,63 @@ namespace PdfConverter.Tests.Services
 
         private string GetInstallerPath() =>
             Path.Combine(_testRoot, "updates", "0.5.0", AssetName);
+
+        /// <summary>
+        /// 先頭のデータを返したあと、キャンセルされるまで読み込みを返さないストリーム
+        /// </summary>
+        private sealed class StallingStream : Stream
+        {
+            private readonly byte[] _head;
+            private bool _headSent;
+
+            public StallingStream(byte[] head)
+            {
+                _head = head;
+            }
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => false;
+
+            public override long Length => throw new NotSupportedException();
+
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override async ValueTask<int> ReadAsync(
+                Memory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                if (!_headSent)
+                {
+                    _headSent = true;
+                    int count = Math.Min(_head.Length - 1, buffer.Length);
+                    _head.AsMemory(0, count).CopyTo(buffer);
+                    return count;
+                }
+
+                await Task.Delay(Timeout.Infinite, cancellationToken);
+                return 0;
+            }
+
+            public override int Read(byte[] buffer, int offset, int count) =>
+                throw new NotSupportedException();
+
+            public override void Flush()
+            {
+            }
+
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+            public override void SetLength(long value) => throw new NotSupportedException();
+
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
 
         private sealed class StubHandler : HttpMessageHandler
         {

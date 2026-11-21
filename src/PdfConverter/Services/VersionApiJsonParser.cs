@@ -66,14 +66,16 @@ namespace PdfConverter.Services
 
 
         /********************************************************************************/
-        /*                                内部 DTO 型                                   */
+        /*                                   ネスト型                                   */
         /********************************************************************************/
         [DataContract]
         private sealed class VersionApiDto
         {
+            /// <summary>リリースタグ</summary>
             [DataMember(Name = "tag")]
             public string? Tag { get; set; }
 
+            /// <summary>アセット一覧</summary>
             [DataMember(Name = "assets")]
             public VersionApiAssetDto[]? Assets { get; set; }
         }
@@ -81,12 +83,15 @@ namespace PdfConverter.Services
         [DataContract]
         private sealed class VersionApiAssetDto
         {
+            /// <summary>アセット名</summary>
             [DataMember(Name = "name")]
             public string? Name { get; set; }
 
+            /// <summary>バイトサイズ</summary>
             [DataMember(Name = "size")]
             public long Size { get; set; }
 
+            /// <summary>GitHub の digest (例: <c>sha256:...</c>)</summary>
             [DataMember(Name = "digest")]
             public string? Digest { get; set; }
         }

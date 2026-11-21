@@ -14,7 +14,7 @@ namespace PdfConverter.Services
         /// ビットマップをクリップボードにコピーする
         /// </summary>
         /// <param name="image">コピーする画像</param>
-        /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
+        /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
         void CopyImage(BitmapSource image, bool preserveTransparency);
     }
 }

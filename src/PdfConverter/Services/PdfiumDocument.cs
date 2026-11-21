@@ -94,7 +94,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="fileBytes">PDF ファイルのバイト配列</param>
         /// <param name="password">PDF を開くパスワード (パスワードなしの場合は <c>null</c>)</param>
-        /// <exception cref="ArgumentException"><paramref name="fileBytes"/> が空の場合</exception>
+        /// <exception cref="ArgumentException"><paramref name="fileBytes"/> が <c>null</c> または空の場合</exception>
         /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または <paramref name="password"/> が正しくない場合</exception>
         /// <exception cref="InvalidDataException">PDF を開けない場合 (破損など)</exception>
         public PdfiumDocument(byte[] fileBytes, string? password = null)
@@ -323,7 +323,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 文書を閉じ、入力バッファーの固定を解除する
+        /// 文書を閉じ、入力バッファーの固定解除とファイルストリームの解放を行う
         /// </summary>
         public void Dispose()
         {
@@ -672,7 +672,7 @@ namespace PdfConverter.Services
 
 
         /********************************************************************************/
-        /*                                    ネスト型                                  */
+        /*                                   ネスト型                                   */
         /********************************************************************************/
         /// <summary>
         /// <c>FPDF_FILEACCESS.m_GetBlock</c> の関数ポインター型

@@ -23,14 +23,16 @@ namespace PdfConverter.Tests.Helpers
             var wordToPdfSettings = WordToPdfConversionSettingsTestHelper.Create();
             var imageExportSettings = ImageExportSettingsTestHelper.Create();
             var userSettings = new Mock<IUserSettingsService>();
-            var viewModel = new MainViewModel(
+            // コマンドが CommandManager を購読して生成元のスレッドに Dispatcher を作るため、STA スレッドで生成する
+            MainViewModel viewModel = null;
+            StaTestHelper.Run(() => viewModel = new MainViewModel(
                 dialog.Object,
                 clipboard.Object,
                 new PdfPreviewCoordinator(pdf.Object, documentPdfSource.Object),
                 new PdfSaveCoordinator(pdf.Object, documentPdfSource.Object, dialog.Object),
                 wordToPdfSettings.Object,
                 imageExportSettings.Object,
-                userSettings.Object);
+                userSettings.Object));
             return (viewModel, pdf, dialog, clipboard);
         }
 
@@ -41,14 +43,16 @@ namespace PdfConverter.Tests.Helpers
         /// <returns>生成した ViewModel</returns>
         public static MainViewModel Create(IPdfPreviewCoordinator previewCoordinator)
         {
-            return new MainViewModel(
+            MainViewModel viewModel = null;
+            StaTestHelper.Run(() => viewModel = new MainViewModel(
                 new Mock<IDialogService>().Object,
                 new Mock<IClipboardService>().Object,
                 previewCoordinator,
                 new Mock<IPdfSaveCoordinator>().Object,
                 WordToPdfConversionSettingsTestHelper.Create().Object,
                 ImageExportSettingsTestHelper.Create().Object,
-                new Mock<IUserSettingsService>().Object);
+                new Mock<IUserSettingsService>().Object));
+            return viewModel;
         }
     }
 }

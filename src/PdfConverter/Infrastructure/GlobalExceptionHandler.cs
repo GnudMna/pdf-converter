@@ -16,7 +16,7 @@ namespace PdfConverter.Infrastructure
     public static class GlobalExceptionHandler
     {
         /********************************************************************************/
-        /*                                    定数                                      */
+        /*                                     定数                                     */
         /********************************************************************************/
         /// <summary>致命的な UI 例外で終了するときの終了コード</summary>
         internal const int FatalUiExceptionExitCode = 1;
@@ -316,7 +316,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>ログ・ステータスバー・ダイアログ</summary>
         UserInterface,
 
-        /// <summary>致命的エラー (ログ・ダイアログ・必要に応じて終了)</summary>
+        /// <summary>致命的エラー (ログ・ステータスバー・ダイアログ。UI スレッドの例外ではアプリケーションも終了する)</summary>
         Fatal,
     }
 }

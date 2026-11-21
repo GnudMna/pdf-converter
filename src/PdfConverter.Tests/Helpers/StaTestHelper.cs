@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Windows.Threading;
 
 namespace PdfConverter.Tests.Helpers
 {
@@ -9,12 +10,12 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal static class StaTestHelper
     {
-        /// <summary>
-        /// 指定したアクションを STA スレッド上で実行する
-        /// </summary>
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// 指定したアクションを STA スレッド上で実行する
+        /// </summary>
         public static void Run(Action action)
         {
             Run(() =>
@@ -39,6 +40,11 @@ namespace PdfConverter.Tests.Helpers
                 catch (Exception ex)
                 {
                     captured = ex;
+                }
+                finally
+                {
+                    // 終了していない Dispatcher が残ると、WPF がプロセス終了時にそのスレッドへの呼び出しを 1 件約 300 ms 待つ
+                    Dispatcher.CurrentDispatcher.InvokeShutdown();
                 }
             });
             thread.SetApartmentState(ApartmentState.STA);

@@ -29,6 +29,19 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 実行中の変換がないときは、待機上限を待たずにすぐ戻ることを検証する
+        /// </summary>
+        [Fact]
+        public void WaitForPendingConversion_NoConversionRunning_ReturnsImmediately()
+        {
+            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+            LibreOfficeToPdfConversionService.WaitForPendingConversion(TimeSpan.FromSeconds(30));
+
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(5));
+        }
+
+        /// <summary>
         /// 起動引数の先頭で変換専用プロファイルを指定し、headless 変換に必要なオプションが続くことを検証する
         /// </summary>
         [Fact]

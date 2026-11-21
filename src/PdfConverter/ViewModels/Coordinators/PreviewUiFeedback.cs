@@ -22,11 +22,22 @@ namespace PdfConverter.ViewModels.Coordinators
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>UI 状態を更新するセッション</summary>
         private readonly ICoordinatorSession _session;
+
+        /// <summary>操作が最新かどうかを返す関数</summary>
         private readonly Func<bool> _isOperationCurrent;
+
+        /// <summary>処理中表示を出すまでの待機時間 (ミリ秒)</summary>
         private readonly int _delayMilliseconds;
+
+        /// <summary>処理中表示の待機を取り消すためのソース (待機の終了後は <c>null</c>)</summary>
         private CancellationTokenSource? _delayCancellation;
+
+        /// <summary>処理中表示を出したかどうか</summary>
         private bool _isActivated;
+
+        /// <summary>破棄済み、または中断済みかどうか</summary>
         private bool _isDisposed;
 
 
@@ -190,6 +201,8 @@ namespace PdfConverter.ViewModels.Coordinators
             _delayCancellation = null;
         }
 
+        /// <summary>UI スレッドで処理を実行する (Dispatcher がない、または既に UI スレッドの場合は直接実行する)</summary>
+        /// <param name="action">実行する処理</param>
         private static void RunOnUiThread(Action action)
         {
             Dispatcher? dispatcher = Application.Current?.Dispatcher;

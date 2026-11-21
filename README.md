@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.7.0-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.7.1-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -122,10 +122,10 @@ dotnet build src/PdfConverter.slnx -c Release -p:Platform=x64
 
 | コンポーネント | バージョン | ライセンス | 用途 |
 | :--- | :--- | :--- | :--- |
-| PDFiumCore | 156.0.8076 | Apache 2.0 | PDF レンダリング (.NET バインディング) |
-| PDFium | 156.0.8076 | BSD-3-Clause / Apache 2.0 | PDF ネイティブエンジン (pdfium-binaries) |
-| Microsoft.Extensions.DependencyInjection | 10.0.8 | MIT | DI コンテナ |
-| Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.8 | MIT | DI 抽象化 |
+| PDFiumCore | 157.0.8100 | Apache 2.0 | PDF レンダリング (.NET バインディング) |
+| PDFium | 157.0.8100 | BSD-3-Clause / Apache 2.0 | PDF ネイティブエンジン (pdfium-binaries) |
+| Microsoft.Extensions.DependencyInjection | 10.0.14 | MIT | DI コンテナ |
+| Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.14 | MIT | DI 抽象化 |
 | Ookii.Dialogs.Wpf | 5.0.1 | BSD-3-Clause | フォルダー選択ダイアログ |
 | .NET Runtime / Windows Desktop Runtime | 10 | MIT | 実行ランタイム (self-contained で同梱) |
 

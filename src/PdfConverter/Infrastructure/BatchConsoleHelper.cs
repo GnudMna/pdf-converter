@@ -115,11 +115,16 @@ namespace PdfConverter.Infrastructure
 
 
         /********************************************************************************/
-        /*                               Win32 API 定義                                 */
+        /*                                Win32 API 定義                                */
         /********************************************************************************/
+        /// <summary>指定したプロセスのコンソールへ接続する (<c>-1</c> で親プロセス)</summary>
+        /// <param name="dwProcessId">接続先のプロセス ID</param>
+        /// <returns>接続できた場合は <c>true</c></returns>
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool AttachConsole(int dwProcessId);
 
+        /// <summary>このプロセス用の新しいコンソールを割り当てる</summary>
+        /// <returns>割り当てられた場合は <c>true</c></returns>
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool AllocConsole();
     }

@@ -29,20 +29,47 @@ namespace PdfConverter.Services
         /// <summary>GitHub リポジトリ名</summary>
         public const string ReleaseRepo = "pdf-converter";
 
+        /// <summary>HTTP リクエスト全体の既定のタイムアウト</summary>
         private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
+
+        /// <summary>
+        /// 本体の読み込みで、データが届かないまま待ち続けてよい時間
+        /// (<see cref="HttpCompletionOption.ResponseHeadersRead"/> では <see cref="HttpClient.Timeout"/> が効かないため)
+        /// </summary>
+        private static readonly TimeSpan DefaultDownloadStallTimeout = TimeSpan.FromSeconds(30);
 
 
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>更新サーバーとの通信に使う HTTP クライアント</summary>
         private readonly HttpClient _httpClient;
+
+        /// <summary>破棄時に <see cref="_httpClient"/> も破棄するかどうか</summary>
         private readonly bool _ownsHttpClient;
+
+        /// <summary>現在のバージョンを返す関数</summary>
         private readonly Func<string> _currentVersionProvider;
+
+        /// <summary>プラットフォーム名 (<c>x64</c> / <c>x86</c>) を返す関数</summary>
         private readonly Func<string> _platformProvider;
+
+        /// <summary>アセットのダウンロード認証に使うリリースキーを返す関数</summary>
         private readonly Func<string> _releaseKeyProvider;
+
+        /// <summary>インストーラーの署名検証に使う公開鍵 (Base64) を返す関数</summary>
         private readonly Func<string> _signingPublicKeyProvider;
+
+        /// <summary>gh-release-bridge のベース URL (末尾の <c>/</c> なし)</summary>
         private readonly string _bridgeBaseUrl;
+
+        /// <summary>インストーラーを起動する関数 (引数はインストーラーのパスと作業フォルダー、戻り値は起動できたかどうか)</summary>
         private readonly Func<string, string, bool> _processStarter;
+
+        /// <summary>ダウンロード中にデータが届かないまま待ち続けてよい時間</summary>
+        private readonly TimeSpan _downloadStallTimeout;
+
+        /// <summary>破棄済みかどうか</summary>
         private bool _disposed;
 
 
@@ -76,7 +103,8 @@ namespace PdfConverter.Services
             Func<string> releaseKeyProvider,
             Func<string> signingPublicKeyProvider,
             string bridgeBaseUrl,
-            Func<string, string, bool> processStarter)
+            Func<string, string, bool> processStarter,
+            TimeSpan? downloadStallTimeout = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _ownsHttpClient = ownsHttpClient;
@@ -90,6 +118,7 @@ namespace PdfConverter.Services
                 ?? throw new ArgumentNullException(nameof(signingPublicKeyProvider));
             _bridgeBaseUrl = (bridgeBaseUrl ?? DefaultBridgeBaseUrl).TrimEnd('/');
             _processStarter = processStarter ?? throw new ArgumentNullException(nameof(processStarter));
+            _downloadStallTimeout = downloadStallTimeout ?? DefaultDownloadStallTimeout;
         }
 
 
@@ -295,6 +324,10 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>
+        /// 既定のタイムアウトと User-Agent を設定した HTTP クライアントを生成する
+        /// </summary>
+        /// <returns>HTTP クライアント</returns>
         private static HttpClient CreateDefaultHttpClient()
         {
             var client = new HttpClient
@@ -305,6 +338,12 @@ namespace PdfConverter.Services
             return client;
         }
 
+        /// <summary>
+        /// インストーラーをシェル経由で起動する
+        /// </summary>
+        /// <param name="setupPath">インストーラーのパス</param>
+        /// <param name="workingDirectory">作業フォルダー</param>
+        /// <returns>プロセスを起動できた場合は <c>true</c></returns>
         private static bool StartSetupProcess(string setupPath, string workingDirectory)
         {
             var startInfo = new ProcessStartInfo
@@ -318,6 +357,13 @@ namespace PdfConverter.Services
             return process != null;
         }
 
+        /// <summary>
+        /// 署名ファイルをダウンロードして文字列として返す
+        /// </summary>
+        /// <param name="url">署名ファイルの URL</param>
+        /// <param name="releaseKey">ダウンロード認証に使うリリースキー</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>署名ファイルの内容。失敗した場合は <c>Text</c> が <c>null</c> で、<c>ErrorMessage</c> に理由を入れる</returns>
         private async Task<(string? Text, string? ErrorMessage)> DownloadSignatureAsync(
             string url,
             string releaseKey,
@@ -342,10 +388,15 @@ namespace PdfConverter.Services
                     using (Stream source = await response.Content
                         .ReadAsStreamAsync(cancellationToken)
                         .ConfigureAwait(false))
+                    using (var stallCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                     {
                         int read;
                         while (total < buffer.Length
-                            && (read = await source.ReadAsync(buffer.AsMemory(total), cancellationToken)
+                            && (read = await ReadWithStallTimeoutAsync(
+                                    source,
+                                    buffer.AsMemory(total),
+                                    stallCts,
+                                    cancellationToken)
                                 .ConfigureAwait(false)) > 0)
                         {
                             total += read;
@@ -362,7 +413,43 @@ namespace PdfConverter.Services
             }
         }
 
-        private static async Task DownloadToFileAsync(
+        /// <summary>
+        /// 本体を 1 回読み込む。データが一定時間届かないときは <see cref="TimeoutException"/> を投げる
+        /// </summary>
+        /// <param name="source">読み込み元</param>
+        /// <param name="buffer">読み込み先</param>
+        /// <param name="stallCts">読み込みごとに待ち時間を数え直す、呼び出し元のキャンセル元と連動したトークン源</param>
+        /// <param name="cancellationToken">呼び出し元のキャンセルトークン</param>
+        /// <returns>読み込んだバイト数</returns>
+        private async ValueTask<int> ReadWithStallTimeoutAsync(
+            Stream source,
+            Memory<byte> buffer,
+            CancellationTokenSource stallCts,
+            CancellationToken cancellationToken)
+        {
+            // CancelAfter は未発火の間なら待ち時間を数え直せる
+            stallCts.CancelAfter(_downloadStallTimeout);
+            try
+            {
+                return await source.ReadAsync(buffer, stallCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException("更新サーバーからの応答が一定時間ありませんでした。通信状況を確認してください。");
+            }
+        }
+
+        /// <summary>
+        /// レスポンス本文をファイルへ保存する。宣言サイズまたは上限を超えた場合は中断する
+        /// </summary>
+        /// <param name="response">ダウンロードのレスポンス</param>
+        /// <param name="destinationPath">保存先のパス</param>
+        /// <param name="expectedSize">宣言されたバイト数</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>非同期操作のタスク</returns>
+        /// <exception cref="InvalidDataException">受信したサイズが宣言値または上限を超えた場合</exception>
+        /// <exception cref="TimeoutException">データが一定時間届かなかった場合</exception>
+        private async Task DownloadToFileAsync(
             HttpResponseMessage response,
             string destinationPath,
             long expectedSize,
@@ -370,6 +457,7 @@ namespace PdfConverter.Services
         {
             long absoluteMax = Math.Max(expectedSize, UpdateDigestHelper.MaxUpdateDownloadBytes);
             using (Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
+            using (var stallCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             using (var destination = new FileStream(
                 destinationPath,
                 FileMode.Create,
@@ -381,7 +469,7 @@ namespace PdfConverter.Services
                 var buffer = new byte[81920];
                 long total = 0;
                 int read;
-                while ((read = await source.ReadAsync(buffer, cancellationToken)
+                while ((read = await ReadWithStallTimeoutAsync(source, buffer, stallCts, cancellationToken)
                     .ConfigureAwait(false)) > 0)
                 {
                     total += read;
@@ -395,6 +483,10 @@ namespace PdfConverter.Services
             }
         }
 
+        /// <summary>
+        /// ファイルを削除する (削除できなくても例外は送出しない)
+        /// </summary>
+        /// <param name="path">削除するファイルのパス</param>
         private static void TryDelete(string path)
         {
             try
@@ -410,6 +502,8 @@ namespace PdfConverter.Services
             }
         }
 
+        /// <summary>破棄済みの場合に例外を送出する</summary>
+        /// <exception cref="ObjectDisposedException">破棄済みの場合</exception>
         private void ThrowIfDisposed()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);

@@ -20,7 +20,7 @@ namespace PdfConverter
         /********************************************************************************/
         /*                                     定数                                     */
         /********************************************************************************/
-        /// <summary>バッチ終了時に Word の終了処理を待つ時間のうち、正常終了の待機上限を超えて許容する分 (強制終了の完了待ち)</summary>
+        /// <summary>終了時に Word の終了処理を待つ時間のうち、正常終了の待機上限を超えて許容する分 (強制終了の完了待ち)</summary>
         private static readonly TimeSpan PendingCleanupMargin = TimeSpan.FromSeconds(5);
 
 
@@ -83,6 +83,8 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnExit(ExitEventArgs e)
         {
+            WaitForConversionCleanup();
+
             GlobalExceptionHandler.Unregister();
             ThemeManager.Shutdown();
 
@@ -94,6 +96,17 @@ namespace PdfConverter
             PdfConverterTempDirectory.CleanupInstanceDirectory();
 
             base.OnExit(e);
+        }
+
+        /// <summary>
+        /// キャンセル直後も裏で続く Word・LibreOffice の終了処理が終わるまで待つ<br/>
+        /// 変換用スレッドはバックグラウンドスレッドのため、終わる前にプロセスを閉じると Word が残り、使用中の LibreOffice プロファイルも削除してしまう
+        /// </summary>
+        private static void WaitForConversionCleanup()
+        {
+            TimeSpan timeout = MicrosoftWordToPdfConversionService.CleanupGracePeriod + PendingCleanupMargin;
+            MicrosoftWordToPdfConversionService.WaitForPendingCleanup(timeout);
+            LibreOfficeToPdfConversionService.WaitForPendingConversion(timeout);
         }
 
         /// <summary>
@@ -141,8 +154,7 @@ namespace PdfConverter
             finally
             {
                 // キャンセル直後は Word の終了処理が裏で続いているため、終わる前にプロセスを閉じて Word を残さないよう待つ
-                MicrosoftWordToPdfConversionService.WaitForPendingCleanup(
-                    MicrosoftWordToPdfConversionService.CleanupGracePeriod + PendingCleanupMargin);
+                WaitForConversionCleanup();
 
                 if (_serviceProvider is IDisposable disposable)
                 {

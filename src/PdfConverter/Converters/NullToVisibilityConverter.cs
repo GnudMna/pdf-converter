@@ -10,7 +10,7 @@ namespace PdfConverter.Converters
     /// 非 <c>null</c> のとき <see cref="Visibility.Collapsed"/> を返す WPF Value コンバーター
     /// </summary>
     /// <remarks>
-    /// 通常の<c>null</c>チェックとは可視性の論理が逆になっている点に注意
+    /// 通常の <c>null</c> チェックとは可視性の論理が逆になっている点に注意
     /// </remarks>
     public class NullToVisibilityConverter : IValueConverter
     {

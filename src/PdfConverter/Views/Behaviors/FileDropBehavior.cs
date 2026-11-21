@@ -13,7 +13,7 @@ using PdfConverter.ViewModels;
 namespace PdfConverter.Views.Behaviors
 {
     /// <summary>
-    /// ウィンドウへの PDF ファイルのドラッグ&amp;ドロップを <see cref="IMainWindowViewModel"/> に委譲する
+    /// 要素への PDF / Word ファイルのドラッグ&amp;ドロップを <see cref="IMainWindowViewModel"/> に委譲する
     /// </summary>
     public static class FileDropBehavior
     {
@@ -250,11 +250,21 @@ namespace PdfConverter.Views.Behaviors
         /// <summary>要素に登録するイベントハンドラ一式</summary>
         private sealed class HandlerSet
         {
+            /// <summary>ドラッグエンターイベントのハンドラ</summary>
             public DragEventHandler DragEnter { get; }
+
+            /// <summary>ドラッグオーバーイベントのハンドラ</summary>
             public DragEventHandler DragOver { get; }
+
+            /// <summary>ドラッグリーブイベントのハンドラ</summary>
             public DragEventHandler DragLeave { get; }
+
+            /// <summary>ドロップイベントのハンドラ</summary>
             public DragEventHandler Drop { get; }
 
+            /// <summary>
+            /// 各ドラッグ&amp;ドロップイベントのハンドラを設定して初期化する
+            /// </summary>
             public HandlerSet()
             {
                 DragEnter = OnDragEnter;
