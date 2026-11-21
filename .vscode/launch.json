@@ -1,0 +1,27 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PDF Converter (Debug / x64)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug/PDF Converter.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": "PdfConverter.Tests (Debug / x64)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        }
+    ]
+}

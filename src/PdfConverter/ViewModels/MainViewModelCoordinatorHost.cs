@@ -34,14 +34,14 @@ namespace PdfConverter.ViewModels
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <inheritdoc/>
-        public string FilePath
+        public string? FilePath
         {
             get => _viewModel.FilePath;
             set => _viewModel.FilePath = value;
         }
 
         /// <inheritdoc/>
-        public string LoadedFilePath
+        public string? LoadedFilePath
         {
             get => _viewModel.LoadedFilePath;
             set => _viewModel.LoadedFilePath = value;
@@ -66,7 +66,7 @@ namespace PdfConverter.ViewModels
         }
 
         /// <inheritdoc/>
-        public BitmapSource PreviewImage
+        public BitmapSource? PreviewImage
         {
             get => _viewModel.Preview.PreviewImage;
             set
@@ -83,7 +83,7 @@ namespace PdfConverter.ViewModels
         public int CurrentPreviewPage => _viewModel.Preview.CurrentPreviewPage;
 
         /// <inheritdoc/>
-        public string PageNumberValidationMessage
+        public string? PageNumberValidationMessage
         {
             get => _viewModel.Preview.PageNumberValidationMessage;
             set => _viewModel.Preview.PageNumberValidationMessage = value;
@@ -96,7 +96,7 @@ namespace PdfConverter.ViewModels
         public string ResolutionValue => _viewModel.ExportSettings.ResolutionValue;
 
         /// <inheritdoc/>
-        public string ResolutionValidationMessage
+        public string? ResolutionValidationMessage
         {
             get => _viewModel.ExportSettings.ResolutionValidationMessage;
             set => _viewModel.ExportSettings.ResolutionValidationMessage = value;
@@ -112,7 +112,7 @@ namespace PdfConverter.ViewModels
         public OutputImageFormat OutputImageFormat => _viewModel.ExportSettings.OutputImageFormat;
 
         /// <inheritdoc/>
-        public string PageRangeValidationMessage
+        public string? PageRangeValidationMessage
         {
             get => _viewModel.ExportSettings.PageRangeValidationMessage;
             set => _viewModel.ExportSettings.PageRangeValidationMessage = value;

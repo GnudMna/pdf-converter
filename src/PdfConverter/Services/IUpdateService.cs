@@ -25,7 +25,7 @@ namespace PdfConverter.Services
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>適用結果</returns>
         Task<UpdateApplyResult> ApplyUpdateAsync(
-            AvailableUpdate update,
+            AvailableUpdate? update,
             CancellationToken cancellationToken = default);
     }
 }

@@ -4,23 +4,23 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using Docnet.Core;
-using Docnet.Core.Models;
-using Docnet.Core.Readers;
 using PdfConverter.Models;
 
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// Docnet.Core (PDFium) を使用して PDF ページを画像に変換・保存するサービス
+    /// PDFium (PDFiumCore) を使用して PDF ページを画像に変換・保存するサービス
     /// </summary>
     /// <remarks>
     /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
     /// 一定サイズ以下の PDF のみメモリキャッシュする<br/>
-    /// 並列保存時はワーカーごとに DocReader が PDF を保持するため、
-    /// ファイルサイズに応じて並列度を制限しメモリピークを抑える
+    /// 並列保存時はワーカーごとに PDFium の文書を開くため、
+    /// ファイルサイズと描画サイズに応じて並列度を制限しメモリピークを抑える<br/>
+    /// 描画サイズが <see cref="PdfiumDocument.MaxRenderPixels"/> を超えるページがある場合は、書き出しを始める前に中断する<br/>
+    /// PDFium の呼び出しは <see cref="PdfiumDocument"/> がグローバルロックで直列化するため、
+    /// 並列化で短縮されるのはビットマップ生成・画像エンコード・ファイル書き込みのみ<br/>
+    /// PDF 解析やファイル反映が UI スレッドで実行されないよう、内部の await はすべて ConfigureAwait(false) とする
     /// </remarks>
     public class PdfConversionService : IPdfConversionService
     {
@@ -39,20 +39,38 @@ namespace PdfConverter.Services
         /// <summary>並列度を 2 に制限する PDF サイズの上限 (バイト)</summary>
         private const long MediumPdfThresholdBytes = 32L * 1024 * 1024;
 
+        /// <summary>64 ビットプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        /// <remarks>描画中は 1 ページにつき BGRA32 のビットマップが複数同時に存在するため、メモリピークは画素数の 10 数倍 (バイト) になる</remarks>
+        private const long SaveRenderPixelBudgetX64 = 200_000_000;
+
+        /// <summary>32 ビットプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        private const long SaveRenderPixelBudgetX86 = 100_000_000;
+
         /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
         private const double PdfiumNativeDpi = 72.0;
+
+        /// <summary>PDF ヘッダー (<c>%PDF</c>) を探索するファイル先頭からの最大オフセット (バイト)</summary>
+        /// <remarks>PDF 仕様および PDFium と同じく、先頭 1024 バイト以内のヘッダーを許容する</remarks>
+        private const int MaxPdfHeaderOffset = 1024;
 
         /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
         private readonly object _cacheLock = new object();
 
         /// <summary>現在キャッシュされているファイルのパス</summary>
-        private string _cachedFilePath;
+        private string? _cachedFilePath;
 
         /// <summary>キャッシュされたファイルの生バイト列</summary>
-        private byte[] _cachedFileBytes;
+        private byte[]? _cachedFileBytes;
 
         /// <summary>キャッシュ取得時点のファイル最終更新日時 (UTC)</summary>
         private DateTime _cachedFileLastWrite;
+
+
+        /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
+        /// <summary>実行中のプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        private static long SaveRenderPixelBudget => Environment.Is64BitProcess ? SaveRenderPixelBudgetX64 : SaveRenderPixelBudgetX86;
 
 
         /********************************************************************************/
@@ -66,34 +84,23 @@ namespace PdfConverter.Services
                 throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
 
             return await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                double renderScale;
-                using (var docReader1x = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                using (var document = new PdfiumDocument(fileBytes))
                 {
-                    int pageCount = docReader1x.GetPageCount();
-                    if (pageIndex < 0 || pageIndex >= pageCount)
+                    if (pageIndex < 0 || pageIndex >= document.PageCount)
                     {
                         throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
                     }
 
-                    renderScale = ComputeRenderScale(docReader1x, pageIndex, mode, value);
-
-                    if (Math.Abs(renderScale - 1.0) < 1e-9)
-                    {
-                        return RenderPage(docReader1x, pageIndex, preserveTransparency, cancellationToken);
-                    }
+                    double renderScale = ComputeRenderScale(document, pageIndex, mode, value);
+                    return RenderPage(document, pageIndex, renderScale, preserveTransparency, cancellationToken);
                 }
-
-                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
-                {
-                    return RenderPage(docReader, pageIndex, preserveTransparency, cancellationToken);
-                }
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -104,20 +111,20 @@ namespace PdfConverter.Services
                 throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
 
             return await Task.Run(() =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+                using (var document = new PdfiumDocument(fileBytes))
                 {
-                    return docReader.GetPageCount();
+                    return document.PageCount;
                 }
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
-        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default)
+        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default)
         {
             if (!File.Exists(filePath))
             {
@@ -129,21 +136,31 @@ namespace PdfConverter.Services
                 throw new ArgumentException("保存先フォルダーのパスが指定されていません。", nameof(folderPath));
             }
 
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return;
-            }
+            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
 
+            // 幅・高さ指定ではページサイズが混在する PDF でも各ページが指定サイズになるよう、ページごとに倍率を求める
+            // 描画サイズが上限を超えるページがあれば、何も書き出さないうちに中断する
             int pageCount;
-            double renderScale;
-            using (var docReader1x = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(1.0)))
+            List<int> pagesToSave;
+            Dictionary<int, double> renderScaleByPage;
+            long maxPagePixels = 0;
+            using (var document = new PdfiumDocument(fileBytes))
             {
-                pageCount = docReader1x.GetPageCount();
-                renderScale = pageCount > 0 ? ComputeRenderScale(docReader1x, 0, mode, value) : 1.0;
+                pageCount = document.PageCount;
+                pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
+                renderScaleByPage = pagesToSave.ToDictionary(
+                    pageIndex => pageIndex,
+                    pageIndex => ComputeRenderScale(document, pageIndex, mode, value));
+
+                foreach (int pageIndex in pagesToSave)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    (int width, int height) = document.GetRenderSize(pageIndex, renderScaleByPage[pageIndex]);
+                    maxPagePixels = Math.Max(maxPagePixels, (long)width * height);
+                }
             }
 
-            List<int> pagesToSave = ResolvePagesToSave(pageIndexes, saveAllPages, pageCount);
             int total = pagesToSave.Count;
             int completedCount = 0;
             object progressLock = new object();
@@ -152,30 +169,23 @@ namespace PdfConverter.Services
             string stagingDirectory = PdfConverterTempDirectory.CreateTempWorkDirectory();
             try
             {
-                // ワーカーごとに 1 つの DocReader を再利用し、ページごとの生成コストを削減する
-                // 大容量 PDF では DocReader ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
-                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length);
-                IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
+                // ワーカー内では 1 つの文書を担当ページすべてで再利用し、ページごとの読み込みコストを削減する
+                // 大容量 PDF では文書ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
+                // 高解像度ではページごとのビットマップが大きくなるため、描画サイズに応じても並列度を抑える
+                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length, maxPagePixels, SaveRenderPixelBudget);
+                List<List<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
                 var tasks = partitions
                     .Where(partition => partition.Count > 0)
                     .Select(partition => Task.Run(() =>
                     {
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
+                        using (var document = new PdfiumDocument(fileBytes))
                         {
                             foreach (int pageIndex in partition)
                             {
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    return;
-                                }
+                                cancellationToken.ThrowIfCancellationRequested();
 
-                                SavePageToFile(docReader, pageIndex, stagingDirectory, format, preserveTransparency);
+                                SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency);
                                 int completed = Interlocked.Increment(ref completedCount);
                                 var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
                                 lock (progressLock)
@@ -184,16 +194,14 @@ namespace PdfConverter.Services
                                 }
                             }
                         }
-                    }));
+                    }, cancellationToken));
 
-                await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks).ConfigureAwait(false);
 
-                if (cancellationToken.IsCancellationRequested || completedCount != total)
-                {
-                    return;
-                }
+                // 全ページの書き出し後に要求されたキャンセルでも、保存先へ反映せずに中断する
+                cancellationToken.ThrowIfCancellationRequested();
 
-                CommitStagedFiles(stagingDirectory, folderPath, pagesToSave, format);
+                CommitStagedFiles(stagingDirectory, folderPath, pagesToSave, pageCount, format);
 
                 if (progress != null)
                 {
@@ -219,7 +227,7 @@ namespace PdfConverter.Services
         /// <returns>保存対象のページインデックス一覧</returns>
         /// <exception cref="ArgumentException">有効なページインデックス一覧または"全ページを保存"を選択してください</exception>
         /// <exception cref="ArgumentOutOfRangeException">範囲外のページインデックスが含まれている場合</exception>
-        private static List<int> ResolvePagesToSave(IEnumerable<int> pageIndexes, bool saveAllPages, int pageCount)
+        private static List<int> ResolvePagesToSave(IEnumerable<int>? pageIndexes, bool saveAllPages, int pageCount)
         {
             if (saveAllPages)
             {
@@ -246,31 +254,38 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 保存処理の並列ワーカー数を CPU コア数と PDF サイズから決定する
+        /// 保存処理の並列ワーカー数を CPU コア数・PDF サイズ・描画サイズから決定する
         /// </summary>
         /// <param name="processorCount">利用可能な論理プロセッサ数</param>
         /// <param name="fileSizeBytes">PDF ファイルサイズ (バイト)</param>
+        /// <param name="maxPagePixels">保存対象ページのうち最大の描画画素数</param>
+        /// <param name="pixelBudget">全ワーカーで同時に描画してよい画素数の合計</param>
         /// <returns>1以上の並列ワーカー数</returns>
-        internal static int ResolveSaveParallelism(int processorCount, long fileSizeBytes)
+        internal static int ResolveSaveParallelism(int processorCount, long fileSizeBytes, long maxPagePixels, long pixelBudget)
         {
             int cpuBound = Math.Max(1, Math.Min(processorCount, MaxSaveParallelism));
 
+            int fileSizeBound;
             if (fileSizeBytes <= SmallPdfThresholdBytes)
             {
-                return cpuBound;
+                fileSizeBound = cpuBound;
             }
-
-            if (fileSizeBytes <= MediumPdfThresholdBytes)
+            else if (fileSizeBytes <= MediumPdfThresholdBytes)
             {
-                return Math.Min(cpuBound, 2);
+                fileSizeBound = Math.Min(cpuBound, 2);
             }
-
-            if (fileSizeBytes <= MaxCacheableFileSizeBytes)
+            else
             {
-                return 1;
+                fileSizeBound = 1;
             }
 
-            return 1;
+            if (maxPagePixels <= 0)
+            {
+                return fileSizeBound;
+            }
+
+            long pixelBound = Math.Max(1, pixelBudget / maxPagePixels);
+            return (int)Math.Min(fileSizeBound, pixelBound);
         }
 
         /// <summary>
@@ -279,7 +294,7 @@ namespace PdfConverter.Services
         /// <param name="pages">0始まりのページインデックス一覧</param>
         /// <param name="partitionCount">分割するパーティション数</param>
         /// <returns>分割されたページインデックスのリスト</returns>
-        private static IReadOnlyList<IReadOnlyList<int>> PartitionPages(IReadOnlyList<int> pages, int partitionCount)
+        private static List<List<int>> PartitionPages(List<int> pages, int partitionCount)
         {
             var partitions = Enumerable.Range(0, partitionCount)
                 .Select(_ => new List<int>())
@@ -323,7 +338,7 @@ namespace PdfConverter.Services
                 }
             }
 
-            byte[] fileBytes = await Task.Run(() => File.ReadAllBytes(filePath));
+            byte[] fileBytes = await Task.Run(() => File.ReadAllBytes(filePath)).ConfigureAwait(false);
             ValidatePdfHeader(fileBytes);
 
             lock (_cacheLock)
@@ -354,12 +369,12 @@ namespace PdfConverter.Services
         /// <summary>
         /// 解像度モードと値から PDFium のレンダリングスケールを計算する
         /// </summary>
-        /// <param name="docReader1x">scale 1.0 で開いた DocReader</param>
+        /// <param name="document">PDF 文書</param>
         /// <param name="samplePageIndex">Width/Height モードで自然サイズを取得するページインデックス</param>
         /// <param name="mode">解像度の指定方法</param>
         /// <param name="value">解像度の値</param>
         /// <returns>PDFium レンダリングスケール (1.0 = 72 DPI)</returns>
-        private static double ComputeRenderScale(IDocReader docReader1x, int samplePageIndex, ResolutionMode mode, double value)
+        private static double ComputeRenderScale(PdfiumDocument document, int samplePageIndex, ResolutionMode mode, double value)
         {
             if (mode == ResolutionMode.Default || value <= 0)
             {
@@ -371,89 +386,56 @@ namespace PdfConverter.Services
                 return value / PdfiumNativeDpi;
             }
 
-            using (var pageReader = docReader1x.GetPageReader(samplePageIndex))
+            (int naturalWidth, int naturalHeight) = document.GetPagePixelSize(samplePageIndex, 1.0);
+
+            if (mode == ResolutionMode.Width)
             {
-                double naturalWidth = pageReader.GetPageWidth();
-                double naturalHeight = pageReader.GetPageHeight();
-
-                if (mode == ResolutionMode.Width)
-                {
-                    return value / naturalWidth;
-                }
-
-                return value / naturalHeight;
+                return value / naturalWidth;
             }
+
+            return value / naturalHeight;
         }
 
         /// <summary>
         /// 指定ページをビットマップとして描画する
         /// </summary>
-        /// <param name="docReader">目標スケールで開いた DocReader</param>
+        /// <param name="document">PDF 文書</param>
         /// <param name="pageIndex">ページインデックス</param>
+        /// <param name="renderScale">描画倍率</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>ビットマップ</returns>
         /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
-        private static BitmapSource RenderPage(IDocReader docReader, int pageIndex, bool preserveTransparency, CancellationToken cancellationToken)
+        private static BitmapSource RenderPage(PdfiumDocument document, int pageIndex, double renderScale, bool preserveTransparency, CancellationToken cancellationToken)
         {
-            using (var pageReader = docReader.GetPageReader(pageIndex))
+            cancellationToken.ThrowIfCancellationRequested();
+            BitmapSource source = document.RenderPage(pageIndex, renderScale);
+            BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency);
+            if (processed.CanFreeze)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                BitmapSource source = CreateBitmapFromPageReader(pageReader);
-                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency);
-                if (processed.CanFreeze)
-                {
-                    processed.Freeze();
-                }
-
-                return processed;
+                processed.Freeze();
             }
-        }
 
-        /// <summary>
-        /// <see cref="IPageReader"/> のピクセルデータからビットマップを生成する
-        /// </summary>
-        /// <param name="pageReader">PageReader</param>
-        /// <returns>ビットマップ</returns>
-        private static BitmapSource CreateBitmapFromPageReader(IPageReader pageReader)
-        {
-            int width = pageReader.GetPageWidth();
-            int height = pageReader.GetPageHeight();
-            byte[] imageBytes = pageReader.GetImage();
-
-            // Docnet.Core は BGRA32 形式でピクセルデータを返す (stride = width * 4 bytes)
-            var source = BitmapSource.Create(
-                width,
-                height,
-                96,
-                96,
-                PixelFormats.Bgra32,
-                null,
-                imageBytes,
-                width * 4);
-            source.Freeze();
-            return source;
+            return processed;
         }
 
         /// <summary>
         /// 指定ページを画像ファイルとして保存する
         /// </summary>
-        /// <param name="docReader">目標スケールで開いた DocReader</param>
+        /// <param name="document">PDF 文書</param>
         /// <param name="pageIndex">ページインデックス</param>
+        /// <param name="renderScale">描画倍率</param>
+        /// <param name="pageCount">PDF の総ページ数 (ファイル名のゼロ埋め桁数に使用)</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="format">出力画像形式</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
-        private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, OutputImageFormat format, bool preserveTransparency)
+        private static void SavePageToFile(PdfiumDocument document, int pageIndex, double renderScale, int pageCount, string folderPath, OutputImageFormat format, bool preserveTransparency)
         {
-            using (var pageReader = docReader.GetPageReader(pageIndex))
-            {
-                BitmapSource source = CreateBitmapFromPageReader(pageReader);
-                bool effectivePreserveTransparency = preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
-                BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, effectivePreserveTransparency);
-                string extension = ImageBitmapHelper.GetFileExtension(format);
-                string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}{extension}");
-                ImageBitmapHelper.SaveToFile(processed, outputPath, format);
-            }
+            BitmapSource source = document.RenderPage(pageIndex, renderScale);
+            bool effectivePreserveTransparency = preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
+            BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, effectivePreserveTransparency);
+            string outputPath = Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format));
+            ImageBitmapHelper.SaveToFile(processed, outputPath, format);
         }
 
         /// <summary>
@@ -462,20 +444,21 @@ namespace PdfConverter.Services
         /// <param name="stagingDirectory">ステージングディレクトリの絶対パス</param>
         /// <param name="folderPath">保存先フォルダーの絶対パス</param>
         /// <param name="pagesToSave">保存対象のページインデックス一覧</param>
+        /// <param name="pageCount">PDF の総ページ数 (ファイル名のゼロ埋め桁数に使用)</param>
         /// <param name="format">出力画像形式</param>
         /// <exception cref="FileNotFoundException">ステージング済みファイルが見つからない場合</exception>
         private static void CommitStagedFiles(
             string stagingDirectory,
             string folderPath,
             IReadOnlyList<int> pagesToSave,
+            int pageCount,
             OutputImageFormat format)
         {
             Directory.CreateDirectory(folderPath);
-            string extension = ImageBitmapHelper.GetFileExtension(format);
 
             foreach (int pageIndex in pagesToSave)
             {
-                string fileName = $"page_{pageIndex + 1}{extension}";
+                string fileName = PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format);
                 string sourcePath = Path.Combine(stagingDirectory, fileName);
                 if (!File.Exists(sourcePath))
                 {
@@ -504,24 +487,43 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// ファイルの先頭4バイトが PDF マジックナンバー (<c>%PDF</c>) であることを検証する
+        /// ファイル先頭 <see cref="MaxPdfHeaderOffset"/> バイト以内に PDF マジックナンバー (<c>%PDF</c>) があることを検証する
         /// </summary>
         /// <param name="fileBytes">PDF ファイルのバイト配列</param>
         /// <exception cref="InvalidDataException">PDF ファイルではない場合</exception>
         private static void ValidatePdfHeader(byte[] fileBytes)
         {
-            if (fileBytes == null || fileBytes.Length < 4)
+            if (FindPdfHeaderOffset(fileBytes) < 0)
             {
                 throw new InvalidDataException("PDF ファイルではありません。ファイルが破損している可能性があります。");
+            }
+        }
+
+        /// <summary>
+        /// ファイル先頭 <see cref="MaxPdfHeaderOffset"/> バイト以内にある PDF マジックナンバー (<c>%PDF</c>) の位置を返す
+        /// </summary>
+        /// <param name="fileBytes">PDF ファイルのバイト配列</param>
+        /// <returns>マジックナンバーの開始オフセット。見つからない場合は -1</returns>
+        internal static int FindPdfHeaderOffset(byte[] fileBytes)
+        {
+            if (fileBytes == null)
+            {
+                return -1;
             }
 
-            if (fileBytes[0] != '%'
-                || fileBytes[1] != 'P'
-                || fileBytes[2] != 'D'
-                || fileBytes[3] != 'F')
+            int lastOffset = Math.Min(MaxPdfHeaderOffset, fileBytes.Length - 4);
+            for (int offset = 0; offset <= lastOffset; offset++)
             {
-                throw new InvalidDataException("PDF ファイルではありません。ファイルが破損している可能性があります。");
+                if (fileBytes[offset] == '%'
+                    && fileBytes[offset + 1] == 'P'
+                    && fileBytes[offset + 2] == 'D'
+                    && fileBytes[offset + 3] == 'F')
+                {
+                    return offset;
+                }
             }
+
+            return -1;
         }
     }
 }

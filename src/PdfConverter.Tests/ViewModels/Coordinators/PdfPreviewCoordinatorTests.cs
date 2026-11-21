@@ -149,7 +149,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             try
             {
                 coordinator.LoadFromPath(host, forceReload: true);
-                await Task.Delay(50);
+                await Task.Delay(50, cancellationToken: TestContext.Current.CancellationToken);
 
                 Assert.True(host.IsBusy);
 
@@ -317,7 +317,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             try
             {
                 Task navigationTask = coordinator.GoToNextPageAsync(host);
-                await Task.Delay(PreviewUiFeedback.ActivationDelayMilliseconds + 100);
+                await Task.Delay(PreviewUiFeedback.ActivationDelayMilliseconds + 100, cancellationToken: TestContext.Current.CancellationToken);
 
                 Assert.True(host.IsBusy);
                 Assert.Equal(StatusKind.Progress, host.StatusKind);
@@ -379,7 +379,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             try
             {
                 coordinator.RequestRefreshIfLoaded(host);
-                await Task.Delay(50);
+                await Task.Delay(50, cancellationToken: TestContext.Current.CancellationToken);
                 host.ResolutionValue = "800";
                 coordinator.RequestRefreshIfLoaded(host);
 

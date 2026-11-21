@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using PdfConverter.Models;
 using PdfConverter.Services;
 
@@ -33,7 +34,7 @@ namespace PdfConverter.Infrastructure
         /// <param name="options">解析結果</param>
         /// <param name="errorMessage">解析失敗時のメッセージ</param>
         /// <returns>true: バッチモードとして処理する / false: GUI 起動</returns>
-        public static bool TryParse(string[] args, out BatchCliOptions options, out string errorMessage)
+        public static bool TryParse(string[] args, out BatchCliOptions? options, out string? errorMessage)
         {
             options = null;
             errorMessage = null;
@@ -122,6 +123,7 @@ namespace PdfConverter.Infrastructure
 複数ファイルを同じ出力フォルダーへ保存する場合、各ファイルは
 <出力フォルダー>\<ファイル名>\page_1.png のようにサブフォルダーへ出力されます。
 入力が 1 件のみの場合は <出力フォルダー>\page_1.png 形式です。
+ページ番号は総ページ数の桁数までゼロ埋めされます (例: 12 ページなら page_01.png)。
 
 GUI モードでは従来どおり、引数にファイルパスを指定するだけで起動できます。";
         }
@@ -157,8 +159,8 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         private static bool IsSwitch(string arg)
         {
             return arg.StartsWith("--", StringComparison.Ordinal)
-                || arg.StartsWith("-", StringComparison.Ordinal)
-                || arg.StartsWith("/", StringComparison.Ordinal);
+                || arg.StartsWith('-')
+                || arg.StartsWith('/');
         }
 
         /// <summary>スイッチ引数を解析する</summary>
@@ -167,14 +169,14 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         /// <param name="options">解析結果</param>
         /// <param name="errorMessage">エラーメッセージ</param>
         /// <returns>true: 解析成功</returns>
-        private static bool TryParseSwitch(string[] args, ref int index, BatchCliOptions options, out string errorMessage)
+        private static bool TryParseSwitch(string[] args, ref int index, BatchCliOptions options, [NotNullWhen(false)] out string? errorMessage)
         {
             errorMessage = null;
             string arg = args[index];
             string switchName = NormalizeSwitchName(arg);
-            string value = null;
+            string? value = null;
 
-            if (TrySplitSwitchValue(arg, out string inlineName, out string inlineValue))
+            if (TrySplitSwitchValue(arg, out string? inlineName, out string? inlineValue))
             {
                 switchName = inlineName;
                 value = inlineValue;
@@ -207,7 +209,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     return true;
                 case "output":
                 case "o":
-                    if (!TryReadOptionValue(args, ref index, value, out string outputPath, out errorMessage))
+                    if (!TryReadOptionValue(args, ref index, value, out string? outputPath, out errorMessage))
                     {
                         return false;
                     }
@@ -216,7 +218,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     return true;
                 case "pages":
                 case "p":
-                    if (!TryReadOptionValue(args, ref index, value, out string pageRange, out errorMessage))
+                    if (!TryReadOptionValue(args, ref index, value, out string? pageRange, out errorMessage))
                     {
                         return false;
                     }
@@ -225,7 +227,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     return true;
                 case "format":
                 case "f":
-                    if (!TryReadOptionValue(args, ref index, value, out string formatValue, out errorMessage))
+                    if (!TryReadOptionValue(args, ref index, value, out string? formatValue, out errorMessage))
                     {
                         return false;
                     }
@@ -238,7 +240,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     options.Format = format;
                     return true;
                 case "resolution-mode":
-                    if (!TryReadOptionValue(args, ref index, value, out string modeValue, out errorMessage))
+                    if (!TryReadOptionValue(args, ref index, value, out string? modeValue, out errorMessage))
                     {
                         return false;
                     }
@@ -252,7 +254,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     return true;
                 case "resolution":
                 case "r":
-                    if (!TryReadOptionValue(args, ref index, value, out string resolutionValue, out errorMessage))
+                    if (!TryReadOptionValue(args, ref index, value, out string? resolutionValue, out errorMessage))
                     {
                         return false;
                     }
@@ -275,12 +277,12 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                 return arg.Substring(2).Trim().ToLowerInvariant();
             }
 
-            if (arg.StartsWith("/", StringComparison.Ordinal))
+            if (arg.StartsWith('/'))
             {
                 return arg.Substring(1).Trim().ToLowerInvariant();
             }
 
-            if (arg.StartsWith("-", StringComparison.Ordinal))
+            if (arg.StartsWith('-'))
             {
                 return arg.Substring(1).Trim().ToLowerInvariant();
             }
@@ -293,7 +295,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         /// <param name="switchName">スイッチ名</param>
         /// <param name="value">値</param>
         /// <returns>true: 分割できた</returns>
-        private static bool TrySplitSwitchValue(string arg, out string switchName, out string value)
+        private static bool TrySplitSwitchValue(string arg, [NotNullWhen(true)] out string? switchName, [NotNullWhen(true)] out string? value)
         {
             switchName = null;
             value = null;
@@ -319,9 +321,9 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         private static bool TryReadOptionValue(
             string[] args,
             ref int index,
-            string inlineValue,
-            out string value,
-            out string errorMessage)
+            string? inlineValue,
+            [NotNullWhen(true)] out string? value,
+            [NotNullWhen(false)] out string? errorMessage)
         {
             errorMessage = null;
             value = null;
@@ -348,7 +350,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         /// <param name="format">出力形式</param>
         /// <param name="errorMessage">エラーメッセージ</param>
         /// <returns>true: 解析成功</returns>
-        private static bool TryParseFormat(string value, out OutputImageFormat format, out string errorMessage)
+        private static bool TryParseFormat(string value, out OutputImageFormat format, [NotNullWhen(false)] out string? errorMessage)
         {
             format = OutputImageFormat.Png;
             errorMessage = null;
@@ -379,7 +381,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         /// <param name="mode">解像度モード</param>
         /// <param name="errorMessage">エラーメッセージ</param>
         /// <returns>true: 解析成功</returns>
-        private static bool TryParseResolutionMode(string value, out ResolutionMode mode, out string errorMessage)
+        private static bool TryParseResolutionMode(string value, out ResolutionMode mode, [NotNullWhen(false)] out string? errorMessage)
         {
             mode = ResolutionMode.Width;
             errorMessage = null;
@@ -403,7 +405,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         /// <param name="options">解析結果</param>
         /// <param name="errorMessage">エラーメッセージ</param>
         /// <returns>true: 検証成功</returns>
-        private static bool Validate(BatchCliOptions options, out string errorMessage)
+        private static bool Validate(BatchCliOptions options, [NotNullWhen(false)] out string? errorMessage)
         {
             errorMessage = null;
 

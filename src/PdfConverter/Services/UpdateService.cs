@@ -108,10 +108,10 @@ namespace PdfConverter.Services
                     if (!response.IsSuccessStatusCode)
                     {
                         return UpdateCheckResult.Failed(
-                            $"最新版の照会に失敗しました。（HTTP {(int)response.StatusCode}）");
+                            $"最新版の照会に失敗しました。(HTTP {(int)response.StatusCode})");
                     }
 
-                    string json = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                    string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
                     VersionApiResponse parsed = VersionApiJsonParser.Parse(json);
                     return UpdateEvaluator.Evaluate(currentVersion, parsed, _platformProvider());
                 }
@@ -128,7 +128,7 @@ namespace PdfConverter.Services
 
         /// <inheritdoc/>
         public async Task<UpdateApplyResult> ApplyUpdateAsync(
-            AvailableUpdate update,
+            AvailableUpdate? update,
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
@@ -145,18 +145,31 @@ namespace PdfConverter.Services
                     "リリースキーが埋め込まれていません。UpdateReleaseKey.local.props または環境変数 PDF_CONVERTER_KEY を設定してビルドしてください。");
             }
 
-            if (!UpdateDigestHelper.TryValidateDeclaredSize(update.Size, out string sizeError))
+            if (!UpdateDigestHelper.TryValidateDeclaredSize(update.Size, out string? sizeError))
             {
                 return UpdateApplyResult.Failed(sizeError);
             }
 
-            string workDir = Path.Combine(
-                PdfConverterTempDirectory.GetRootPath(),
-                "updates",
-                update.LatestVersion ?? "unknown");
-            Directory.CreateDirectory(workDir);
+            // 更新サーバーの応答をパスに組み込むため、作業フォルダー外への書き込みを防ぐ
+            string versionDirectoryName = update.LatestVersion ?? "unknown";
+            if (!UpdateAssetSelector.IsSafeFileName(versionDirectoryName)
+                || !UpdateAssetSelector.IsSafeFileName(update.AssetName))
+            {
+                return UpdateApplyResult.Failed("更新情報のバージョンまたはファイル名が不正です。");
+            }
 
-            string destinationPath = Path.Combine(workDir, update.AssetName);
+            string updatesRoot = Path.GetFullPath(Path.Combine(
+                PdfConverterTempDirectory.GetRootPath(),
+                "updates"));
+            string workDir = Path.GetFullPath(Path.Combine(updatesRoot, versionDirectoryName));
+            string destinationPath = Path.GetFullPath(Path.Combine(workDir, update.AssetName));
+            if (!string.Equals(Path.GetDirectoryName(workDir), updatesRoot, StringComparison.OrdinalIgnoreCase)
+                || !string.Equals(Path.GetDirectoryName(destinationPath), workDir, StringComparison.OrdinalIgnoreCase))
+            {
+                return UpdateApplyResult.Failed("更新情報のバージョンまたはファイル名が不正です。");
+            }
+
+            Directory.CreateDirectory(workDir);
             string downloadUrl =
                 $"{_bridgeBaseUrl}/{ReleaseOwner}/{ReleaseRepo}/{Uri.EscapeDataString(update.Tag)}/{Uri.EscapeDataString(update.AssetName)}";
 
@@ -178,7 +191,7 @@ namespace PdfConverter.Services
                         if (!response.IsSuccessStatusCode)
                         {
                             return UpdateApplyResult.Failed(
-                                $"インストーラーのダウンロードに失敗しました。（HTTP {(int)response.StatusCode}）");
+                                $"インストーラーのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
                         }
 
                         await DownloadToFileAsync(
@@ -195,7 +208,7 @@ namespace PdfConverter.Services
                 {
                     TryDelete(destinationPath);
                     return UpdateApplyResult.Failed(
-                        $"ダウンロードサイズが一致しません。（期待: {update.Size}, 実際: {actualSize}）");
+                        $"ダウンロードサイズが一致しません。(期待: {update.Size}, 実際: {actualSize})");
                 }
 
                 string actualHash = UpdateDigestHelper.ComputeSha256Hex(destinationPath);
@@ -262,7 +275,7 @@ namespace PdfConverter.Services
                 UseShellExecute = true,
             };
 
-            Process process = Process.Start(startInfo);
+            Process? process = Process.Start(startInfo);
             return process != null;
         }
 
@@ -273,7 +286,7 @@ namespace PdfConverter.Services
             CancellationToken cancellationToken)
         {
             long absoluteMax = Math.Max(expectedSize, UpdateDigestHelper.MaxUpdateDownloadBytes);
-            using (Stream source = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+            using (Stream source = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false))
             using (var destination = new FileStream(
                 destinationPath,
                 FileMode.Create,
@@ -285,7 +298,7 @@ namespace PdfConverter.Services
                 var buffer = new byte[81920];
                 long total = 0;
                 int read;
-                while ((read = await source.ReadAsync(buffer, 0, buffer.Length, cancellationToken)
+                while ((read = await source.ReadAsync(buffer, cancellationToken)
                     .ConfigureAwait(false)) > 0)
                 {
                     total += read;
@@ -294,7 +307,7 @@ namespace PdfConverter.Services
                         throw new InvalidDataException("ダウンロードサイズが宣言値または上限を超えました。");
                     }
 
-                    await destination.WriteAsync(buffer, 0, read, cancellationToken).ConfigureAwait(false);
+                    await destination.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                 }
             }
         }
@@ -316,10 +329,7 @@ namespace PdfConverter.Services
 
         private void ThrowIfDisposed()
         {
-            if (_disposed)
-            {
-                throw new ObjectDisposedException(nameof(UpdateService));
-            }
+            ObjectDisposedException.ThrowIf(_disposed, this);
         }
     }
 }

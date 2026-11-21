@@ -1,10 +1,11 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// セマンティックバージョンの正規化と比較（major.minor.patch）
+    /// セマンティックバージョンの正規化と比較 (major.minor.patch)
     /// </summary>
     public static class SemVerComparer
     {
@@ -32,12 +33,12 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// バージョン文字列を解析する（<c>v</c> 付き可）
+        /// バージョン文字列を解析する (<c>v</c> 付き可)
         /// </summary>
         /// <param name="value">バージョン文字列</param>
         /// <param name="version">解析結果</param>
         /// <returns>解析に成功すれば <c>true</c></returns>
-        public static bool TryParse(string value, out Version version)
+        public static bool TryParse(string? value, [NotNullWhen(true)] out Version? version)
         {
             version = null;
             if (string.IsNullOrWhiteSpace(value))
@@ -52,10 +53,9 @@ namespace PdfConverter.Services
                 normalized = normalized.Substring(0, plusIndex);
             }
 
-            int dashIndex = normalized.IndexOf('-');
-            if (dashIndex >= 0)
+            if (normalized.Contains('-'))
             {
-                // プレリリース付きは非対応（数値部のみでは誤解を招くため失敗とする）
+                // プレリリース付きは非対応 (数値部のみでは誤解を招くため失敗とする)
                 return false;
             }
 
@@ -100,15 +100,8 @@ namespace PdfConverter.Services
         /// <returns>left &gt; right なら <c>true</c></returns>
         public static bool IsNewer(Version left, Version right)
         {
-            if (left == null)
-            {
-                throw new ArgumentNullException(nameof(left));
-            }
-
-            if (right == null)
-            {
-                throw new ArgumentNullException(nameof(right));
-            }
+            ArgumentNullException.ThrowIfNull(left);
+            ArgumentNullException.ThrowIfNull(right);
 
             return Normalize(left).CompareTo(Normalize(right)) > 0;
         }

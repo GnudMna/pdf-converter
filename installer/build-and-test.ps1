@@ -1,12 +1,7 @@
 # PDF Converter — ビルドと単体テストの一括実行スクリプト
 #
 # 必要環境:
-#   - Visual Studio 2022 17.10 以降（または MSBuild 17.10+）— .slnx 対応
-#   - .NET SDK (dotnet CLI) — SDK 形式の PdfConverter.Tests の復元に必要
-#   - NuGet CLI (nuget.exe) — Visual Studio に同梱、または PATH 上の nuget
-#
-# PdfConverter.Tests は SDK 形式のため、PdfConverter.slnx でのみビルドします。
-# 互換用の PdfConverter.sln にはテストプロジェクトは含まれません。
+#   - .NET SDK 10 以降 (dotnet CLI)
 #
 # 使用例:
 #   .\build-and-test.ps1                  # Debug / x64 でビルドしてテスト実行
@@ -35,22 +30,22 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'build-common.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$solutionPath = Resolve-SolutionPath -RepoRoot $repoRoot -PreferredPath $SolutionPath -RequireSlnx
-$testExePath = Join-Path $repoRoot "src\PdfConverter.Tests\bin\$Platform\$Configuration\net481\PdfConverter.Tests.exe"
+$solutionPath = Resolve-SolutionPath -RepoRoot $repoRoot -PreferredPath $SolutionPath
+$testExePath = Join-Path $repoRoot "src\PdfConverter.Tests\bin\$Platform\$Configuration\net10.0-windows\PdfConverter.Tests.exe"
 
 $shouldPauseOnExit = -not $NoPause -and (Test-DoubleClickLaunch)
 $exitCode = 0
 
 try {
+    $dotnet = Find-DotNet
+    Write-Host "dotnet: $dotnet"
+
     if (-not $SkipRestore) {
-        Restore-NuGetPackages -SolutionPath $solutionPath -AllowSlnFallback:$false
+        Restore-Packages -Path $solutionPath -Platform $Platform
     }
 
-    $msbuild = Find-MSBuild
-    Write-Host "MSBuild: $msbuild"
     Write-Host "ソリューションをビルドしています ($Configuration / $Platform)..."
-
-    & $msbuild $solutionPath /p:Configuration=$Configuration /p:Platform=$Platform /t:Rebuild /v:minimal
+    & $dotnet build $solutionPath -c $Configuration "-p:Platform=$Platform" --no-restore --no-incremental -v:minimal
     if ($LASTEXITCODE -ne 0) {
         throw 'ビルドに失敗しました'
     }

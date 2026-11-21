@@ -1,5 +1,4 @@
 using System;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -15,7 +14,7 @@ namespace PdfConverter
 {
     /// <summary>
     /// アプリケーションのエントリーポイント<br/>
-    /// 起動時にネイティブ DLL の検索パスを設定し、依存関係を組み立てる
+    /// 起動時にユーザー設定を初期化し、依存関係を組み立てる
     /// </summary>
     public partial class App : Application
     {
@@ -23,19 +22,12 @@ namespace PdfConverter
         /*                                 ローカル変数                                 */
         /********************************************************************************/
         /// <summary>アプリケーション全体で共有するサービスプロバイダー</summary>
-        private IServiceProvider _serviceProvider;
+        private IServiceProvider? _serviceProvider;
 
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        /// <summary>
-        /// 指定したディレクトリをプロセスの DLL 検索パスに追加する Win32 API<br/>
-        /// Docnet.Core が依存する PDFium ネイティブ DLL を <c>lib\</c> サブフォルダーから読み込めるようにするために <c>P/Invoke</c> で呼び出す
-        /// </summary>
-        [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-        private static extern bool SetDllDirectory(string lpPathName);
-
         /// <inheritdoc/>
         protected override void OnStartup(StartupEventArgs e)
         {
@@ -48,9 +40,6 @@ namespace PdfConverter
             UserSettingsBootstrapResult settingsBootstrap = UserSettingsInitializer.Initialize();
 
             PdfConverterTempDirectory.CleanupStaleEntries(PdfConverterTempDirectory.DefaultStaleAge);
-
-            SetDllDirectory(ApplicationStartupHelper.GetNativeDllSearchPath(
-                System.Reflection.Assembly.GetExecutingAssembly().Location));
 
             if (TryRunBatchMode(e.Args, settingsBootstrap))
             {
@@ -65,7 +54,7 @@ namespace PdfConverter
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
 
-            if (ApplicationStartupHelper.TryGetInitialDocumentPath(e.Args, out string initialFilePath)
+            if (ApplicationStartupHelper.TryGetInitialDocumentPath(e.Args, out string? initialFilePath)
                 && mainWindow.DataContext is IMainWindowViewModel viewModel)
             {
                 mainWindow.Dispatcher.BeginInvoke(
@@ -96,7 +85,7 @@ namespace PdfConverter
                 disposable.Dispose();
             }
 
-            PdfConverterTempDirectory.TryCleanupAll();
+            PdfConverterTempDirectory.CleanupInstanceDirectory();
 
             base.OnExit(e);
         }
@@ -109,7 +98,7 @@ namespace PdfConverter
         /// <returns>true: バッチモードとして処理済み / false: GUI 起動を続行</returns>
         private bool TryRunBatchMode(string[] args, UserSettingsBootstrapResult settingsBootstrap)
         {
-            if (!BatchCliParser.TryParse(args, out BatchCliOptions options, out string parseError))
+            if (!BatchCliParser.TryParse(args, out BatchCliOptions? options, out string? parseError))
             {
                 return false;
             }
@@ -146,7 +135,7 @@ namespace PdfConverter
                     _serviceProvider = null;
                 }
 
-                PdfConverterTempDirectory.TryCleanupAll();
+                PdfConverterTempDirectory.CleanupInstanceDirectory();
                 GlobalExceptionHandler.Unregister();
                 Shutdown(exitCode);
             }

@@ -28,7 +28,7 @@ namespace PdfConverter.Tests.Services
         {
             var service = CreateService();
 
-            int exitCode = await service.RunAsync(new BatchCliOptions { ShowHelp = true });
+            int exitCode = await service.RunAsync(new BatchCliOptions { ShowHelp = true }, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
         }
@@ -75,7 +75,7 @@ namespace PdfConverter.Tests.Services
             };
             options.InputFiles.Add(pdfPath);
 
-            int exitCode = await service.RunAsync(options);
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
             pdfService.VerifyAll();
@@ -112,7 +112,7 @@ namespace PdfConverter.Tests.Services
             };
             options.InputFiles.Add(pdfPath);
 
-            int exitCode = await service.RunAsync(options);
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
             pdfService.Verify(
@@ -155,12 +155,88 @@ namespace PdfConverter.Tests.Services
             };
             options.InputFiles.Add(wordPath);
 
-            int exitCode = await service.RunAsync(options);
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
 
             string destinationPath = Path.Combine(outputDir, Path.GetFileNameWithoutExtension(wordPath) + ".pdf");
             Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
             Assert.True(File.Exists(destinationPath));
             Assert.Equal("pdf", File.ReadAllText(destinationPath));
+        }
+
+        /// <summary>
+        /// 継続を処理しない SynchronizationContext (ブロック中の UI スレッド相当) 上で
+        /// 同期的に完了を待ってもデッドロックしないことを検証する
+        /// </summary>
+        [Fact]
+        public void RunAsync_BlockingWaitOnNonPumpingContext_DoesNotDeadlock()
+        {
+            string outputDir = CreateTempDirectory();
+            string pdfPath = CreateTempPdfPath();
+            var pdfService = new Mock<IPdfConversionService>();
+            pdfService
+                .Setup(s => s.GetPdfPageCountAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await Task.Delay(50);
+                    return 1;
+                });
+            pdfService
+                .Setup(s => s.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    It.IsAny<IEnumerable<int>>(),
+                    outputDir,
+                    true,
+                    It.IsAny<ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<OutputImageFormat>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IProgress<SaveProgressReport>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(() => Task.Delay(50));
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    await Task.Delay(50);
+                    return pdfPath;
+                });
+
+            var service = CreateService(pdfService.Object, documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+                Quiet = true,
+            };
+            options.InputFiles.Add(pdfPath);
+
+            int? exitCode = null;
+            Exception failure = null;
+            var thread = new Thread(() =>
+            {
+                SynchronizationContext.SetSynchronizationContext(new NonPumpingSynchronizationContext());
+                try
+                {
+                    exitCode = service.RunAsync(options).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                }
+            })
+            {
+                IsBackground = true,
+            };
+
+            thread.Start();
+            bool completed = thread.Join(TimeSpan.FromSeconds(10));
+
+            Assert.True(completed, "RunAsync の同期待機がデッドロックした");
+            Assert.Null(failure);
+            Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
         }
 
 
@@ -197,6 +273,27 @@ namespace PdfConverter.Tests.Services
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-batch-{Guid.NewGuid():N}.docx");
             File.WriteAllText(path, "word");
             return path;
+        }
+
+
+        /********************************************************************************/
+        /*                                   ネスト型                                   */
+        /********************************************************************************/
+        /// <summary>
+        /// 投稿された継続を一切実行しない SynchronizationContext<br/>
+        /// メッセージループが同期待機でブロックされた UI スレッドを模擬する
+        /// </summary>
+        private sealed class NonPumpingSynchronizationContext : SynchronizationContext
+        {
+            /// <inheritdoc/>
+            public override void Post(SendOrPostCallback d, object state)
+            {
+            }
+
+            /// <inheritdoc/>
+            public override void Send(SendOrPostCallback d, object state)
+            {
+            }
         }
     }
 }

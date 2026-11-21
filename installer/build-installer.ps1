@@ -1,9 +1,11 @@
 # PDF Converter インストーラーのビルドスクリプト
 #
 # 必要環境:
-#   - Visual Studio 2019 以降（または Build Tools）— MSBuild
-#   - NuGet CLI (nuget.exe) — Visual Studio に同梱、または PATH 上の nuget
+#   - .NET SDK 10 以降 (dotnet CLI)
 #   - Inno Setup 6 — ISCC.exe
+#
+# アプリは .NET ランタイム同梱 (self-contained) で dotnet publish し、
+# src\PdfConverter\bin\<Platform>\publish の内容をインストーラーへ格納します。
 #
 # インストーラーは管理者権限を要求しないユーザー単位インストールです。
 # インストール先: %LOCALAPPDATA%\Programs\PDF Converter
@@ -11,10 +13,8 @@
 # 使用例:
 #   .\build-installer.ps1                    # x64 のみ
 #   .\build-installer.ps1 -Platform all        # x86 と x64 の両方
-#   .\build-installer.ps1 -SkipBuild           # アプリの再ビルドをスキップ
-#   .\build-installer.ps1 -SkipRestore         # パッケージ復元をスキップ
-#   .\build-installer.ps1 -NoPause             # 完了後のキー入力待ちを省略（ターミナル向け）
-#   .\build-installer.ps1 -SolutionPath ..\src\PdfConverter.sln  # ソリューションを明示指定
+#   .\build-installer.ps1 -SkipBuild           # publish をスキップ (既存の publish 出力を使用)
+#   .\build-installer.ps1 -NoPause             # 完了後のキー入力待ちを省略 (ターミナル向け)
 
 [CmdletBinding()]
 param(
@@ -23,11 +23,7 @@ param(
 
     [switch] $SkipBuild,
 
-    [switch] $SkipRestore,
-
-    [switch] $NoPause,
-
-    [string] $SolutionPath
+    [switch] $NoPause
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,7 +31,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'build-common.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$solutionPath = Resolve-SolutionPath -RepoRoot $repoRoot -PreferredPath $SolutionPath
+$projectPath = Join-Path $repoRoot 'src\PdfConverter\PdfConverter.csproj'
 $issPath = Join-Path $PSScriptRoot 'PdfConverter.iss'
 $distDir = Join-Path $repoRoot 'dist'
 $assemblyInfoPath = Join-Path $repoRoot 'src\PdfConverter\Properties\AssemblyInfo.cs'
@@ -70,21 +66,31 @@ function Get-AppVersion {
     throw "AssemblyInfo.cs からバージョンを取得できませんでした: $assemblyInfoPath"
 }
 
-function Build-App {
+function Get-PublishDir {
     param(
-        [string] $SolutionPath,
-        [string[]] $Platforms
+        [string] $TargetPlatform
     )
 
-    $msbuild = Find-MSBuild
-    Write-Host "MSBuild: $msbuild"
+    return Join-Path $repoRoot "src\PdfConverter\bin\$TargetPlatform\publish"
+}
 
-    foreach ($plat in $Platforms) {
-        Write-Host "アプリをビルドしています (Release / $plat)..."
-        & $msbuild $SolutionPath /t:PdfConverter:Rebuild /p:Configuration=Release /p:Platform=$plat /v:minimal
-        if ($LASTEXITCODE -ne 0) {
-            throw "ビルドに失敗しました (Platform=$plat)"
-        }
+function Publish-App {
+    param(
+        [string] $TargetPlatform
+    )
+
+    $dotnet = Find-DotNet
+    $publishDir = Get-PublishDir -TargetPlatform $TargetPlatform
+
+    # 前回の publish 出力が混ざらないよう作り直す
+    if (Test-Path -LiteralPath $publishDir) {
+        Remove-Item -LiteralPath $publishDir -Recurse -Force
+    }
+
+    Write-Host "アプリを publish しています (Release / $TargetPlatform)..."
+    & $dotnet publish $projectPath -c Release "-p:Platform=$TargetPlatform" -o $publishDir -v:minimal
+    if ($LASTEXITCODE -ne 0) {
+        throw "publish に失敗しました (Platform=$TargetPlatform)"
     }
 }
 
@@ -93,7 +99,7 @@ function Write-ThirdPartyNotices {
         [string] $TargetPlatform
     )
 
-    $sourceDir = Join-Path $repoRoot "src\PdfConverter\bin\$TargetPlatform\Release"
+    $sourceDir = Get-PublishDir -TargetPlatform $TargetPlatform
     $noticesPath = Join-Path $sourceDir 'THIRD-PARTY-NOTICES.txt'
     $generateScript = Join-Path $PSScriptRoot 'generate-third-party-notices.ps1'
 
@@ -107,9 +113,9 @@ function Build-Installer {
         [string] $AppVersion
     )
 
-    $sourceDir = Join-Path $repoRoot "src\PdfConverter\bin\$TargetPlatform\Release"
+    $sourceDir = Get-PublishDir -TargetPlatform $TargetPlatform
     if (-not (Test-Path (Join-Path $sourceDir 'PDF Converter.exe'))) {
-        throw "ビルド出力が見つかりません: $sourceDir`n先にビルドを実行するか、-SkipBuild を外してください。"
+        throw "publish 出力が見つかりません: $sourceDir`n先に publish を実行するか、-SkipBuild を外してください。"
     }
 
     Write-ThirdPartyNotices -TargetPlatform $TargetPlatform
@@ -138,20 +144,21 @@ try {
         default { @($Platform) }
     }
 
-    if (-not $SkipRestore) {
-        Restore-NuGetPackages -SolutionPath $solutionPath
-    }
-
     $appVersion = Get-AppVersion
     Write-Host "バージョン: $appVersion"
 
-    if (-not $SkipBuild) {
-        Build-App -SolutionPath $solutionPath -Platforms $platformsToBuild
-    }
-
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 
+    # project.assets.json は最後に復元したプラットフォームの内容になるため、
+    # publish → 通知生成 → インストーラー作成をプラットフォームごとに続けて行う
     foreach ($plat in $platformsToBuild) {
+        if ($SkipBuild) {
+            Restore-Packages -Path $projectPath -Platform $plat
+        }
+        else {
+            Publish-App -TargetPlatform $plat
+        }
+
         Build-Installer -TargetPlatform $plat -AppVersion $appVersion
     }
 

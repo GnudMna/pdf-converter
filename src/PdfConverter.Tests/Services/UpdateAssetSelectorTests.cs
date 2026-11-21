@@ -47,6 +47,48 @@ namespace PdfConverter.Tests.Services
             }));
         }
 
+        [Theory]
+        [InlineData(@"PdfConverter-..\..\evil-x64-setup.exe")]
+        [InlineData("PdfConverter-../../evil-x64-setup.exe")]
+        [InlineData(@"PdfConverter-0.5.0-x64-setup.exe:stream-x64-setup.exe")]
+        public void SelectInstaller_SkipsUnsafeNames(string unsafeName)
+        {
+            var assets = new[]
+            {
+                Asset(unsafeName),
+            };
+
+            Assert.Null(UpdateAssetSelector.SelectInstaller(assets, "x64"));
+            Assert.False(UpdateAssetSelector.HasAnyInstaller(assets));
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("")]
+        [InlineData(" ")]
+        [InlineData(".")]
+        [InlineData("..")]
+        [InlineData(@"..\setup.exe")]
+        [InlineData("../setup.exe")]
+        [InlineData(@"C:\setup.exe")]
+        [InlineData("setup.exe:stream")]
+        [InlineData("setup.exe.")]
+        [InlineData("setup.exe ")]
+        [InlineData("setup\0.exe")]
+        public void IsSafeFileName_RejectsUnsafeNames(string name)
+        {
+            Assert.False(UpdateAssetSelector.IsSafeFileName(name));
+        }
+
+        [Theory]
+        [InlineData("PdfConverter-0.5.0-x64-setup.exe")]
+        [InlineData("0.5.0")]
+        [InlineData("0.5.0-beta.1")]
+        public void IsSafeFileName_AcceptsPlainNames(string name)
+        {
+            Assert.True(UpdateAssetSelector.IsSafeFileName(name));
+        }
+
         private static VersionApiAsset Asset(string name) =>
             new VersionApiAsset
             {

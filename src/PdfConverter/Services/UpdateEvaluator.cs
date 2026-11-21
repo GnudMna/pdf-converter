@@ -11,7 +11,7 @@ namespace PdfConverter.Services
         /// <summary>
         /// version API レスポンスを評価する
         /// </summary>
-        /// <param name="currentVersionRaw">現在バージョン（表示用）</param>
+        /// <param name="currentVersionRaw">現在バージョン (表示用)</param>
         /// <param name="response">API レスポンス</param>
         /// <param name="platform"><c>x64</c> / <c>x86</c></param>
         /// <returns>判定結果</returns>
@@ -41,17 +41,17 @@ namespace PdfConverter.Services
                 return UpdateCheckResult.UpToDate(currentVersionRaw, latestRaw);
             }
 
-            VersionApiAsset asset = UpdateAssetSelector.SelectInstaller(response.Assets, platform);
+            VersionApiAsset? asset = UpdateAssetSelector.SelectInstaller(response.Assets, platform);
             if (asset == null)
             {
                 if (UpdateAssetSelector.HasAnyInstaller(response.Assets))
                 {
                     return UpdateCheckResult.Failed(
-                        $"この CPU（{platform}）向けのインストーラーが見つかりませんでした。（タグ: {response.Tag}）");
+                        $"この CPU ({platform}) 向けのインストーラーが見つかりませんでした。(タグ: {response.Tag})");
                 }
 
                 return UpdateCheckResult.Failed(
-                    $"インストーラーアセットが見つかりませんでした。（タグ: {response.Tag}）");
+                    $"インストーラーアセットが見つかりませんでした。(タグ: {response.Tag})");
             }
 
             if (string.IsNullOrWhiteSpace(asset.Digest))
@@ -59,12 +59,12 @@ namespace PdfConverter.Services
                 return UpdateCheckResult.Failed($"アセットに digest がありません: {asset.Name}");
             }
 
-            if (!UpdateDigestHelper.TryParseDigest(asset.Digest, out string sha256, out string digestError))
+            if (!UpdateDigestHelper.TryParseDigest(asset.Digest, out string? sha256, out string? digestError))
             {
                 return UpdateCheckResult.Failed(digestError);
             }
 
-            if (!UpdateDigestHelper.TryValidateDeclaredSize(asset.Size, out string sizeError))
+            if (!UpdateDigestHelper.TryValidateDeclaredSize(asset.Size, out string? sizeError))
             {
                 return UpdateCheckResult.Failed(sizeError);
             }

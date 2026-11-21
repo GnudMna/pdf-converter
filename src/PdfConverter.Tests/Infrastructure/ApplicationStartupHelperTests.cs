@@ -14,35 +14,6 @@ namespace PdfConverter.Tests.Infrastructure
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 実行アセンブリの配置先から <c>lib</c> サブフォルダーのパスを組み立てることを検証する
-        /// </summary>
-        [Fact]
-        public void GetNativeDllSearchPath_ReturnsLibSubfolder()
-        {
-            string assemblyLocation = @"C:\Apps\PDF Converter\PDF Converter.exe";
-
-            string path = ApplicationStartupHelper.GetNativeDllSearchPath(assemblyLocation);
-
-            Assert.Equal(@"C:\Apps\PDF Converter\lib", path);
-        }
-
-        /// <summary>
-        /// アセンブリ配置パスが未設定の場合はベースディレクトリを基準に <c>lib</c> を返すことを検証する
-        /// </summary>
-        [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        [InlineData("   ")]
-        public void GetNativeDllSearchPath_WhenAssemblyLocationIsMissing_UsesBaseDirectory(string assemblyLocation)
-        {
-            string path = ApplicationStartupHelper.GetNativeDllSearchPath(assemblyLocation);
-
-            Assert.Equal(
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lib"),
-                path);
-        }
-
-        /// <summary>
         /// 起動引数に有効な PDF パスがある場合に初期ドキュメントパスを返すことを検証する
         /// </summary>
         [Fact]

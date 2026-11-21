@@ -57,7 +57,7 @@ namespace PdfConverter.Services
         /*                                   イベント                                   */
         /********************************************************************************/
         /// <inheritdoc/>
-        public event EventHandler SettingsReset;
+        public event EventHandler? SettingsReset;
 
 
         /********************************************************************************/

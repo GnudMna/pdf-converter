@@ -41,10 +41,10 @@ namespace PdfConverter.ViewModels
         private bool _preserveTransparency;
 
         /// <summary>出力解像度の入力エラーメッセージ</summary>
-        private string _resolutionValidationMessage;
+        private string? _resolutionValidationMessage;
 
         /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
-        private string _pageRangeValidationMessage;
+        private string? _pageRangeValidationMessage;
 
         /// <summary>解像度の選択肢</summary>
         private static readonly IReadOnlyList<ResolutionModeOption> ResolutionModeOptionsList =
@@ -198,14 +198,14 @@ namespace PdfConverter.ViewModels
         public bool IsTransparencySelectable => ImageBitmapHelper.SupportsTransparency(OutputImageFormat);
 
         /// <summary>出力解像度の入力エラーメッセージ</summary>
-        public string ResolutionValidationMessage
+        public string? ResolutionValidationMessage
         {
             get => _resolutionValidationMessage;
             set => SetProperty(ref _resolutionValidationMessage, value);
         }
 
         /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
-        public string PageRangeValidationMessage
+        public string? PageRangeValidationMessage
         {
             get => _pageRangeValidationMessage;
             set => SetProperty(ref _pageRangeValidationMessage, value);

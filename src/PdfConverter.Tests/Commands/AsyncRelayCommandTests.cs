@@ -123,7 +123,7 @@ namespace PdfConverter.Tests.Commands
         {
             StaTestHelper.Run(() =>
             {
-                Action act = () => new AsyncRelayCommand(null);
+                Action act = () => _ = new AsyncRelayCommand(null);
 
                 Assert.Throws<ArgumentNullException>(act);
             });

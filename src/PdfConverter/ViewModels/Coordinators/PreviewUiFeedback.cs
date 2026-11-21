@@ -25,7 +25,7 @@ namespace PdfConverter.ViewModels.Coordinators
         private readonly ICoordinatorSession _session;
         private readonly Func<bool> _isOperationCurrent;
         private readonly int _delayMilliseconds;
-        private CancellationTokenSource _delayCancellation;
+        private CancellationTokenSource? _delayCancellation;
         private bool _isActivated;
         private bool _isDisposed;
 
@@ -192,7 +192,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
         private static void RunOnUiThread(Action action)
         {
-            Dispatcher dispatcher = Application.Current?.Dispatcher;
+            Dispatcher? dispatcher = Application.Current?.Dispatcher;
             if (dispatcher == null || dispatcher.CheckAccess())
             {
                 action();

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
@@ -17,7 +18,7 @@ namespace PdfConverter.Services
         /// <summary>SHA-256 の 16 進文字数</summary>
         public const int Sha256HexLength = 64;
 
-        /// <summary>更新アセットダウンロードの絶対サイズ上限（512 MiB）</summary>
+        /// <summary>更新アセットダウンロードの絶対サイズ上限 (512 MiB)</summary>
         public const long MaxUpdateDownloadBytes = 512L * 1024L * 1024L;
 
 
@@ -31,7 +32,7 @@ namespace PdfConverter.Services
         /// <param name="sha256">小文字 64 桁</param>
         /// <param name="errorMessage">失敗時のメッセージ</param>
         /// <returns>成功すれば <c>true</c></returns>
-        public static bool TryParseDigest(string raw, out string sha256, out string errorMessage)
+        public static bool TryParseDigest(string? raw, [NotNullWhen(true)] out string? sha256, [NotNullWhen(false)] out string? errorMessage)
         {
             sha256 = null;
             errorMessage = null;
@@ -66,7 +67,7 @@ namespace PdfConverter.Services
         /// <param name="expectedSize">version API が報告するバイト数</param>
         /// <param name="errorMessage">失敗時のメッセージ</param>
         /// <returns>許容範囲なら <c>true</c></returns>
-        public static bool TryValidateDeclaredSize(long expectedSize, out string errorMessage)
+        public static bool TryValidateDeclaredSize(long expectedSize, [NotNullWhen(false)] out string? errorMessage)
         {
             errorMessage = null;
             if (expectedSize <= 0)
@@ -78,7 +79,7 @@ namespace PdfConverter.Services
             if (expectedSize > MaxUpdateDownloadBytes)
             {
                 errorMessage =
-                    $"アセットサイズが上限（{MaxUpdateDownloadBytes} バイト）を超えています。";
+                    $"アセットサイズが上限 ({MaxUpdateDownloadBytes} バイト) を超えています。";
                 return false;
             }
 
@@ -86,7 +87,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// ファイルの SHA-256（小文字 16 進）を計算する
+        /// ファイルの SHA-256 (小文字 16 進) を計算する
         /// </summary>
         /// <param name="filePath">ファイルパス</param>
         /// <returns>小文字 64 桁のハッシュ</returns>

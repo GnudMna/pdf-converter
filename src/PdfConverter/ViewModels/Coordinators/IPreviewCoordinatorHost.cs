@@ -13,10 +13,10 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>読み込むドキュメントのパス</summary>
-        string FilePath { get; set; }
+        string? FilePath { get; set; }
 
         /// <summary>読み込み済みドキュメントのパス</summary>
-        string LoadedFilePath { get; set; }
+        string? LoadedFilePath { get; set; }
 
         /// <summary>表示ページ番号の入力値</summary>
         string PageNumber { get; set; }
@@ -25,13 +25,13 @@ namespace PdfConverter.ViewModels.Coordinators
         int PageCount { get; set; }
 
         /// <summary>プレビュー画像</summary>
-        BitmapSource PreviewImage { get; set; }
+        BitmapSource? PreviewImage { get; set; }
 
         /// <summary>透明度を保持するかどうか</summary>
         bool PreserveTransparency { get; }
 
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
-        string PageNumberValidationMessage { get; set; }
+        string? PageNumberValidationMessage { get; set; }
 
         /// <summary>現在表示中のページ番号</summary>
         int CurrentPreviewPage { get; }

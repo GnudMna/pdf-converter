@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,7 +33,7 @@ namespace PdfConverter.ViewModels.Coordinators
         private Task _activePreviewTask = Task.CompletedTask;
 
         /// <summary>アクティブなプレビュー UI フィードバック</summary>
-        private PreviewUiFeedback _activePreviewUiFeedback;
+        private PreviewUiFeedback? _activePreviewUiFeedback;
 
 
         /********************************************************************************/
@@ -73,7 +74,7 @@ namespace PdfConverter.ViewModels.Coordinators
             }
 
             SupportedDocumentPathError pathError =
-                DocumentFileHelper.ResolveSupportedDocumentPath(host.FilePath, out string normalizedPath);
+                DocumentFileHelper.ResolveSupportedDocumentPath(host.FilePath, out string? normalizedPath);
             if (pathError != SupportedDocumentPathError.None)
             {
                 host.PageCount = 0;
@@ -86,7 +87,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            host.FilePath = normalizedPath;
+            host.FilePath = normalizedPath!;
 
             if (!forceReload && string.Equals(host.FilePath, host.LoadedFilePath, StringComparison.OrdinalIgnoreCase))
             {
@@ -161,7 +162,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            host.PageNumber = (host.CurrentPreviewPage - 1).ToString();
+            host.PageNumber = (host.CurrentPreviewPage - 1).ToString(CultureInfo.CurrentCulture);
             long operationGeneration = BeginPreviewOperation(host);
             await ConvertAsync(host, operationGeneration, showFieldValidation: true, manageBusyState: true);
         }
@@ -178,7 +179,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            host.PageNumber = (host.CurrentPreviewPage + 1).ToString();
+            host.PageNumber = (host.CurrentPreviewPage + 1).ToString(CultureInfo.CurrentCulture);
             long operationGeneration = BeginPreviewOperation(host);
             await ConvertAsync(host, operationGeneration, showFieldValidation: true, manageBusyState: true);
         }
@@ -272,7 +273,7 @@ namespace PdfConverter.ViewModels.Coordinators
             {
                 try
                 {
-                    string pdfPath = await ResolvePdfPathAsync(host, loadingPath, operationGeneration, cancellationToken);
+                    string? pdfPath = await ResolvePdfPathAsync(host, loadingPath, operationGeneration, cancellationToken);
                     if (pdfPath == null)
                     {
                         return;
@@ -353,7 +354,7 @@ namespace PdfConverter.ViewModels.Coordinators
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
 
-            PreviewUiFeedback uiFeedback = null;
+            PreviewUiFeedback? uiFeedback = null;
             if (manageBusyState)
             {
                 _activePreviewUiFeedback?.Abandon();
@@ -398,7 +399,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     return;
                 }
 
-                string pdfPath = await ResolvePdfPathAsync(host, host.FilePath, operationGeneration, cancellationToken);
+                string? pdfPath = await ResolvePdfPathAsync(host, host.FilePath, operationGeneration, cancellationToken);
                 if (pdfPath == null)
                 {
                     uiFeedback?.Abandon();
@@ -487,7 +488,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="operationGeneration">操作世代番号</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>PDF レンダリング用の絶対パス。失敗時は <c>null</c></returns>
-        private async Task<string> ResolvePdfPathAsync(
+        private async Task<string?> ResolvePdfPathAsync(
             IPreviewCoordinatorHost host,
             string sourcePath,
             long operationGeneration,

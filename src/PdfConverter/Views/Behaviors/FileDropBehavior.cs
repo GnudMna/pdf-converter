@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Input;
@@ -69,7 +70,7 @@ namespace PdfConverter.Views.Behaviors
                 return;
             }
 
-            if (HandlerSets.TryGetValue(element, out HandlerSet existing))
+            if (HandlerSets.TryGetValue(element, out HandlerSet? existing))
             {
                 element.RemoveHandler(UIElement.DragEnterEvent, existing.DragEnter);
                 element.RemoveHandler(UIElement.DragOverEvent, existing.DragOver);
@@ -95,7 +96,7 @@ namespace PdfConverter.Views.Behaviors
         /// <param name="e">イベントの引数</param>
         private static void OnDragLeave(object sender, DragEventArgs e)
         {
-            if (TryGetViewModel(sender, out IMainWindowViewModel viewModel))
+            if (TryGetViewModel(sender, out IMainWindowViewModel? viewModel))
             {
                 viewModel.IsDropOverlayVisible = false;
             }
@@ -106,7 +107,7 @@ namespace PdfConverter.Views.Behaviors
         /// <param name="e">イベントの引数</param>
         private static void OnDrop(object sender, DragEventArgs e)
         {
-            if (TryGetViewModel(sender, out IMainWindowViewModel viewModel))
+            if (TryGetViewModel(sender, out IMainWindowViewModel? viewModel))
             {
                 TryProcessDrop(viewModel, e.Data);
             }
@@ -119,7 +120,7 @@ namespace PdfConverter.Views.Behaviors
         /// <param name="e">イベントの引数</param>
         private static void UpdateDragFeedback(object sender, DragEventArgs e)
         {
-            if (!TryGetViewModel(sender, out IMainWindowViewModel viewModel))
+            if (!TryGetViewModel(sender, out IMainWindowViewModel? viewModel))
             {
                 return;
             }
@@ -163,7 +164,7 @@ namespace PdfConverter.Views.Behaviors
                 return false;
             }
 
-            if (DocumentFileHelper.TryGetFirstSupportedPath(data, out string filePath))
+            if (DocumentFileHelper.TryGetFirstSupportedPath(data, out string? filePath))
             {
                 viewModel.HandleDroppedDocument(filePath);
                 return true;
@@ -176,7 +177,7 @@ namespace PdfConverter.Views.Behaviors
         /// <param name="sender">イベントの送信元</param>
         /// <param name="viewModel">取得した ViewModel</param>
         /// <returns>true: 取得できた / false: 取得できなかった</returns>
-        private static bool TryGetViewModel(object sender, out IMainWindowViewModel viewModel)
+        private static bool TryGetViewModel(object sender, [NotNullWhen(true)] out IMainWindowViewModel? viewModel)
         {
             viewModel = null;
 

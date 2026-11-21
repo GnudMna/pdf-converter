@@ -16,7 +16,7 @@ namespace PdfConverter.Infrastructure
         /// </summary>
         /// <param name="exception">対象の例外</param>
         /// <returns>表示用メッセージ</returns>
-        public static string GetUserMessage(Exception exception)
+        public static string GetUserMessage(Exception? exception)
         {
             if (exception == null)
             {
@@ -26,7 +26,7 @@ namespace PdfConverter.Infrastructure
             Exception root = Unwrap(exception);
             string message = root.Message ?? string.Empty;
 
-            Exception inner = root.InnerException;
+            Exception? inner = root.InnerException;
             while (inner != null)
             {
                 string innerMessage = inner.Message;

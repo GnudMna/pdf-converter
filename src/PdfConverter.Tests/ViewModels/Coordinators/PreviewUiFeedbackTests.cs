@@ -178,7 +178,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             var feedback = CreateFeedback(host, () => true);
             feedback.Dispose();
 
-            await Task.Delay(TestDelayMilliseconds + 50);
+            await Task.Delay(TestDelayMilliseconds + 50, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.False(host.IsBusy);
             Assert.Null(host.StatusMessage);

@@ -4,6 +4,7 @@ using System.Windows;
 using Microsoft.Win32;
 using PdfConverter.Models;
 using PdfConverter.Properties;
+using ThemeMode = PdfConverter.Models.ThemeMode;
 
 namespace PdfConverter.Themes
 {

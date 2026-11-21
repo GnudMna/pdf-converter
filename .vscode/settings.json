@@ -1,0 +1,29 @@
+{
+    "dotnet.preferCSharpExtension": true,
+    "dotnet.defaultSolution": "src/PdfConverter.slnx",
+
+    "files.encoding": "utf8",
+    "files.eol": "\r\n",
+    "files.insertFinalNewline": true,
+    "files.trimTrailingWhitespace": true,
+
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
+
+    "files.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/.vs": true
+    },
+    "search.exclude": {
+        "**/bin": true,
+        "**/obj": true,
+        "**/packages": true,
+        "dist": true
+    },
+
+    "[markdown]": {
+        "files.trimTrailingWhitespace": true
+    }
+}

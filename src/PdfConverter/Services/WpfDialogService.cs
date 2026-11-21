@@ -38,7 +38,7 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
-        public string ShowOpenDocumentFileDialog()
+        public string? ShowOpenDocumentFileDialog()
         {
             var dialog = new OpenFileDialog
             {
@@ -49,14 +49,14 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
-        public string ShowFolderBrowserDialog()
+        public string? ShowFolderBrowserDialog()
         {
             var dialog = new VistaFolderBrowserDialog();
             return dialog.ShowDialog() == true ? dialog.SelectedPath : null;
         }
 
         /// <inheritdoc/>
-        public string ShowSavePdfFileDialog(string suggestedFileName)
+        public string? ShowSavePdfFileDialog(string suggestedFileName)
         {
             var dialog = new SaveFileDialog
             {

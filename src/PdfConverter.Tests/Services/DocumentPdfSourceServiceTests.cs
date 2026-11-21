@@ -115,6 +115,120 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// Word ファイルが更新された場合は再変換し、古い一時 PDF を削除することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_WordInputModified_ReconvertsAndDeletesStalePdf()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string firstPdfPath = CreateTempPdfPath();
+            string secondPdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+            File.SetLastWriteTimeUtc(wordPath, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            wordToPdf
+                .SetupSequence(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(firstPdfPath)
+                .ReturnsAsync(secondPdfPath);
+
+            try
+            {
+                string first = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                File.SetLastWriteTimeUtc(wordPath, new DateTime(2026, 1, 2, 0, 0, 0, DateTimeKind.Utc));
+                string second = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                Assert.Equal(firstPdfPath, first);
+                Assert.Equal(secondPdfPath, second);
+                Assert.False(File.Exists(firstPdfPath));
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(firstPdfPath);
+                File.Delete(secondPdfPath);
+            }
+        }
+
+        /// <summary>
+        /// Word ファイルのサイズが変わった場合は更新日時が同じでも再変換することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_WordInputSizeChanged_Reconverts()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string firstPdfPath = CreateTempPdfPath();
+            string secondPdfPath = CreateTempPdfPath();
+            var lastWriteUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.WriteAllText(wordPath, "placeholder");
+            File.SetLastWriteTimeUtc(wordPath, lastWriteUtc);
+
+            wordToPdf
+                .SetupSequence(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(firstPdfPath)
+                .ReturnsAsync(secondPdfPath);
+
+            try
+            {
+                await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                File.WriteAllText(wordPath, "placeholder-modified");
+                File.SetLastWriteTimeUtc(wordPath, lastWriteUtc);
+                string second = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                Assert.Equal(secondPdfPath, second);
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(firstPdfPath);
+                File.Delete(secondPdfPath);
+            }
+        }
+
+        /// <summary>
+        /// キャッシュ済みの一時 PDF が失われた場合は再変換することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_CachedPdfMissing_Reconverts()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string firstPdfPath = CreateTempPdfPath();
+            string secondPdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+
+            wordToPdf
+                .SetupSequence(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(firstPdfPath)
+                .ReturnsAsync(secondPdfPath);
+
+            try
+            {
+                await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                File.Delete(firstPdfPath);
+                string second = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
+
+                Assert.Equal(secondPdfPath, second);
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Exactly(2));
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(firstPdfPath);
+                File.Delete(secondPdfPath);
+            }
+        }
+
+        /// <summary>
         /// Dispose 時にキャッシュ済みの一時 PDF が削除されることを検証する
         /// </summary>
         [Fact]

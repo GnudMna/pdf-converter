@@ -13,7 +13,7 @@ namespace PdfConverter.ViewModels
     /// メインウィンドウの ViewModel<br/>
     /// UI バインディングとコマンドを公開し、処理は Coordinator に委譲する
     /// </summary>
-    public class MainViewModel : ViewModelBase, IMainWindowViewModel
+    public class MainViewModel : ViewModelBase, IMainWindowViewModel, IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -46,14 +46,14 @@ namespace PdfConverter.ViewModels
         private bool _isSaving;
 
         /// <summary>キャンセルトークンソース</summary>
-        private CancellationTokenSource _cancelTokenSource;
+        private CancellationTokenSource? _cancelTokenSource;
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
         /// <summary>読み込むドキュメントのパス</summary>
-        private string _filePath;
+        private string? _filePath;
 
         /// <summary>読み込み済みドキュメントのパス</summary>
-        private string _loadedFilePath;
+        private string? _loadedFilePath;
 
         /* ----------------------------- オーバーレイ関連 ----------------------------- */
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
@@ -168,7 +168,7 @@ namespace PdfConverter.ViewModels
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
         /// <summary>読み込むドキュメントのパス</summary>
-        public string FilePath
+        public string? FilePath
         {
             get => _filePath;
             set
@@ -281,12 +281,23 @@ namespace PdfConverter.ViewModels
         /// <inheritdoc/>
         public void SetStatus(string message, StatusKind kind = StatusKind.Info) => Status.SetStatus(message, kind);
 
+        /// <summary>
+        /// 実行中の処理をキャンセルし、キャンセルトークンを破棄する
+        /// </summary>
+        public void Dispose()
+        {
+            _cancelTokenSource?.Cancel();
+            _cancelTokenSource?.Dispose();
+            _cancelTokenSource = null;
+            GC.SuppressFinalize(this);
+        }
+
 
         /********************************************************************************/
         /*                        Coordinator ホスト向け内部 API                        */
         /********************************************************************************/
         /// <summary>読み込み済みドキュメントのパス (Coordinator ホスト専用)</summary>
-        internal string LoadedFilePath
+        internal string? LoadedFilePath
         {
             get => _loadedFilePath;
             set => _loadedFilePath = value;
@@ -302,7 +313,8 @@ namespace PdfConverter.ViewModels
         internal void PrepareCoordinatorCancellation() => PrepareCancellation();
 
         /// <summary>キャンセルトークンを取得する (Coordinator ホスト専用)</summary>
-        internal CancellationToken GetCoordinatorCancellationToken() => _cancelTokenSource.Token;
+        internal CancellationToken GetCoordinatorCancellationToken() =>
+            _cancelTokenSource?.Token ?? throw new InvalidOperationException("キャンセル処理が準備されていません。");
 
         /// <summary>キャンセルトークンを破棄する (Coordinator ホスト専用)</summary>
         internal void DisposeCoordinatorCancellation()
@@ -319,7 +331,7 @@ namespace PdfConverter.ViewModels
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>ユーザー設定リセット後に UI 状態を同期する</summary>
-        private void OnUserSettingsReset(object sender, EventArgs e)
+        private void OnUserSettingsReset(object? sender, EventArgs e)
         {
             Theme.ReloadFromStore();
             WordSettings.ReloadFromStore(reloadDocument: true);
@@ -347,7 +359,7 @@ namespace PdfConverter.ViewModels
         /// <summary>ファイルを選択する</summary>
         private void OnBrowse()
         {
-            string selectedPath = _dialogService.ShowOpenDocumentFileDialog();
+            string? selectedPath = _dialogService.ShowOpenDocumentFileDialog();
             if (selectedPath != null)
             {
                 FilePath = selectedPath;

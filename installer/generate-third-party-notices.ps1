@@ -1,10 +1,13 @@
 # PDF Converter — THIRD-PARTY-NOTICES.txt 生成スクリプト
 #
-# packages.config と NuGet パッケージのメタデータから、
-# サードパーティライセンス一覧を生成します。
+# obj/project.assets.json (dotnet restore の結果) と NuGet パッケージのメタデータから、
+# サードパーティライセンス一覧を生成します。self-contained 配布のため
+# 同梱される .NET ランタイムのライセンスも含めます。
+#
+# 事前に対象プラットフォームで dotnet restore / publish を実行しておく必要があります。
 #
 # 使用例:
-#   .\generate-third-party-notices.ps1 -OutputPath "..\src\PdfConverter\bin\x64\Release\THIRD-PARTY-NOTICES.txt"
+#   .\generate-third-party-notices.ps1 -OutputPath "..\src\PdfConverter\bin\x64\publish\THIRD-PARTY-NOTICES.txt"
 
 [CmdletBinding()]
 param(
@@ -18,8 +21,15 @@ param(
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$packagesConfigPath = Join-Path $repoRoot 'src\PdfConverter\packages.config'
-$packagesDir = Join-Path $repoRoot 'src\packages'
+$assetsPath = Join-Path $repoRoot 'src\PdfConverter\obj\project.assets.json'
+$licensesFolder = Join-Path $PSScriptRoot 'licenses'
+$runtimeIdentifier = "win-$Platform"
+
+# 同梱される .NET ランタイムパック (WPF アプリの self-contained 配布で含まれるもの)
+$runtimePackIds = @(
+    'Microsoft.NETCore.App.Runtime',
+    'Microsoft.WindowsDesktop.App.Runtime'
+)
 
 function Get-MitLicenseText {
     param([string] $CopyrightLine)
@@ -84,41 +94,36 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 "@
 }
 
+function Get-PackageFolder {
+    param(
+        [string] $PackageId,
+        [string] $PackageVersion
+    )
+
+    # グローバルパッケージフォルダーは小文字の <id>\<version> 構成
+    foreach ($root in $packageRoots) {
+        $folder = Join-Path $root "$($PackageId.ToLowerInvariant())\$($PackageVersion.ToLowerInvariant())"
+        if (Test-Path -LiteralPath $folder) {
+            return $folder
+        }
+    }
+
+    throw "NuGet パッケージが見つかりません: $PackageId $PackageVersion (検索先: $($packageRoots -join ', '))"
+}
+
 function Get-NuGetPackageMetadata {
     param(
         [string] $PackageId,
         [string] $PackageVersion
     )
 
-    $packageFolder = Join-Path $packagesDir "$PackageId.$PackageVersion"
-    if (-not (Test-Path $packageFolder)) {
-        throw "NuGet パッケージが見つかりません: $PackageId.$PackageVersion ($packageFolder)"
+    $packageFolder = Get-PackageFolder -PackageId $PackageId -PackageVersion $PackageVersion
+    $nuspec = Get-ChildItem -LiteralPath $packageFolder -Filter '*.nuspec' | Select-Object -First 1
+    if (-not $nuspec) {
+        throw "nuspec が見つかりません: $packageFolder"
     }
 
-    $nupkg = Get-ChildItem -LiteralPath $packageFolder -Filter '*.nupkg' | Select-Object -First 1
-    if (-not $nupkg) {
-        throw "nupkg が見つかりません: $packageFolder"
-    }
-
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $zip = [System.IO.Compression.ZipFile]::OpenRead($nupkg.FullName)
-    try {
-        $entry = $zip.Entries | Where-Object { $_.FullName -match '\.nuspec$' } | Select-Object -First 1
-        if (-not $entry) {
-            throw "nuspec が見つかりません: $($nupkg.FullName)"
-        }
-
-        $stream = $entry.Open()
-        try {
-            $content = (New-Object System.IO.StreamReader($stream)).ReadToEnd()
-        }
-        finally {
-            $stream.Dispose()
-        }
-    }
-    finally {
-        $zip.Dispose()
-    }
+    $content = Get-Content -LiteralPath $nuspec.FullName -Raw
 
     $metadata = [ordered]@{
         Id       = $PackageId
@@ -157,6 +162,10 @@ function Get-LicenseTextForPackage {
     switch ($Metadata.License) {
         'MIT' { return Get-MitLicenseText -CopyrightLine $copyrightLine }
         'BSD-3-Clause' { return Get-Bsd3ClauseLicenseText -CopyrightLine $copyrightLine }
+        'Apache-2.0' {
+            $apacheLicense = Get-Content -LiteralPath (Join-Path $licensesFolder 'Apache-2.0.txt') -Raw
+            return "$copyrightLine`r`n`r`n$apacheLicense"
+        }
         default { throw "未対応のライセンス式です: $($Metadata.License) ($($Metadata.Id))" }
     }
 }
@@ -179,12 +188,57 @@ function New-Section {
     )
 }
 
-if (-not (Test-Path $packagesConfigPath)) {
-    throw "packages.config が見つかりません: $packagesConfigPath"
+if (-not (Test-Path $assetsPath)) {
+    throw "project.assets.json が見つかりません。先に dotnet restore を実行してください: $assetsPath"
 }
 
-[xml] $packagesConfig = Get-Content -LiteralPath $packagesConfigPath
-$packages = $packagesConfig.packages.package | Sort-Object { $_.id }
+$assets = Get-Content -LiteralPath $assetsPath -Raw | ConvertFrom-Json
+$packageRoots = @($assets.packageFolders.PSObject.Properties.Name)
+
+$target = $assets.targets.PSObject.Properties | Where-Object { $_.Name -like "*/$runtimeIdentifier" } | Select-Object -First 1
+if (-not $target) {
+    throw "project.assets.json に $runtimeIdentifier 向けの復元結果がありません。-p:Platform=$Platform で dotnet restore を実行してください。"
+}
+
+# 対象 RID で配布物にファイルを含めないパッケージ (例: PDFiumCore が依存する Linux / macOS 向け PDFium) は除外する
+function Test-PackageHasAssets {
+    param($PackageEntry)
+
+    foreach ($kind in @('runtime', 'native')) {
+        $assetGroup = $PackageEntry.$kind
+        if ($assetGroup) {
+            $files = @($assetGroup.PSObject.Properties.Name | Where-Object { $_ -notlike '*/_._' })
+            if ($files.Count -gt 0) {
+                return $true
+            }
+        }
+    }
+
+    return $false
+}
+
+$packages = $target.Value.PSObject.Properties |
+    Where-Object { $_.Value.type -eq 'package' -and (Test-PackageHasAssets -PackageEntry $_.Value) } |
+    ForEach-Object {
+        $id, $version = $_.Name -split '/', 2
+        [pscustomobject]@{ id = $id; version = $version }
+    } |
+    Sort-Object id
+
+$frameworkInfo = $assets.project.frameworks.PSObject.Properties | Select-Object -First 1
+$runtimePacks = $frameworkInfo.Value.downloadDependencies |
+    Where-Object { $_.name -in ($runtimePackIds | ForEach-Object { "$_.$runtimeIdentifier" }) } |
+    ForEach-Object {
+        [pscustomobject]@{
+            id      = $_.name
+            version = ($_.version -replace '^\[([^,\]]+).*$', '$1').Trim()
+        }
+    } |
+    Sort-Object id
+
+if (@($runtimePacks).Count -ne $runtimePackIds.Count) {
+    throw "project.assets.json から .NET ランタイムパックを特定できませんでした ($runtimeIdentifier)"
+}
 
 $sections = @(
     'THIRD-PARTY SOFTWARE NOTICES AND INFORMATION'
@@ -204,13 +258,45 @@ foreach ($package in $packages) {
     $sections += New-Section -Title $title -Body $licenseText
 }
 
-$pdfiumLicensePath = Join-Path $packagesDir "Docnet.Core.2.6.0\runtimes\win-$Platform\native\LICENSE"
+# PDFium のネイティブ DLL は NuGet パッケージにライセンスが含まれないため、
+# pdfium-binaries のリリースから取得したライセンスを installer\licenses\PDFium.txt に同梱している
+$pdfiumPackage = $packages | Where-Object { $_.id -eq 'bblanchon.PDFium.Win32' } | Select-Object -First 1
+if (-not $pdfiumPackage) {
+    throw 'bblanchon.PDFium.Win32 パッケージが復元結果に見つかりません'
+}
+
+$pdfiumLicensePath = Join-Path $licensesFolder 'PDFium.txt'
 if (-not (Test-Path $pdfiumLicensePath)) {
     throw "PDFium ライセンスが見つかりません: $pdfiumLicensePath"
 }
 
 $pdfiumLicense = Get-Content -LiteralPath $pdfiumLicensePath -Raw
-$sections += New-Section -Title 'PDFium (native library, shipped via Docnet.Core)' -Body $pdfiumLicense
+if (-not $pdfiumLicense.StartsWith("PDFium $($pdfiumPackage.version) ")) {
+    throw "installer\licenses\PDFium.txt が PDFium $($pdfiumPackage.version) 向けではありません。pdfium-binaries の同じバージョンのリリースからライセンスを更新してください。"
+}
+
+$sections += New-Section -Title "PDFium $($pdfiumPackage.version) (native library, shipped via bblanchon.PDFium.Win32)" -Body $pdfiumLicense
+
+# .NET ランタイム (self-contained で同梱) のライセンスと、ランタイム自身のサードパーティ通知
+foreach ($runtimePack in $runtimePacks) {
+    $packFolder = Get-PackageFolder -PackageId $runtimePack.id -PackageVersion $runtimePack.version
+    $licenseFile = Get-ChildItem -LiteralPath $packFolder -File |
+        Where-Object { $_.Name -match '^LICENSE(\.txt)?$' } |
+        Select-Object -First 1
+    if (-not $licenseFile) {
+        throw "ランタイムパックのライセンスが見つかりません: $packFolder"
+    }
+
+    $title = "$($runtimePack.id) $($runtimePack.version) (.NET runtime, self-contained)"
+    $sections += New-Section -Title $title -Body (Get-Content -LiteralPath $licenseFile.FullName -Raw)
+
+    $noticesFile = Get-ChildItem -LiteralPath $packFolder -File |
+        Where-Object { $_.Name -match '^THIRD-PARTY-NOTICES\.txt$' } |
+        Select-Object -First 1
+    if ($noticesFile) {
+        $sections += New-Section -Title "$($runtimePack.id) third-party notices" -Body (Get-Content -LiteralPath $noticesFile.FullName -Raw)
+    }
+}
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if ($outputDirectory -and -not (Test-Path $outputDirectory)) {

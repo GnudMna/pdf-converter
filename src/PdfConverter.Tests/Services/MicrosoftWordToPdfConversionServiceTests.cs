@@ -118,6 +118,19 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+        /// <summary>
+        /// 文書を開く前のマクロ無効化で Word の AutomationSecurity が ForceDisable に設定されることを検証する
+        /// </summary>
+        [Fact]
+        public void DisableMacros_SetsAutomationSecurityToForceDisable()
+        {
+            var wordApp = new FakeWordApplication();
+
+            MicrosoftWordToPdfConversionService.DisableMacros(wordApp);
+
+            Assert.Equal(MicrosoftWordToPdfConversionService.MsoAutomationSecurityForceDisable, wordApp.AutomationSecurity);
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
@@ -127,6 +140,19 @@ namespace PdfConverter.Tests.Services
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
             File.WriteAllText(path, "placeholder");
             return path;
+        }
+
+
+        /********************************************************************************/
+        /*                                   ネスト型                                   */
+        /********************************************************************************/
+        /// <summary>
+        /// dynamic 経由で設定されるプロパティを記録する Word アプリケーションの代替
+        /// </summary>
+        public sealed class FakeWordApplication
+        {
+            /// <summary>マクロのセキュリティレベル</summary>
+            public int AutomationSecurity { get; set; }
         }
     }
 }

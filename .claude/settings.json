@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git branch *)",
+      "PowerShell(git status *)",
+      "PowerShell(git diff *)",
+      "PowerShell(git log *)",
+      "PowerShell(git show *)",
+      "PowerShell(git branch *)",
+      "PowerShell(nuget restore *)",
+      "PowerShell(msbuild *)",
+      "PowerShell(dotnet restore *)",
+      "PowerShell(dotnet build *)",
+      "PowerShell(.\\installer\\build-and-test.ps1 *)",
+      "PowerShell(installer\\build-and-test.ps1 *)",
+      "PowerShell(.\\build-and-test.ps1 *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/*.env)",
+      "Edit(**/.env)",
+      "Edit(**/*.env)",
+      "Read(**/UpdateReleaseKey.local.props)",
+      "Edit(**/UpdateReleaseKey.local.props)",
+      "Bash(git push *)",
+      "PowerShell(git push *)"
+    ]
+  }
+}

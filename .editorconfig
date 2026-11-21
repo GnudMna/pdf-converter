@@ -310,3 +310,23 @@ dotnet_naming_style.begins_with_underscore.required_prefix = _
 dotnet_naming_style.begins_with_underscore.required_suffix =
 dotnet_naming_style.begins_with_underscore.word_separator =
 dotnet_naming_style.begins_with_underscore.capitalization = camel_case
+
+#### コード分析 ####
+
+# バインディング用の public プロパティ (選択肢の一覧など) は static にできないため、private / internal のみ対象にする
+dotnet_code_quality.CA1822.api_surface = private, internal
+
+# テストプロジェクト
+[src/PdfConverter.Tests/**.cs]
+
+# テストメソッド名は Method_Condition_Expected 形式でアンダースコアを使う
+dotnet_diagnostic.CA1707.severity = none
+
+# xUnit のコレクション定義は名前を Collection で終える慣例に従う
+dotnet_diagnostic.CA1711.severity = none
+
+# テストデータの配列リテラルは可読性を優先し、static readonly に切り出さない
+dotnet_diagnostic.CA1861.severity = none
+
+# 例外処理のテストでは汎用の Exception 型を意図的に送出する
+dotnet_diagnostic.CA2201.severity = none

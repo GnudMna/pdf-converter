@@ -34,7 +34,7 @@ namespace PdfConverter.Services
         /*                                   イベント                                   */
         /********************************************************************************/
         /// <summary>設定が変更されたときに発生する</summary>
-        event EventHandler SettingsChanged;
+        event EventHandler? SettingsChanged;
 
 
         /********************************************************************************/

@@ -30,8 +30,8 @@ namespace PdfConverter.Tests.Services
                         Thread.Sleep(TimeSpan.FromSeconds(10));
                         return 1;
                     },
-                    cts.Token,
-                    () => cleanupInvoked = true);
+                    () => cleanupInvoked = true,
+                    cts.Token);
 
                 cts.CancelAfter(50);
 

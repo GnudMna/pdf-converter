@@ -41,7 +41,7 @@ namespace PdfConverter.ViewModels.Coordinators
             out double value,
             bool showFieldValidation)
         {
-            if (ResolutionValueParser.TryParse(resolution.ResolutionMode, resolution.ResolutionValue, out value, out string errorMessage))
+            if (ResolutionValueParser.TryParse(resolution.ResolutionMode, resolution.ResolutionValue, out value, out string? errorMessage))
             {
                 resolution.ResolutionValidationMessage = null;
                 return true;

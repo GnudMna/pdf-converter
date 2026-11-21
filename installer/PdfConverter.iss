@@ -1,8 +1,9 @@
 ; PDF Converter — Inno Setup スクリプト
 ; ビルド例:
-;   iscc /DAppVersion=x.x.x /DPlatform=x64 /DSourceDir="..\src\PdfConverter\bin\x64\Release" PdfConverter.iss
+;   iscc /DAppVersion=x.x.x /DPlatform=x64 /DSourceDir="..\src\PdfConverter\bin\x64\publish" PdfConverter.iss
 ;
 ; AppVersion は必須です。通常は build-installer.ps1 が AssemblyInfo.cs から取得して渡します。
+; SourceDir は dotnet publish (self-contained) の出力です。.NET ランタイムを同梱するため事前インストールは不要です。
 ;
 ; 管理者権限を要求しないユーザー単位インストール（PrivilegesRequired=lowest）。
 ; UAC の昇格ダイアログ（「不明な発行元」）を表示させない構成です。
@@ -17,9 +18,9 @@
 
 #ifndef SourceDir
   #if Platform == "x86"
-    #define SourceDir "..\src\PdfConverter\bin\x86\Release"
+    #define SourceDir "..\src\PdfConverter\bin\x86\publish"
   #else
-    #define SourceDir "..\src\PdfConverter\bin\x64\Release"
+    #define SourceDir "..\src\PdfConverter\bin\x64\publish"
   #endif
 #endif
 
@@ -63,6 +64,11 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 Name: "fileassoc"; Description: "PDF / Word (.pdf, .doc, .docx) をこのアプリで開けるように登録する"; GroupDescription: "ファイルの関連付け:"; Flags: unchecked
 
+[InstallDelete]
+; .NET Framework 版 (0.4.x 以前) の残骸を削除する。.NET 版は lib\ を使わないフラット構成
+Type: filesandordirs; Name: "{app}\lib"
+Type: files; Name: "{app}\PDF Converter.exe.config"
+
 [Files]
 ; THIRD-PARTY-NOTICES.txt は build-installer.ps1 がビルド出力へ生成します
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -84,27 +90,3 @@ Root: HKA; Subkey: ".docx\OpenWithProgids"; ValueType: string; ValueName: "{#MyA
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
-
-[Code]
-function IsDotNet481Installed: Boolean;
-var
-  Release: Cardinal;
-begin
-  Result := RegQueryDWordValue(
-    HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', Release)
-    and (Release >= 533320);
-end;
-
-function InitializeSetup: Boolean;
-begin
-  Result := True;
-  if not IsDotNet481Installed then
-  begin
-    MsgBox(
-      '.NET Framework 4.8.1 がインストールされていません。' + #13#10 +
-      'セットアップを続行する前に、次のページからダウンロードしてインストールしてください。' + #13#10 + #13#10 +
-      'https://dotnet.microsoft.com/download/dotnet-framework/net481',
-      mbError, MB_OK);
-    Result := False;
-  end;
-end;

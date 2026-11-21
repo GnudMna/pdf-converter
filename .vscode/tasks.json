@@ -1,0 +1,72 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "shell": {
+            "executable": "pwsh.exe",
+            "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command"]
+        }
+    },
+    "tasks": [
+        {
+            "label": "build",
+            "detail": "dotnet build で src/PdfConverter.slnx をビルド (Debug / x64)",
+            "type": "shell",
+            "command": "dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64 -v:minimal -nologo; exit $LASTEXITCODE",
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "silent",
+                "clear": true
+            }
+        },
+        {
+            "label": "restore",
+            "detail": "NuGet パッケージを復元",
+            "type": "shell",
+            "command": "dotnet restore src/PdfConverter.slnx -p:Platform=x64; exit $LASTEXITCODE",
+            "problemMatcher": []
+        },
+        {
+            "label": "build-and-test",
+            "detail": "installer/build-and-test.ps1 で復元・リビルド・テストを一括実行",
+            "type": "shell",
+            "command": "./installer/build-and-test.ps1 -Configuration ${input:configuration} -Platform ${input:platform} -NoPause",
+            "problemMatcher": "$msCompile",
+            "group": {
+                "kind": "test",
+                "isDefault": true
+            },
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
+            "label": "test",
+            "detail": "ビルド済みのテスト実行ファイルを起動 (Debug / x64)",
+            "type": "shell",
+            "command": "& ./src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe; exit $LASTEXITCODE",
+            "dependsOn": "build",
+            "problemMatcher": [],
+            "group": "test"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "configuration",
+            "type": "pickString",
+            "description": "ビルド構成",
+            "options": ["Debug", "Release"],
+            "default": "Debug"
+        },
+        {
+            "id": "platform",
+            "type": "pickString",
+            "description": "プラットフォーム",
+            "options": ["x64", "x86"],
+            "default": "x64"
+        }
+    ]
+}

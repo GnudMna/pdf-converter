@@ -166,7 +166,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => host.Cancel())
-                .Returns(Task.CompletedTask);
+                .ThrowsAsync(new OperationCanceledException());
 
             await coordinator.SaveAsync(host);
 

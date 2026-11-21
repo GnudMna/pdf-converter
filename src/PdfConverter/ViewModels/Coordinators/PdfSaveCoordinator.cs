@@ -88,14 +88,14 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
 
-                string folderPath = _dialogService.ShowFolderBrowserDialog();
+                string? folderPath = _dialogService.ShowFolderBrowserDialog();
                 if (folderPath == null)
                 {
                     host.SetStatus("保存先フォルダーの選択がキャンセルされました。", StatusKind.Info);
                     return;
                 }
 
-                IEnumerable<int> pageIndexes = null;
+                IEnumerable<int>? pageIndexes = null;
                 if (!host.IsAllPagesSelected)
                 {
                     if (string.IsNullOrWhiteSpace(host.PageRange))
@@ -146,12 +146,6 @@ namespace PdfConverter.ViewModels.Coordinators
                     progress,
                     cancellationToken);
 
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
-                    return;
-                }
-
                 host.ProgressValue = 100;
                 host.SetStatus("画像の保存が完了しました。", StatusKind.Success);
                 ApplicationLogger.Info("Save", $"Image export completed: folder={folderPath}, pages={host.PageCount}");
@@ -196,7 +190,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
 
                 string suggestedFileName = Path.GetFileNameWithoutExtension(host.FilePath) + ".pdf";
-                string destinationPath = _dialogService.ShowSavePdfFileDialog(suggestedFileName);
+                string? destinationPath = _dialogService.ShowSavePdfFileDialog(suggestedFileName);
                 if (destinationPath == null)
                 {
                     host.SetStatus("PDF の保存がキャンセルされました。", StatusKind.Info);
@@ -248,15 +242,14 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
         /// <returns>true: 上書き確認を行う / false: 上書き確認を行わない / キャンセルされた場合は<c>null</c></returns>
-        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int> pageIndexes)
+        private bool ConfirmOverwriteExistingFiles(ISaveCoordinatorHost host, string folderPath, IEnumerable<int>? pageIndexes)
         {
-            string extension = ImageBitmapHelper.GetFileExtension(host.OutputImageFormat);
-            IEnumerable<int> pagesToSave = host.IsAllPagesSelected
+            IEnumerable<int> pagesToSave = host.IsAllPagesSelected || pageIndexes == null
                 ? Enumerable.Range(0, host.PageCount)
                 : pageIndexes;
 
             var existingFiles = pagesToSave
-                .Select(index => Path.Combine(folderPath, $"page_{index + 1}{extension}"))
+                .Select(index => Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(index, host.PageCount, host.OutputImageFormat)))
                 .Where(File.Exists)
                 .Select(Path.GetFileName)
                 .ToList();

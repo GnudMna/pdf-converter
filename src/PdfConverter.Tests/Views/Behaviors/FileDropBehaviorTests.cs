@@ -145,7 +145,7 @@ namespace PdfConverter.Tests.Views.Behaviors
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        private static IDataObject CreateFileDropData(string filePath)
+        private static DataObject CreateFileDropData(string filePath)
         {
             var data = new DataObject();
             data.SetData(DataFormats.FileDrop, new[] { filePath });

@@ -1,7 +1,9 @@
 ---
-description: 日本語コメント・UI 文言・README の括弧と半角スペース規則
-globs: **/*.{cs,xaml,md,resx}
-alwaysApply: false
+paths:
+  - "**/*.cs"
+  - "**/*.xaml"
+  - "**/*.md"
+  - "**/*.resx"
 ---
 
 # 日本語テキストのスタイル

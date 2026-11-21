@@ -21,14 +21,14 @@ namespace PdfConverter.Commands
         /// 実行可否を判定する関数<br/>
         /// <c>null</c>の場合は常に実行可能
         /// </summary>
-        private readonly Func<bool> _canExecute;
+        private readonly Func<bool>? _canExecute;
 
 
         /********************************************************************************/
         /*                               イベントハンドラ                               */
         /********************************************************************************/
         /// <inheritdoc/>
-        public event EventHandler CanExecuteChanged;
+        public event EventHandler? CanExecuteChanged;
 
 
         /********************************************************************************/
@@ -39,7 +39,7 @@ namespace PdfConverter.Commands
         /// </summary>
         /// <param name="execute">コマンド実行時に呼び出されるアクション</param>
         /// <param name="canExecute">実行可否を判定する関数<br/><c>null</c>の場合は常に実行可能</param>
-        public RelayCommand(Action execute, Func<bool> canExecute = null)
+        public RelayCommand(Action execute, Func<bool>? canExecute = null)
         {
             _execute = execute ?? throw new ArgumentNullException(nameof(execute));
             _canExecute = canExecute;
@@ -51,10 +51,10 @@ namespace PdfConverter.Commands
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
-        public bool CanExecute(object parameter) => _canExecute == null || _canExecute();
+        public bool CanExecute(object? parameter) => _canExecute == null || _canExecute();
 
         /// <inheritdoc/>
-        public void Execute(object parameter) => _execute();
+        public void Execute(object? parameter) => _execute();
 
         /// <inheritdoc/>
         public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
@@ -66,7 +66,7 @@ namespace PdfConverter.Commands
         /// <summary>
         /// <see cref="CommandManager.RequerySuggested"/>発火時に実行可否の再評価を通知する
         /// </summary>
-        private void OnCommandManagerRequerySuggested(object sender, EventArgs e)
+        private void OnCommandManagerRequerySuggested(object? sender, EventArgs e)
         {
             RaiseCanExecuteChanged();
         }

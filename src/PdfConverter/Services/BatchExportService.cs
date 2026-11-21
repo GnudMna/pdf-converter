@@ -51,13 +51,28 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
+        /// <remarks>
+        /// 呼び出し元 (App 起動時の UI スレッド) は完了を同期的に待つため、
+        /// 処理全体をスレッドプール上で実行し、継続が呼び出し元の SynchronizationContext へ戻ってデッドロックしないようにする
+        /// </remarks>
         public async Task<int> RunAsync(BatchCliOptions options, CancellationToken cancellationToken = default)
         {
-            if (options == null)
-            {
-                throw new ArgumentNullException(nameof(options));
-            }
+            ArgumentNullException.ThrowIfNull(options);
 
+            return await Task.Run(() => RunCoreAsync(options, cancellationToken), CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>入力ファイルを順に変換する</summary>
+        /// <param name="options">バッチオプション</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>終了コード</returns>
+        private async Task<int> RunCoreAsync(BatchCliOptions options, CancellationToken cancellationToken)
+        {
             if (options.ShowHelp)
             {
                 BatchConsoleHelper.WriteLine(BatchCliParser.GetHelpText());
@@ -112,10 +127,6 @@ namespace PdfConverter.Services
             return hasFailure ? BatchCliParser.RuntimeErrorExitCode : BatchCliParser.SuccessExitCode;
         }
 
-
-        /********************************************************************************/
-        /*                             プライベートメソッド                             */
-        /********************************************************************************/
         /// <summary>Word 文書を PDF として出力する</summary>
         /// <param name="options">バッチオプション</param>
         /// <param name="sourcePath">入力ファイルの絶対パス</param>
@@ -128,7 +139,7 @@ namespace PdfConverter.Services
             }
 
             string destinationPath = ResolvePdfDestinationPath(options, sourcePath);
-            string destinationDirectory = Path.GetDirectoryName(destinationPath);
+            string? destinationDirectory = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDirectory))
             {
                 Directory.CreateDirectory(destinationDirectory);
@@ -161,7 +172,7 @@ namespace PdfConverter.Services
             bool preserveTransparency = options.PreserveTransparency
                 ?? ImageExportSettings.ResolvePreserveTransparency(format, _imageExportSettings.PreserveTransparency);
 
-            if (!ResolutionValueParser.TryParse(resolutionMode, resolutionValue, out double parsedResolution, out string resolutionError))
+            if (!ResolutionValueParser.TryParse(resolutionMode, resolutionValue, out double parsedResolution, out string? resolutionError))
             {
                 throw new InvalidOperationException(resolutionError);
             }
@@ -183,17 +194,18 @@ namespace PdfConverter.Services
             int pageCount = await _pdfConversionService.GetPdfPageCountAsync(pdfPath, cancellationToken);
 
             bool saveAllPages = string.IsNullOrWhiteSpace(options.PageRange);
-            IReadOnlyList<int> pageIndexes = null;
-            if (!saveAllPages)
+            IReadOnlyList<int>? pageIndexes = null;
+            if (!string.IsNullOrWhiteSpace(options.PageRange))
             {
                 pageIndexes = PageRangeParser.Parse(options.PageRange, pageCount);
             }
 
             EnsureOutputDirectoryIsWritable(options, outputFolder, pageIndexes, saveAllPages, pageCount, format);
 
-            var progress = options.Quiet
+            // Progress<T> は SynchronizationContext 経由で非同期に通知するため、出力漏れや順序の乱れを避けて同期的に書き出す
+            IProgress<SaveProgressReport>? progress = options.Quiet
                 ? null
-                : new Progress<SaveProgressReport>(report => BatchConsoleHelper.WriteLine(report.Message));
+                : new ConsoleProgress();
 
             await _pdfConversionService.SavePdfPagesToImagesAsync(
                 pdfPath,
@@ -222,7 +234,7 @@ namespace PdfConverter.Services
         private static void EnsureOutputDirectoryIsWritable(
             BatchCliOptions options,
             string outputFolder,
-            IReadOnlyList<int> pageIndexes,
+            IReadOnlyList<int>? pageIndexes,
             bool saveAllPages,
             int pageCount,
             OutputImageFormat format)
@@ -232,13 +244,12 @@ namespace PdfConverter.Services
                 return;
             }
 
-            string extension = ImageBitmapHelper.GetFileExtension(format);
-            IEnumerable<int> pages = saveAllPages
+            IEnumerable<int> pages = saveAllPages || pageIndexes == null
                 ? Enumerable.Range(0, pageCount)
                 : pageIndexes;
 
-            string existingFile = pages
-                .Select(index => Path.Combine(outputFolder, $"page_{index + 1}{extension}"))
+            string? existingFile = pages
+                .Select(index => Path.Combine(outputFolder, PageImageFileNameHelper.GetFileName(index, pageCount, format)))
                 .FirstOrDefault(File.Exists);
 
             if (existingFile != null)
@@ -296,6 +307,39 @@ namespace PdfConverter.Services
         private static void WriteError(string message)
         {
             BatchConsoleHelper.WriteErrorLine(message);
+        }
+
+
+        /********************************************************************************/
+        /*                                   ネスト型                                   */
+        /********************************************************************************/
+        /// <summary>
+        /// 保存進捗を呼び出し元スレッドで即座に標準出力へ書き出す<br/>
+        /// 保存先への反映後に再通知される完了メッセージなど、直前と同じ内容は出力しない
+        /// </summary>
+        private sealed class ConsoleProgress : IProgress<SaveProgressReport>
+        {
+            /// <summary>排他用オブジェクト</summary>
+            private readonly object _lock = new object();
+
+            /// <summary>直前に出力したメッセージ</summary>
+            private string? _lastMessage;
+
+            /// <inheritdoc/>
+            public void Report(SaveProgressReport value)
+            {
+                string? message = value?.Message;
+                lock (_lock)
+                {
+                    if (string.Equals(message, _lastMessage, StringComparison.Ordinal))
+                    {
+                        return;
+                    }
+
+                    _lastMessage = message;
+                    BatchConsoleHelper.WriteLine(message);
+                }
+            }
         }
     }
 }

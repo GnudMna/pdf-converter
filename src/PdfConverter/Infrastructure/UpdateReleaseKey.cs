@@ -1,7 +1,7 @@
 namespace PdfConverter.Infrastructure
 {
     /// <summary>
-    /// アセットダウンロード用の埋め込みキー（値はビルド時に <c>UpdateReleaseKey.g.cs</c> で生成）
+    /// アセットダウンロード用の埋め込みキー (値はビルド時に <c>UpdateReleaseKey.g.cs</c> で生成)
     /// </summary>
     internal static partial class UpdateReleaseKey
     {

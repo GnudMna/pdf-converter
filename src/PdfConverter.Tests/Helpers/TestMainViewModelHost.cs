@@ -9,7 +9,7 @@ namespace PdfConverter.Tests.Helpers
     /// <summary>
     /// Coordinator 単体テスト用の <see cref="IMainViewModelHost"/> 実装
     /// </summary>
-    internal sealed class TestMainViewModelHost : IMainViewModelHost
+    internal sealed class TestMainViewModelHost : IMainViewModelHost, IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -85,6 +85,8 @@ namespace PdfConverter.Tests.Helpers
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
         }
+
+        public void Dispose() => DisposeCancellation();
 
         public void RaiseNavigationCanExecuteChanged()
         {

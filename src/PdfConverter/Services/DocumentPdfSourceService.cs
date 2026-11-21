@@ -20,9 +20,9 @@ namespace PdfConverter.Services
         /// <summary>Word → PDF 変換エンジン設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
-        /// <summary>入力パスと PDF パスの対応表</summary>
-        private readonly Dictionary<string, string> _pdfPathBySourcePath =
-            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>入力パスと変換済み PDF の対応表</summary>
+        private readonly Dictionary<string, CachedPdf> _pdfBySourcePath =
+            new Dictionary<string, CachedPdf>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>一時 PDF ファイルのパス一覧</summary>
         private readonly HashSet<string> _temporaryPdfPaths =
@@ -78,11 +78,24 @@ namespace PdfConverter.Services
                 return normalizedPath;
             }
 
+            // 変換中に編集された場合も次回再変換されるよう、変換前の状態を記録する
+            var sourceInfo = new FileInfo(normalizedPath);
+            DateTime sourceLastWriteUtc = sourceInfo.LastWriteTimeUtc;
+            long sourceLength = sourceInfo.Length;
+
             lock (_cacheLock)
             {
-                if (_pdfPathBySourcePath.TryGetValue(normalizedPath, out string cachedPath) && File.Exists(cachedPath))
+                if (_pdfBySourcePath.TryGetValue(normalizedPath, out CachedPdf? cached))
                 {
-                    return cachedPath;
+                    if (cached.SourceLastWriteUtc == sourceLastWriteUtc
+                        && cached.SourceLength == sourceLength
+                        && File.Exists(cached.PdfPath))
+                    {
+                        return cached.PdfPath;
+                    }
+
+                    // 元ファイルが更新された、または一時 PDF が失われたため破棄して再変換する
+                    RemoveCacheEntryUnsafe(normalizedPath, cached);
                 }
             }
 
@@ -90,7 +103,7 @@ namespace PdfConverter.Services
 
             lock (_cacheLock)
             {
-                _pdfPathBySourcePath[normalizedPath] = pdfPath;
+                _pdfBySourcePath[normalizedPath] = new CachedPdf(pdfPath, sourceLastWriteUtc, sourceLength);
                 _temporaryPdfPaths.Add(pdfPath);
             }
 
@@ -107,16 +120,9 @@ namespace PdfConverter.Services
 
             lock (_cacheLock)
             {
-                if (!_pdfPathBySourcePath.TryGetValue(sourcePath, out string pdfPath))
+                if (_pdfBySourcePath.TryGetValue(sourcePath, out CachedPdf? cached))
                 {
-                    return;
-                }
-
-                _pdfPathBySourcePath.Remove(sourcePath);
-
-                if (_temporaryPdfPaths.Remove(pdfPath))
-                {
-                    PdfConverterTempDirectory.TryDeleteFile(pdfPath);
+                    RemoveCacheEntryUnsafe(sourcePath, cached);
                 }
             }
         }
@@ -134,7 +140,7 @@ namespace PdfConverter.Services
                 }
 
                 _temporaryPdfPaths.Clear();
-                _pdfPathBySourcePath.Clear();
+                _pdfBySourcePath.Clear();
             }
         }
 
@@ -149,8 +155,57 @@ namespace PdfConverter.Services
             _disposed = true;
             _settings.SettingsChanged -= _settingsChangedHandler;
             InvalidateAll();
+            GC.SuppressFinalize(this);
         }
 
 
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>
+        /// キャッシュエントリを削除し、対応する一時 PDF を破棄する
+        /// </summary>
+        /// <param name="sourcePath">入力ファイルのパス</param>
+        /// <param name="cached">削除するキャッシュエントリ</param>
+        /// <remarks>呼び出し元で <see cref="_cacheLock"/> を取得していること</remarks>
+        private void RemoveCacheEntryUnsafe(string sourcePath, CachedPdf cached)
+        {
+            _pdfBySourcePath.Remove(sourcePath);
+
+            if (_temporaryPdfPaths.Remove(cached.PdfPath))
+            {
+                PdfConverterTempDirectory.TryDeleteFile(cached.PdfPath);
+            }
+        }
+
+
+        /********************************************************************************/
+        /*                                   ネスト型                                   */
+        /********************************************************************************/
+        /// <summary>変換済み PDF と、変換時点の入力ファイルの状態</summary>
+        private sealed class CachedPdf
+        {
+            /// <summary>
+            /// キャッシュエントリを初期化する
+            /// </summary>
+            /// <param name="pdfPath">変換済み PDF のパス</param>
+            /// <param name="sourceLastWriteUtc">変換時点の入力ファイルの最終更新日時 (UTC)</param>
+            /// <param name="sourceLength">変換時点の入力ファイルのサイズ (バイト)</param>
+            public CachedPdf(string pdfPath, DateTime sourceLastWriteUtc, long sourceLength)
+            {
+                PdfPath = pdfPath;
+                SourceLastWriteUtc = sourceLastWriteUtc;
+                SourceLength = sourceLength;
+            }
+
+            /// <summary>変換済み PDF のパス</summary>
+            public string PdfPath { get; }
+
+            /// <summary>変換時点の入力ファイルの最終更新日時 (UTC)</summary>
+            public DateTime SourceLastWriteUtc { get; }
+
+            /// <summary>変換時点の入力ファイルのサイズ (バイト)</summary>
+            public long SourceLength { get; }
+        }
     }
 }

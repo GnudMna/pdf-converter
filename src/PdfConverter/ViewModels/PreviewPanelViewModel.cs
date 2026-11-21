@@ -28,7 +28,7 @@ namespace PdfConverter.ViewModels
         private readonly Action<Exception> _onAsyncCommandException;
 
         /// <summary>プレビュー画像</summary>
-        private BitmapSource _previewImage;
+        private BitmapSource? _previewImage;
 
         /// <summary>PDF のページ数</summary>
         private int _pageCount;
@@ -37,7 +37,7 @@ namespace PdfConverter.ViewModels
         private string _pageNumber = "1";
 
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
-        private string _pageNumberValidationMessage;
+        private string? _pageNumberValidationMessage;
 
         /// <summary>処理中かどうか</summary>
         private bool _isBusy;
@@ -89,7 +89,7 @@ namespace PdfConverter.ViewModels
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>プレビュー画像</summary>
-        public BitmapSource PreviewImage
+        public BitmapSource? PreviewImage
         {
             get => _previewImage;
             set
@@ -162,7 +162,7 @@ namespace PdfConverter.ViewModels
         }
 
         /// <summary>表示ページ番号の入力エラーメッセージ</summary>
-        public string PageNumberValidationMessage
+        public string? PageNumberValidationMessage
         {
             get => _pageNumberValidationMessage;
             set => SetProperty(ref _pageNumberValidationMessage, value);
@@ -188,7 +188,7 @@ namespace PdfConverter.ViewModels
         {
             get
             {
-                string filePath = _getHost().FilePath;
+                string? filePath = _getHost().FilePath;
                 if (string.IsNullOrEmpty(filePath))
                 {
                     return "ファイルを選択してください";

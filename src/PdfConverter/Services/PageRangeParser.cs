@@ -24,7 +24,7 @@ namespace PdfConverter.Services
         public static IReadOnlyList<int> Parse(string pageRange, int pageCount)
         {
             var pages = new List<int>();
-            foreach (var token in pageRange.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+            foreach (var token in pageRange.Split(',', StringSplitOptions.RemoveEmptyEntries))
             {
                 var item = token.Trim();
                 if (string.IsNullOrEmpty(item))
@@ -32,9 +32,9 @@ namespace PdfConverter.Services
                     continue;
                 }
 
-                if (item.Contains("-"))
+                if (item.Contains('-'))
                 {
-                    var bounds = item.Split(new[] { '-' }, StringSplitOptions.RemoveEmptyEntries);
+                    var bounds = item.Split('-', StringSplitOptions.RemoveEmptyEntries);
                     if (bounds.Length != 2
                         || !int.TryParse(bounds[0], out int start)
                         || !int.TryParse(bounds[1], out int end))

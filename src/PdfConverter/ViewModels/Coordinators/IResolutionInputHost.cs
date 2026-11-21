@@ -17,6 +17,6 @@ namespace PdfConverter.ViewModels.Coordinators
         string ResolutionValue { get; }
 
         /// <summary>出力解像度の入力エラーメッセージ</summary>
-        string ResolutionValidationMessage { get; set; }
+        string? ResolutionValidationMessage { get; set; }
     }
 }

@@ -54,6 +54,7 @@ namespace PdfConverter.Services
         /// <param name="progress">進捗通知用コールバック<br/><c>null</c> の場合は通知しない</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>非同期操作の完了を表すタスク</returns>
-        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int> pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport> progress = null, CancellationToken cancellationToken = default);
+        /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
+        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default);
     }
 }

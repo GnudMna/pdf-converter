@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -19,31 +21,132 @@ namespace PdfConverter.Tests.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 起動引数に headless 変換に必要なオプションが含まれることを検証する
+        /// 起動引数の先頭で変換専用プロファイルを指定し、headless 変換に必要なオプションが続くことを検証する
         /// </summary>
         [Fact]
-        public void BuildArguments_IncludesHeadlessConvertOptions()
+        public void BuildArguments_SpecifiesProfileAndHeadlessConvertOptions()
         {
             var settings = WordToPdfConversionSettingsTestHelper.Create();
-            string outputDirectory = @"C:\output";
-            string wordPath = @"C:\docs\sample.docx";
 
-            string arguments = LibreOfficeToPdfConversionService.BuildArguments(outputDirectory, wordPath, settings.Object);
+            IReadOnlyList<string> arguments = LibreOfficeToPdfConversionService.BuildArguments(
+                @"C:\temp\profile",
+                @"C:\output",
+                @"C:\docs\sample.docx",
+                settings.Object);
 
+            Assert.Equal("-env:UserInstallation=file:///C:/temp/profile", arguments[0]);
             Assert.Contains("--headless", arguments);
-            Assert.Contains("--convert-to", arguments);
-            Assert.Contains("--outdir", arguments);
-            Assert.Contains(LibreOfficeToPdfConversionService.QuoteArgument(outputDirectory), arguments);
-            Assert.Contains(LibreOfficeToPdfConversionService.QuoteArgument(wordPath), arguments);
+            Assert.Contains("--norestore", arguments);
+            int convertToIndex = arguments.ToList().IndexOf("--convert-to");
+            Assert.Equal(LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings.Object), arguments[convertToIndex + 1]);
+            int outDirIndex = arguments.ToList().IndexOf("--outdir");
+            Assert.Equal(@"C:\output", arguments[outDirIndex + 1]);
+            Assert.Equal(@"C:\docs\sample.docx", arguments[^1]);
         }
 
         /// <summary>
-        /// 引用符を含むパスがエスケープされることを検証する
+        /// プロファイルのパスに含まれる空白・日本語・URL の予約文字が、ファイル URL としてエスケープされることを検証する
         /// </summary>
         [Fact]
-        public void QuoteArgument_EscapesEmbeddedQuotes()
+        public void BuildArguments_ProfilePathWithSpecialCharacters_IsEscapedAsFileUrl()
         {
-            Assert.Equal(@"""C:\path \""quoted\""\file.docx""", LibreOfficeToPdfConversionService.QuoteArgument(@"C:\path ""quoted""\file.docx"));
+            var settings = WordToPdfConversionSettingsTestHelper.Create();
+
+            IReadOnlyList<string> arguments = LibreOfficeToPdfConversionService.BuildArguments(
+                @"C:\Users\テスト ユーザー\a#b%c\profile",
+                @"C:\output",
+                @"C:\docs\sample.docx",
+                settings.Object);
+
+            Assert.Equal(
+                "-env:UserInstallation=file:///C:/Users/%E3%83%86%E3%82%B9%E3%83%88%20%E3%83%A6%E3%83%BC%E3%82%B6%E3%83%BC/a%23b%25c/profile",
+                arguments[0]);
+        }
+
+        /// <summary>
+        /// 空白・引用符・末尾の円記号を含むパスも、引用符で囲まずそのままの値で引数になることを検証する
+        /// </summary>
+        [Fact]
+        public void BuildArguments_PathsWithSpecialCharacters_AreKeptAsIs()
+        {
+            var settings = WordToPdfConversionSettingsTestHelper.Create();
+
+            IReadOnlyList<string> arguments = LibreOfficeToPdfConversionService.BuildArguments(
+                @"C:\temp\profile",
+                @"C:\out dir\",
+                @"C:\path ""quoted""\file.docx",
+                settings.Object);
+
+            Assert.Contains(@"C:\out dir\", arguments);
+            Assert.Equal(@"C:\path ""quoted""\file.docx", arguments[^1]);
+        }
+
+        /// <summary>
+        /// 連続した変換で同じ変換専用プロファイルを再利用し、失敗した変換の後は別のプロファイルに作り直すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task ConvertToPdfAsync_ReusesProfileAndRecreatesAfterFailure()
+        {
+            string recordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-profile-record-{Guid.NewGuid():N}.txt");
+            string successSoffice = FakeSofficeHelper.CreateProfileRecordingWrapper(recordPath, success: true);
+            string failingSoffice = FakeSofficeHelper.CreateProfileRecordingWrapper(recordPath, success: false);
+            var successService = new LibreOfficeToPdfConversionService(CreateSettings(successSoffice).Object);
+            var failingService = new LibreOfficeToPdfConversionService(CreateSettings(failingSoffice).Object);
+            string wordPath = CreateTempWordFile();
+
+            try
+            {
+                await successService.ConvertToPdfAsync(wordPath, TestContext.Current.CancellationToken);
+                await successService.ConvertToPdfAsync(wordPath, TestContext.Current.CancellationToken);
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => failingService.ConvertToPdfAsync(wordPath, TestContext.Current.CancellationToken));
+                await successService.ConvertToPdfAsync(wordPath, TestContext.Current.CancellationToken);
+
+                string[] profiles = File.ReadAllLines(recordPath);
+                Assert.Equal(4, profiles.Length);
+                Assert.All(profiles, profile => Assert.StartsWith("-env:UserInstallation=file:///", profile));
+                Assert.Contains(LibreOfficeToPdfConversionService.ProfileDirectoryPrefix, profiles[0]);
+                Assert.Equal(profiles[0], profiles[1]);
+                Assert.Equal(profiles[0], profiles[2]);
+                Assert.NotEqual(profiles[2], profiles[3]);
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(successSoffice);
+                File.Delete(failingSoffice);
+                File.Delete(recordPath);
+            }
+        }
+
+        /// <summary>
+        /// 変換専用プロファイルがこのプロセスのインスタンスディレクトリ配下に置かれることを検証する
+        /// </summary>
+        [Fact]
+        public async Task ConvertToPdfAsync_ProfileIsUnderInstanceDirectory()
+        {
+            string recordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-profile-record-{Guid.NewGuid():N}.txt");
+            string fakeSoffice = FakeSofficeHelper.CreateProfileRecordingWrapper(recordPath, success: true);
+            var service = new LibreOfficeToPdfConversionService(CreateSettings(fakeSoffice).Object);
+            string wordPath = CreateTempWordFile();
+
+            try
+            {
+                await service.ConvertToPdfAsync(wordPath, TestContext.Current.CancellationToken);
+
+                string profileUrl = File.ReadAllLines(recordPath)[0].Substring("-env:UserInstallation=".Length);
+                string profilePath = new Uri(profileUrl).LocalPath;
+                Assert.Equal(
+                    PdfConverterTempDirectory.GetInstancePath(),
+                    Path.GetDirectoryName(profilePath),
+                    StringComparer.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(fakeSoffice);
+                File.Delete(recordPath);
+            }
         }
 
         /// <summary>
@@ -97,7 +200,7 @@ namespace PdfConverter.Tests.Services
 
             try
             {
-                string pdfPath = await service.ConvertToPdfAsync(wordPath);
+                string pdfPath = await service.ConvertToPdfAsync(wordPath, cancellationToken: TestContext.Current.CancellationToken);
 
                 Assert.False(string.IsNullOrWhiteSpace(pdfPath));
                 Assert.True(File.Exists(pdfPath));

@@ -13,7 +13,7 @@ namespace PdfConverter.ViewModels
         /*                               イベントハンドラ                               */
         /********************************************************************************/
         /// <inheritdoc/>
-        public event PropertyChangedEventHandler PropertyChanged;
+        public event PropertyChangedEventHandler? PropertyChanged;
 
 
         /********************************************************************************/
@@ -23,7 +23,7 @@ namespace PdfConverter.ViewModels
         /// 指定したプロパティの変更を通知する
         /// </summary>
         /// <param name="propertyName">変更されたプロパティの名前</param>
-        protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
@@ -36,7 +36,7 @@ namespace PdfConverter.ViewModels
         /// <param name="value">新しい値</param>
         /// <param name="propertyName">プロパティ名</param>
         /// <returns>true: 値が更新された / false: 値が更新されなかった</returns>
-        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
+        protected bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
         {
             if (EqualityComparer<T>.Default.Equals(field, value))
             {

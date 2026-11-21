@@ -22,10 +22,7 @@ namespace PdfConverter.Infrastructure
         /// <returns><see cref="IServiceProvider"/></returns>
         public static IServiceProvider Configure(UserSettingsBootstrapResult bootstrapResult)
         {
-            if (bootstrapResult == null)
-            {
-                throw new ArgumentNullException(nameof(bootstrapResult));
-            }
+            ArgumentNullException.ThrowIfNull(bootstrapResult);
 
             var services = new ServiceCollection();
             services.AddSingleton(bootstrapResult);

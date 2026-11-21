@@ -70,7 +70,7 @@ namespace PdfConverter.Tests.Commands
         {
             StaTestHelper.Run(() =>
             {
-                Action act = () => new RelayCommand(null);
+                Action act = () => _ = new RelayCommand(null);
 
                 Assert.Throws<ArgumentNullException>(act);
             });

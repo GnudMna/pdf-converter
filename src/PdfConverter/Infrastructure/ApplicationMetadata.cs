@@ -17,16 +17,24 @@ namespace PdfConverter.Infrastructure
         /// <summary>ライセンス全文ファイル名</summary>
         public const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
 
+        /// <summary>self-contained 配布で同梱する .NET ランタイムのコンポーネント名</summary>
+        public const string DotNetRuntimeComponentName = ".NET Runtime / Windows Desktop Runtime";
+
+        /// <summary>
+        /// 同梱 OSS 一覧 (配布物に含まれる NuGet パッケージと .NET ランタイム)
+        /// </summary>
+        /// <remarks>
+        /// NuGet パッケージを追加・更新・削除したときはこの一覧と README の表も更新する<br/>
+        /// 一覧と実際の依存パッケージのずれは単体テストで検出する
+        /// </remarks>
         private static readonly IReadOnlyList<ThirdPartyComponent> BundledComponentsList = new[]
         {
-            new ThirdPartyComponent("Docnet.Core", "2.6.0", "MIT", "PDF レンダリング (.NET ラッパー)"),
-            new ThirdPartyComponent("PDFium", "Docnet.Core 同梱", "Apache 2.0", "PDF ネイティブエンジン"),
+            new ThirdPartyComponent("PDFiumCore", "156.0.8076", "Apache 2.0", "PDF レンダリング (.NET バインディング)"),
+            new ThirdPartyComponent("PDFium", "156.0.8076", "BSD-3-Clause / Apache 2.0", "PDF ネイティブエンジン (pdfium-binaries)"),
             new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection", "10.0.8", "MIT", "DI コンテナ"),
             new ThirdPartyComponent("Microsoft.Extensions.DependencyInjection.Abstractions", "10.0.8", "MIT", "DI 抽象化"),
-            new ThirdPartyComponent("Microsoft.Bcl.AsyncInterfaces", "10.0.8", "MIT", "非同期インターフェース"),
             new ThirdPartyComponent("Ookii.Dialogs.Wpf", "5.0.1", "BSD-3-Clause", "フォルダー選択ダイアログ"),
-            new ThirdPartyComponent("System.Runtime.CompilerServices.Unsafe", "6.1.2", "MIT", "低レベル型操作"),
-            new ThirdPartyComponent("System.Threading.Tasks.Extensions", "4.6.3", "MIT", "タスク拡張"),
+            new ThirdPartyComponent(DotNetRuntimeComponentName, Environment.Version.ToString(), "MIT", "実行ランタイム (self-contained で同梱)"),
         };
 
 
@@ -63,8 +71,7 @@ namespace PdfConverter.Infrastructure
 
         /// <summary>外部依存ソフトウェアの説明</summary>
         public static string ExternalDependenciesText =>
-            "・.NET Framework 4.8.1（ランタイム）" + Environment.NewLine +
-            "・Microsoft Word または LibreOffice（Word 文書の変換時、別途インストールが必要）";
+            "・Microsoft Word または LibreOffice (Word 文書の変換時、別途インストールが必要)";
 
         /// <summary>ライセンス全文ファイルの絶対パス</summary>
         public static string ThirdPartyNoticesFilePath =>
@@ -78,7 +85,7 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        private static T GetAssemblyAttribute<T>()
+        private static T? GetAssemblyAttribute<T>()
             where T : Attribute
         {
             return typeof(ApplicationMetadata).Assembly.GetCustomAttribute<T>();

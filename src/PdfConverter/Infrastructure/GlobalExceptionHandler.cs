@@ -28,7 +28,7 @@ namespace PdfConverter.Infrastructure
         private static bool _isRegistered;
 
         /// <summary>ログ出力先ディレクトリ (テスト時に上書き可能)</summary>
-        internal static string LogDirectory
+        internal static string? LogDirectory
         {
             get => ApplicationLogger.LogDirectory;
             set => ApplicationLogger.LogDirectory = value;
@@ -132,12 +132,12 @@ namespace PdfConverter.Infrastructure
         }
 
         /// <summary>現在のアプリケーションの Dispatcher を取得する</summary>
-        private static Dispatcher CurrentDispatcher => Application.Current?.Dispatcher;
+        private static Dispatcher? CurrentDispatcher => Application.Current?.Dispatcher;
 
         /// <summary>UI スレッド上で未処理例外が発生したときのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
-        private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
+        private static void OnDispatcherUnhandledException(object? sender, DispatcherUnhandledExceptionEventArgs e)
         {
             Exception exception = e.Exception;
             if (CancellationExceptionHelper.IsOrContainsCancellation(exception))
@@ -165,7 +165,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>バックグラウンドタスクの未観測例外が発生したときのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
-        private static void OnUnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        private static void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
             Report(e.Exception, "Task", ExceptionReportKind.Background);
             e.SetObserved();
@@ -174,7 +174,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>致命的な未処理例外が発生したときのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
-        private static void OnAppDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        private static void OnAppDomainUnhandledException(object? sender, UnhandledExceptionEventArgs e)
         {
             if (e.ExceptionObject is Exception exception)
             {

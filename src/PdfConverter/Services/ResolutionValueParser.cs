@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using PdfConverter.Models;
 
@@ -39,7 +40,7 @@ namespace PdfConverter.Services
         /// <param name="value">解析された数値</param>
         /// <param name="errorMessage">検証失敗時のメッセージ</param>
         /// <returns>true: 検証に成功した / false: 検証に失敗した</returns>
-        public static bool TryParse(ResolutionMode mode, string resolutionValue, out double value, out string errorMessage)
+        public static bool TryParse(ResolutionMode mode, string? resolutionValue, out double value, [NotNullWhen(false)] out string? errorMessage)
         {
             value = 0;
             errorMessage = null;

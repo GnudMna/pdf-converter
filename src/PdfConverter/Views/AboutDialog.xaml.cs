@@ -120,7 +120,7 @@ namespace PdfConverter.Views
                 case UpdateCheckKind.Available:
                     UpdateStatusText.Text = $"更新があります: {result.LatestVersion}";
                     bool apply = _dialogService.ShowYesNo(
-                        $"新しいバージョン {result.LatestVersion} が見つかりました。\n\nインストーラーをダウンロードして更新しますか？\n（更新を開始するとアプリを終了します）",
+                        $"新しいバージョン {result.LatestVersion} が見つかりました。\n\nインストーラーをダウンロードして更新しますか？\n(更新を開始するとアプリを終了します)",
                         "更新の確認",
                         DialogIcon.Information,
                         "更新する",

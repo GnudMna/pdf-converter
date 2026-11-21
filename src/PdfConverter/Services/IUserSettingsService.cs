@@ -19,7 +19,7 @@ namespace PdfConverter.Services
         /*                                   イベント                                   */
         /********************************************************************************/
         /// <summary>設定が既定値へリセットされたときに発生する</summary>
-        event EventHandler SettingsReset;
+        event EventHandler? SettingsReset;
 
 
         /********************************************************************************/

@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Media;
 using PdfConverter.Services;
@@ -49,7 +50,7 @@ namespace PdfConverter.Views
             string title,
             DialogIcon icon,
             string yesText,
-            string noText,
+            string? noText,
             bool showNoButton)
         {
             InitializeComponent();
@@ -68,7 +69,7 @@ namespace PdfConverter.Views
                 NoButton.Visibility = Visibility.Collapsed;
             }
 
-            string detail = GetDetailMessage(message);
+            string? detail = GetDetailMessage(message);
             if (!string.IsNullOrEmpty(detail))
             {
                 DetailText.Text = detail;
@@ -111,7 +112,7 @@ namespace PdfConverter.Views
         /// <returns>要約</returns>
         private static string GetSummaryMessage(string message)
         {
-            int separator = message.IndexOf("\n\n");
+            int separator = message.IndexOf("\n\n", StringComparison.Ordinal);
             return separator >= 0 ? message.Substring(0, separator) : message;
         }
 
@@ -120,9 +121,9 @@ namespace PdfConverter.Views
         /// </summary>
         /// <param name="message">メッセージ</param>
         /// <returns>詳細</returns>
-        private static string GetDetailMessage(string message)
+        private static string? GetDetailMessage(string message)
         {
-            int separator = message.IndexOf("\n\n");
+            int separator = message.IndexOf("\n\n", StringComparison.Ordinal);
             return separator >= 0 ? message.Substring(separator + 2) : null;
         }
 

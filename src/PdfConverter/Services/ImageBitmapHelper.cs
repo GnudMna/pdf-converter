@@ -24,10 +24,7 @@ namespace PdfConverter.Services
         /// <exception cref="ArgumentNullException">source が null の場合</exception>
         public static BitmapSource ApplyTransparency(BitmapSource source, bool preserveTransparency)
         {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
+            ArgumentNullException.ThrowIfNull(source);
 
             if (preserveTransparency)
             {
@@ -47,10 +44,7 @@ namespace PdfConverter.Services
         /// <exception cref="ArgumentException">outputPath が空の場合</exception>
         public static void SaveToFile(BitmapSource source, string outputPath, OutputImageFormat format)
         {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
+            ArgumentNullException.ThrowIfNull(source);
 
             if (string.IsNullOrWhiteSpace(outputPath))
             {
@@ -106,7 +100,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="source">透明チャンネルを持つ画像</param>
         /// <returns>白背景に合成されたビットマップ</returns>
-        private static BitmapSource FlattenOntoWhiteBackground(BitmapSource source)
+        private static RenderTargetBitmap FlattenOntoWhiteBackground(BitmapSource source)
         {
             var width = source.PixelWidth;
             var height = source.PixelHeight;

@@ -296,7 +296,7 @@ namespace PdfConverter.Tests.ViewModels
                 .Returns(Task.CompletedTask);
 
             viewModel.SaveCommand.Execute(null);
-            await Task.Delay(300);
+            await Task.Delay(300, cancellationToken: TestContext.Current.CancellationToken);
 
             Assert.Contains("完了", viewModel.StatusMessage);
             Directory.Delete(folder, recursive: true);

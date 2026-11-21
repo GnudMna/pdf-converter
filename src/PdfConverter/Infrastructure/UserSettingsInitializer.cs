@@ -49,9 +49,9 @@ namespace PdfConverter.Infrastructure
         /// </summary>
         /// <param name="exception">設定読み込み時の例外</param>
         /// <returns>設定ファイルパス。解決できない場合は <c>null</c></returns>
-        internal static string ResolveConfigFilePath(ConfigurationErrorsException exception)
+        internal static string? ResolveConfigFilePath(ConfigurationErrorsException exception)
         {
-            for (Exception current = exception; current != null; current = current.InnerException)
+            for (Exception? current = exception; current != null; current = current.InnerException)
             {
                 if (current is ConfigurationErrorsException configException
                     && !string.IsNullOrWhiteSpace(configException.Filename))
@@ -167,7 +167,7 @@ namespace PdfConverter.Infrastructure
         /// <returns>削除に成功したかどうか</returns>
         private static bool TryDeleteCorruptedConfigFileCore(ConfigurationErrorsException exception)
         {
-            string filePath = ResolveConfigFilePath(exception);
+            string? filePath = ResolveConfigFilePath(exception);
             if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
             {
                 return false;

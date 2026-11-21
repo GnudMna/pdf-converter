@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Text;
 
@@ -33,7 +34,7 @@ namespace PdfConverter.Infrastructure
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>ログ出力先ディレクトリ (テスト時に上書き可能)</summary>
-        public static string LogDirectory { get; set; }
+        public static string? LogDirectory { get; set; }
 
 
         /********************************************************************************/
@@ -68,7 +69,7 @@ namespace PdfConverter.Infrastructure
         /// <param name="source">発生元の識別子</param>
         /// <param name="message">ログメッセージ</param>
         /// <param name="exception">関連する例外</param>
-        public static void Error(string source, string message, Exception exception = null)
+        public static void Error(string source, string message, Exception? exception = null)
         {
             Write(LogLevel.Error, source, message, exception);
         }
@@ -82,7 +83,7 @@ namespace PdfConverter.Infrastructure
         /// <param name="source">発生元の識別子</param>
         /// <param name="message">ログメッセージ</param>
         /// <param name="exception">関連する例外</param>
-        private static void Write(LogLevel level, string source, string message, Exception exception)
+        private static void Write(LogLevel level, string source, string message, Exception? exception)
         {
             try
             {
@@ -110,11 +111,11 @@ namespace PdfConverter.Infrastructure
         /// <param name="message">ログメッセージ</param>
         /// <param name="exception">関連する例外</param>
         /// <returns>追記するログ行</returns>
-        private static string BuildEntry(LogLevel level, string source, string message, Exception exception)
+        private static string BuildEntry(LogLevel level, string source, string message, Exception? exception)
         {
             var builder = new StringBuilder();
             builder.Append('[');
-            builder.Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff"));
+            builder.Append(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
             builder.Append("] [");
             builder.Append(level);
             builder.Append("] [");

@@ -31,7 +31,7 @@ namespace PdfConverter.Tests.Services
                 libreOffice.Object,
                 settings.Object);
 
-            service.ConvertToPdfAsync("C:\\docs\\sample.docx");
+            service.ConvertToPdfAsync("C:\\docs\\sample.docx", cancellationToken: TestContext.Current.CancellationToken);
 
             microsoftWord.Verify(
                 s => s.ConvertToPdfAsync("C:\\docs\\sample.docx", It.IsAny<CancellationToken>()),
@@ -54,7 +54,7 @@ namespace PdfConverter.Tests.Services
                 libreOffice.Object,
                 settings.Object);
 
-            service.ConvertToPdfAsync("C:\\docs\\sample.docx");
+            service.ConvertToPdfAsync("C:\\docs\\sample.docx", cancellationToken: TestContext.Current.CancellationToken);
 
             libreOffice.Verify(
                 s => s.ConvertToPdfAsync("C:\\docs\\sample.docx", It.IsAny<CancellationToken>()),

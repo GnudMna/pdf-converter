@@ -18,13 +18,13 @@ namespace PdfConverter.Services
         /// </summary>
         /// <typeparam name="T">戻り値の型</typeparam>
         /// <param name="func">実行する処理</param>
-        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <param name="cancelCleanup">キャンセル時に呼び出すクリーンアップ処理</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>処理結果</returns>
         public static Task<T> RunAsync<T>(
             Func<CancellationToken, T> func,
-            CancellationToken cancellationToken = default,
-            Action cancelCleanup = null)
+            Action? cancelCleanup = null,
+            CancellationToken cancellationToken = default)
         {
             var tcs = new TaskCompletionSource<T>();
             CancellationTokenRegistration? registration = null;

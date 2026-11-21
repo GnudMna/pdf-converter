@@ -16,7 +16,7 @@ namespace PdfConverter.Services
         public WordToPdfBackend Backend { get; set; }
 
         /// <inheritdoc/>
-        public string LibreOfficePath { get; set; }
+        public string LibreOfficePath { get; set; } = string.Empty;
 
         /// <inheritdoc/>
         public WordToPdfPdfFormat PdfFormat { get; set; }
@@ -35,7 +35,7 @@ namespace PdfConverter.Services
         /*                                   イベント                                   */
         /********************************************************************************/
         /// <inheritdoc/>
-        public event EventHandler SettingsChanged;
+        public event EventHandler? SettingsChanged;
 
 
         /********************************************************************************/

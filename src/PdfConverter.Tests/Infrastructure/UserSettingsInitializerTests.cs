@@ -1,6 +1,7 @@
 using System;
 using System.Configuration;
 using PdfConverter.Infrastructure;
+using PdfConverter.Tests.Helpers;
 using Xunit;
 
 namespace PdfConverter.Tests.Infrastructure
@@ -8,6 +9,7 @@ namespace PdfConverter.Tests.Infrastructure
     /// <summary>
     /// <see cref="UserSettingsInitializer"/> の破損回復とバージョン移行を検証する
     /// </summary>
+    [Collection(GlobalStateTestCollection.Name)]
     public sealed class UserSettingsInitializerTests : IDisposable
     {
         /********************************************************************************/

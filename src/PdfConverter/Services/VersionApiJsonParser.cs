@@ -31,7 +31,7 @@ namespace PdfConverter.Services
             var serializer = new DataContractJsonSerializer(typeof(VersionApiDto));
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
             {
-                object parsed = serializer.ReadObject(stream);
+                object? parsed = serializer.ReadObject(stream);
                 if (!(parsed is VersionApiDto dto) || string.IsNullOrWhiteSpace(dto.Tag))
                 {
                     throw new InvalidDataException("version API の応答形式が不正です。");
@@ -72,23 +72,23 @@ namespace PdfConverter.Services
         private sealed class VersionApiDto
         {
             [DataMember(Name = "tag")]
-            public string Tag { get; set; }
+            public string? Tag { get; set; }
 
             [DataMember(Name = "assets")]
-            public VersionApiAssetDto[] Assets { get; set; }
+            public VersionApiAssetDto[]? Assets { get; set; }
         }
 
         [DataContract]
         private sealed class VersionApiAssetDto
         {
             [DataMember(Name = "name")]
-            public string Name { get; set; }
+            public string? Name { get; set; }
 
             [DataMember(Name = "size")]
             public long Size { get; set; }
 
             [DataMember(Name = "digest")]
-            public string Digest { get; set; }
+            public string? Digest { get; set; }
         }
     }
 }

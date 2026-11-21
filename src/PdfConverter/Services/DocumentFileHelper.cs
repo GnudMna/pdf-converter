@@ -1,4 +1,6 @@
 using System;
+using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -82,9 +84,9 @@ namespace PdfConverter.Services
         /// サポート対象ドキュメントのパスを検証し、絶対パスに正規化する
         /// </summary>
         /// <param name="path">入力パス</param>
-        /// <param name="normalizedPath">正規化後の絶対パス</param>
+        /// <param name="normalizedPath">正規化後の絶対パス (<see cref="SupportedDocumentPathError.None"/> の場合のみ非 <c>null</c>)</param>
         /// <returns>検証結果</returns>
-        public static SupportedDocumentPathError ResolveSupportedDocumentPath(string path, out string normalizedPath)
+        public static SupportedDocumentPathError ResolveSupportedDocumentPath(string? path, out string? normalizedPath)
         {
             normalizedPath = null;
 
@@ -118,10 +120,11 @@ namespace PdfConverter.Services
         /// <param name="path">入力パス</param>
         /// <param name="normalizedPath">正規化後の絶対パス</param>
         /// <returns>true: 検証成功 / false: 検証失敗</returns>
-        public static bool TryResolveSupportedDocumentPath(string path, out string normalizedPath)
+        public static bool TryResolveSupportedDocumentPath(string? path, [NotNullWhen(true)] out string? normalizedPath)
         {
             normalizedPath = null;
-            if (ResolveSupportedDocumentPath(path, out string resolvedPath) != SupportedDocumentPathError.None)
+            if (ResolveSupportedDocumentPath(path, out string? resolvedPath) != SupportedDocumentPathError.None
+                || resolvedPath == null)
             {
                 return false;
             }
@@ -164,11 +167,11 @@ namespace PdfConverter.Services
         /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
         public static string ValidateAndNormalizeSupportedDocumentPath(string documentPath, string paramName = "documentPath")
         {
-            SupportedDocumentPathError error = ResolveSupportedDocumentPath(documentPath, out string normalizedPath);
+            SupportedDocumentPathError error = ResolveSupportedDocumentPath(documentPath, out string? normalizedPath);
             switch (error)
             {
                 case SupportedDocumentPathError.None:
-                    return normalizedPath;
+                    return normalizedPath!;
                 case SupportedDocumentPathError.Empty:
                     throw new ArgumentException("入力ファイルのパスが指定されていません。", paramName);
                 case SupportedDocumentPathError.UnsupportedExtension:
@@ -178,7 +181,7 @@ namespace PdfConverter.Services
                 case SupportedDocumentPathError.FileNotFound:
                     throw new FileNotFoundException(FileNotFoundMessage, normalizedPath);
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(error), error, null);
+                    throw new UnreachableException($"未対応の検証結果です: {error}");
             }
         }
 
@@ -201,7 +204,7 @@ namespace PdfConverter.Services
                 throw new ArgumentException("Word ファイル (.doc / .docx) を指定してください。", nameof(wordFilePath));
             }
 
-            if (!TryGetFullPath(trimmedPath, out string normalizedPath))
+            if (!TryGetFullPath(trimmedPath, out string? normalizedPath))
             {
                 throw new ArgumentException("Word ファイルのパスが不正です。", nameof(wordFilePath));
             }
@@ -218,7 +221,7 @@ namespace PdfConverter.Services
         /// <param name="args">起動時に渡されたコマンドライン引数</param>
         /// <param name="filePath">取得したファイルの正規化済み絶対パス</param>
         /// <returns>true: 取得できた / false: 取得できなかった</returns>
-        public static bool TryGetFirstSupportedPathFromArgs(string[] args, out string filePath)
+        public static bool TryGetFirstSupportedPathFromArgs(string[]? args, [NotNullWhen(true)] out string? filePath)
         {
             filePath = null;
 
@@ -259,7 +262,7 @@ namespace PdfConverter.Services
         /// <param name="data">ドラッグ中のデータ</param>
         /// <param name="filePath">取得したファイルの正規化済み絶対パス</param>
         /// <returns>true: 取得できた / false: 取得できなかった</returns>
-        public static bool TryGetFirstSupportedPath(IDataObject data, out string filePath)
+        public static bool TryGetFirstSupportedPath(IDataObject? data, [NotNullWhen(true)] out string? filePath)
         {
             filePath = null;
 
@@ -311,7 +314,7 @@ namespace PdfConverter.Services
         /// <param name="path">入力パス</param>
         /// <param name="fullPath">正規化後の絶対パス</param>
         /// <returns>true: 正規化できた / false: 正規化できなかった</returns>
-        private static bool TryGetFullPath(string path, out string fullPath)
+        private static bool TryGetFullPath(string path, [NotNullWhen(true)] out string? fullPath)
         {
             fullPath = null;
 

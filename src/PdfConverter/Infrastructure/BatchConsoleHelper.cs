@@ -20,7 +20,10 @@ namespace PdfConverter.Infrastructure
         /*                                 ローカル変数                                 */
         /********************************************************************************/
         /// <summary>コンソールを確保済みかどうか</summary>
-        private static bool _consoleReady;
+        private static volatile bool _consoleReady;
+
+        /// <summary>コンソール確保処理の排他用 (並列保存の進捗通知から同時に呼ばれうるため)</summary>
+        private static readonly object ConsoleLock = new object();
 
 
         /********************************************************************************/
@@ -28,7 +31,7 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /// <summary>標準出力へ 1 行書き込む</summary>
         /// <param name="message">メッセージ</param>
-        public static void WriteLine(string message)
+        public static void WriteLine(string? message)
         {
             EnsureConsole();
             Console.Out.WriteLine(message ?? string.Empty);
@@ -36,7 +39,7 @@ namespace PdfConverter.Infrastructure
 
         /// <summary>標準エラーへ 1 行書き込む</summary>
         /// <param name="message">メッセージ</param>
-        public static void WriteErrorLine(string message)
+        public static void WriteErrorLine(string? message)
         {
             EnsureConsole();
             Console.Error.WriteLine(message ?? string.Empty);
@@ -54,21 +57,30 @@ namespace PdfConverter.Infrastructure
                 return;
             }
 
-            if (!AttachConsole(AttachParentProcess))
+            lock (ConsoleLock)
             {
-                AllocConsole();
-            }
+                if (_consoleReady)
+                {
+                    return;
+                }
 
-            try
-            {
-                Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
-                Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
-            }
-            catch (IOException)
-            {
-            }
+                if (!AttachConsole(AttachParentProcess))
+                {
+                    AllocConsole();
+                }
 
-            _consoleReady = true;
+                try
+                {
+                    // Console.SetOut / SetError は同期化されたライターを設定するため、複数スレッドからの書き込みも安全
+                    Console.SetOut(new StreamWriter(Console.OpenStandardOutput()) { AutoFlush = true });
+                    Console.SetError(new StreamWriter(Console.OpenStandardError()) { AutoFlush = true });
+                }
+                catch (IOException)
+                {
+                }
+
+                _consoleReady = true;
+            }
         }
 
 

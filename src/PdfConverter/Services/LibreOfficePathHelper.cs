@@ -18,7 +18,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="configuredPath">ユーザー指定パス (空の場合は自動検出)</param>
         /// <returns><c>soffice.exe</c>の絶対パス</returns>
-        public static string Resolve(string configuredPath)
+        public static string Resolve(string? configuredPath)
         {
             if (!string.IsNullOrWhiteSpace(configuredPath))
             {
@@ -41,7 +41,7 @@ namespace PdfConverter.Services
                 }
             }
 
-            string fromPath = FindOnPath("soffice.exe");
+            string? fromPath = FindOnPath("soffice.exe");
             if (!string.IsNullOrEmpty(fromPath))
             {
                 return fromPath;
@@ -76,7 +76,7 @@ namespace PdfConverter.Services
             }
 
             // 32bit プロセスでは ProgramFiles が x86 側を指すことがあるため、64bit 側も明示的に試す
-            string programW6432 = Environment.GetEnvironmentVariable("ProgramW6432");
+            string? programW6432 = Environment.GetEnvironmentVariable("ProgramW6432");
             if (!string.IsNullOrEmpty(programW6432))
             {
                 installRoots.Add(programW6432);
@@ -92,16 +92,16 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="fileName">ファイル名</param>
         /// <returns>見つかった絶対パス。見つからない場合は<c>null</c></returns>
-        private static string FindOnPath(string fileName)
+        private static string? FindOnPath(string fileName)
         {
-            string pathVariable = Environment.GetEnvironmentVariable("PATH");
+            string? pathVariable = Environment.GetEnvironmentVariable("PATH");
             if (string.IsNullOrWhiteSpace(pathVariable))
             {
                 return null;
             }
 
             return pathVariable
-                .Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries)
                 .Select(path => Path.Combine(path.Trim(), fileName))
                 .FirstOrDefault(File.Exists);
         }

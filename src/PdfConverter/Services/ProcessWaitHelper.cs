@@ -30,21 +30,21 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="process">対象プロセス</param>
         /// <param name="timeout">待機上限時間</param>
-        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <param name="timeoutMessage">タイムアウト時に送出する例外メッセージ</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>収集した標準出力と標準エラー</returns>
         public static CapturedProcessOutput WaitForExitWithCapturedOutput(
             Process process,
             TimeSpan timeout,
-            CancellationToken cancellationToken,
-            string timeoutMessage)
+            string timeoutMessage,
+            CancellationToken cancellationToken)
         {
             Task<string> stdoutTask = Task.Run(() => ReadStreamToEnd(process.StandardOutput));
             Task<string> stderrTask = Task.Run(() => ReadStreamToEnd(process.StandardError));
 
             try
             {
-                WaitForExit(process, timeout, cancellationToken, timeoutMessage);
+                WaitForExit(process, timeout, timeoutMessage, cancellationToken);
             }
             finally
             {
@@ -62,13 +62,13 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="process">対象プロセス</param>
         /// <param name="timeout">待機上限時間</param>
-        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <param name="timeoutMessage">タイムアウト時に送出する例外メッセージ</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         public static void WaitForExit(
             Process process,
             TimeSpan timeout,
-            CancellationToken cancellationToken,
-            string timeoutMessage)
+            string timeoutMessage,
+            CancellationToken cancellationToken)
         {
             var stopwatch = Stopwatch.StartNew();
 
@@ -96,7 +96,8 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// プロセスを強制終了する
+        /// プロセスを子プロセスも含めて強制終了する<br/>
+        /// 子プロセスが残ると、継承した標準出力などのハンドルを保持し続けるため
         /// </summary>
         /// <param name="process">対象プロセス</param>
         internal static void TryKillProcess(Process process)
@@ -105,7 +106,7 @@ namespace PdfConverter.Services
             {
                 if (process != null && !process.HasExited)
                 {
-                    process.Kill();
+                    process.Kill(entireProcessTree: true);
                 }
             }
             catch (Exception ex)

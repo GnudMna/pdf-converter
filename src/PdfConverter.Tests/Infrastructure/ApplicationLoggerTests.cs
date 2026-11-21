@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using PdfConverter.Infrastructure;
+using PdfConverter.Tests.Helpers;
 using Xunit;
 
 namespace PdfConverter.Tests.Infrastructure
@@ -8,7 +9,8 @@ namespace PdfConverter.Tests.Infrastructure
     /// <summary>
     /// <see cref="ApplicationLogger"/> の動作を検証する
     /// </summary>
-    public class ApplicationLoggerTests : IDisposable
+    [Collection(GlobalStateTestCollection.Name)]
+    public sealed class ApplicationLoggerTests : IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */

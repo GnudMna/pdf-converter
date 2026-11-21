@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -10,11 +11,32 @@ namespace PdfConverter.Services
     /// <summary>
     /// LibreOffice headless を使用して Word ファイルを PDF に変換するサービス
     /// </summary>
+    /// <remarks>
+    /// ユーザーが使っている LibreOffice の設定や起動中のプロセスに影響しない・されないよう、
+    /// インスタンスディレクトリ配下の変換専用プロファイル (<c>-env:UserInstallation</c>) で起動する<br/>
+    /// プロファイルは起動を速くするためプロセス内で再利用し、同じプロファイルを同時に使えないため変換は順番に実行する<br/>
+    /// 変換に失敗した場合 (タイムアウト・キャンセルによる強制終了を含む) は、
+    /// ロックファイルなどが残ったプロファイルを使わないよう次回の変換で作り直す
+    /// </remarks>
     public sealed class LibreOfficeToPdfConversionService : IWordToPdfConversionService
     {
         /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
+        /// <summary>変換専用プロファイルのディレクトリ名の接頭辞</summary>
+        internal const string ProfileDirectoryPrefix = "libreoffice-profile-";
+
+
+        /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>変換専用プロファイルを使う変換を 1 件ずつに制限するセマフォ</summary>
+        private static readonly SemaphoreSlim ProfileSemaphore = new SemaphoreSlim(1, 1);
+
+        /// <summary>現在の変換専用プロファイルの絶対パス (未作成または作り直しが必要な場合は <c>null</c>)</summary>
+        /// <remarks><see cref="ProfileSemaphore"/> を取得している間のみ読み書きする</remarks>
+        private static string? _profileDirectory;
+
         /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
@@ -57,20 +79,58 @@ namespace PdfConverter.Services
             cancellationToken.ThrowIfCancellationRequested();
 
             string sofficePath = LibreOfficePathHelper.Resolve(_settings.LibreOfficePath);
+
+            ProfileSemaphore.Wait(cancellationToken);
+            try
+            {
+                string profileDirectory = GetOrCreateProfileDirectory();
+                try
+                {
+                    return ConvertWithProfile(sofficePath, profileDirectory, wordFilePath, cancellationToken);
+                }
+                catch
+                {
+                    ResetProfileDirectory(profileDirectory);
+                    throw;
+                }
+            }
+            finally
+            {
+                ProfileSemaphore.Release();
+            }
+        }
+
+        /// <summary>
+        /// 変換専用プロファイルを指定して LibreOffice を起動し、PDF を生成する
+        /// </summary>
+        /// <param name="sofficePath"><c>soffice.exe</c> の絶対パス</param>
+        /// <param name="profileDirectory">変換専用プロファイルの絶対パス</param>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <returns>生成された PDF ファイルの絶対パス</returns>
+        private string ConvertWithProfile(
+            string sofficePath,
+            string profileDirectory,
+            string wordFilePath,
+            CancellationToken cancellationToken)
+        {
             string outputDirectory = PdfConverterTempDirectory.CreateTempWorkDirectory();
 
             try
             {
-                string arguments = BuildArguments(outputDirectory, wordFilePath, _settings);
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = sofficePath,
-                    Arguments = arguments,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
+
+                foreach (string argument in BuildArguments(profileDirectory, outputDirectory, wordFilePath, _settings))
+                {
+                    startInfo.ArgumentList.Add(argument);
+                }
 
                 using (var process = new Process { StartInfo = startInfo })
                 {
@@ -78,8 +138,8 @@ namespace PdfConverter.Services
                     CapturedProcessOutput capturedOutput = ProcessWaitHelper.WaitForExitWithCapturedOutput(
                         process,
                         WordToPdfConversionTimeouts.Conversion,
-                        cancellationToken,
-                        "LibreOffice による PDF 変換がタイムアウトしました。");
+                        "LibreOffice による PDF 変換がタイムアウトしました。",
+                        cancellationToken);
 
                     if (process.ExitCode != 0)
                     {
@@ -116,32 +176,72 @@ namespace PdfConverter.Services
         /// <summary>
         /// LibreOffice 起動引数を組み立てる
         /// </summary>
+        /// <remarks>
+        /// 引用符やエスケープは <see cref="ProcessStartInfo.ArgumentList"/> に任せるため、各引数はそのままの値で返す
+        /// </remarks>
+        /// <param name="profileDirectory">変換専用プロファイルの絶対パス</param>
         /// <param name="outputDirectory">出力先ディレクトリ</param>
         /// <param name="wordFilePath">Word ファイルの絶対パス</param>
         /// <param name="settings">Word → PDF 変換設定</param>
-        /// <returns>起動引数</returns>
-        internal static string BuildArguments(
+        /// <returns>起動引数の一覧</returns>
+        internal static IReadOnlyList<string> BuildArguments(
+            string profileDirectory,
             string outputDirectory,
             string wordFilePath,
             IWordToPdfConversionSettings settings)
         {
-            string convertTo = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings);
-            return string.Format(
-                "--headless --nologo --nofirststartwizard --convert-to {0} --outdir {1} {2}",
-                QuoteArgument(convertTo),
-                QuoteArgument(outputDirectory),
-                QuoteArgument(wordFilePath));
+            return
+            [
+                "-env:UserInstallation=" + new Uri(profileDirectory).AbsoluteUri,
+                "--headless",
+                "--nologo",
+                "--nofirststartwizard",
+                "--norestore",
+                "--convert-to",
+                LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings),
+                "--outdir",
+                outputDirectory,
+                wordFilePath,
+            ];
         }
 
         /// <summary>
-        /// コマンドライン引数を引用符で囲む
+        /// 変換専用プロファイルのパスを返す (未作成・作り直しが必要な場合は新しいパスを決める)
         /// </summary>
-        /// <param name="value">引数値</param>
-        /// <returns>引用符で囲んだ引数</returns>
-        internal static string QuoteArgument(string value)
+        /// <remarks>
+        /// 呼び出し元で <see cref="ProfileSemaphore"/> を取得していること<br/>
+        /// ディレクトリ自体は LibreOffice が初回起動時に作成する
+        /// </remarks>
+        /// <returns>インスタンスディレクトリ配下のプロファイルの絶対パス</returns>
+        private static string GetOrCreateProfileDirectory()
         {
-            return "\"" + value.Replace("\"", "\\\"") + "\"";
+            string instancePath = PdfConverterTempDirectory.EnsureInstanceDirectoryExists();
+            if (_profileDirectory == null
+                || !string.Equals(Path.GetDirectoryName(_profileDirectory), instancePath, StringComparison.OrdinalIgnoreCase))
+            {
+                _profileDirectory = Path.Combine(instancePath, ProfileDirectoryPrefix + Guid.NewGuid().ToString("N"));
+            }
+
+            return _profileDirectory;
         }
 
+        /// <summary>
+        /// 変換に失敗したプロファイルを破棄し、次回の変換で別のパスに作り直させる
+        /// </summary>
+        /// <remarks>
+        /// 呼び出し元で <see cref="ProfileSemaphore"/> を取得していること<br/>
+        /// 強制終了直後は LibreOffice の子プロセスがファイルを開いたままのことがあるため、削除はベストエフォートとし、
+        /// 削除できなかった場合もインスタンスディレクトリと一緒に終了時に削除される
+        /// </remarks>
+        /// <param name="profileDirectory">破棄するプロファイルの絶対パス</param>
+        private static void ResetProfileDirectory(string profileDirectory)
+        {
+            if (string.Equals(_profileDirectory, profileDirectory, StringComparison.OrdinalIgnoreCase))
+            {
+                _profileDirectory = null;
+            }
+
+            PdfConverterTempDirectory.TryDeleteDirectory(profileDirectory);
+        }
     }
 }

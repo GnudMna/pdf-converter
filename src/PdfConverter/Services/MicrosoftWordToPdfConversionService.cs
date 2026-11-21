@@ -34,6 +34,9 @@ namespace PdfConverter.Services
         /// <summary>見出しからしおりを作成 (<c>wdExportCreateHeadingBookmarks</c>)</summary>
         private const int WdExportCreateHeadingBookmarks = 1;
 
+        /// <summary>文書内のマクロをすべて無効化する (<c>msoAutomationSecurityForceDisable</c>)</summary>
+        internal const int MsoAutomationSecurityForceDisable = 3;
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -58,9 +61,9 @@ namespace PdfConverter.Services
 
             var comHolder = new WordComHolder();
             Task<string> conversionTask = StaTaskRunner.RunAsync(
-                token => ConvertOnStaThread(wordFilePath, _settings, token, comHolder),
-                cancellationToken,
-                comHolder.TryCleanup);
+                token => ConvertOnStaThread(wordFilePath, _settings, comHolder, token),
+                comHolder.TryCleanup,
+                cancellationToken);
 
             return WaitWithTimeoutAsync(conversionTask, comHolder, cancellationToken);
         }
@@ -103,18 +106,19 @@ namespace PdfConverter.Services
         /// STA スレッド上で Word COM を使用して PDF を生成する
         /// </summary>
         /// <param name="wordFilePath">Word ファイルの絶対パス</param>
-        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
         /// <param name="comHolder">Word COM オブジェクトの参照</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>生成された PDF ファイルの絶対パス</returns>
         private static string ConvertOnStaThread(
             string wordFilePath,
             IWordToPdfConversionSettings settings,
-            CancellationToken cancellationToken,
-            WordComHolder comHolder)
+            WordComHolder comHolder,
+            CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            Type wordType = Type.GetTypeFromProgID("Word.Application");
+            Type? wordType = Type.GetTypeFromProgID("Word.Application");
             if (wordType == null)
             {
                 throw new InvalidOperationException("Microsoft Word がインストールされていません。Word → PDF 変換には Word のインストールが必要です。");
@@ -122,14 +126,20 @@ namespace PdfConverter.Services
 
             string outputPath = PdfConverterTempDirectory.CreateTempPdfPath();
 
-            dynamic wordApp = null;
-            dynamic document = null;
+            dynamic? wordApp = null;
+            dynamic? document = null;
 
             try
             {
-                wordApp = Activator.CreateInstance(wordType);
+                wordApp = Activator.CreateInstance(wordType)
+                    ?? throw new InvalidOperationException("Microsoft Word を起動できませんでした。");
+
+                // 以降の設定や文書オープンで例外が発生しても Word プロセスを終了できるよう、起動直後に登録する
+                comHolder.Set(null, wordApp);
+
                 wordApp.Visible = false;
                 wordApp.DisplayAlerts = 0;
+                DisableMacros(wordApp);
 
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -161,6 +171,20 @@ namespace PdfConverter.Services
             {
                 comHolder.TryCleanup();
             }
+        }
+
+        /// <summary>
+        /// 文書を開く前に Word のマクロ実行を無効化する
+        /// </summary>
+        /// <param name="wordApp">Word アプリケーション</param>
+        /// <remarks>
+        /// COM 経由で起動した Word はマクロ有効 (<c>msoAutomationSecurityLow</c>) が既定のため、
+        /// 信頼できない .doc の AutoOpen マクロなどが実行されないよう明示的に無効化する<br/>
+        /// 設定に失敗した場合は文書を開かずに例外を伝播させる
+        /// </remarks>
+        internal static void DisableMacros(dynamic wordApp)
+        {
+            wordApp.AutomationSecurity = MsoAutomationSecurityForceDisable;
         }
 
         /// <summary>
@@ -228,10 +252,10 @@ namespace PdfConverter.Services
             /*                                 ローカル変数                                 */
             /********************************************************************************/
             /// <summary>開いている Word ファイル</summary>
-            private object _document;
+            private object? _document;
 
             /// <summary>Word アプリケーション</summary>
-            private object _wordApp;
+            private object? _wordApp;
 
             /// <summary>COM 参照操作の排他制御用オブジェクト</summary>
             private readonly object _sync = new object();
@@ -245,7 +269,7 @@ namespace PdfConverter.Services
             /// </summary>
             /// <param name="document">開いている Word ファイル</param>
             /// <param name="wordApp">Word アプリケーション</param>
-            public void Set(object document, object wordApp)
+            public void Set(object? document, object? wordApp)
             {
                 lock (_sync)
                 {
@@ -293,7 +317,7 @@ namespace PdfConverter.Services
             /// </summary>
             /// <param name="comObject">COM オブジェクト</param>
             /// <param name="closeAction">終了処理</param>
-            private static void ReleaseComObject(ref object comObject, Action<dynamic> closeAction)
+            private static void ReleaseComObject(ref object? comObject, Action<dynamic> closeAction)
             {
                 if (comObject == null)
                 {

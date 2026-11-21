@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using PdfConverter.Infrastructure;
+using PdfConverter.Tests.Helpers;
 using Xunit;
 
 namespace PdfConverter.Tests.Infrastructure
@@ -9,7 +10,8 @@ namespace PdfConverter.Tests.Infrastructure
     /// <summary>
     /// <see cref="GlobalExceptionHandler"/> の動作を検証する
     /// </summary>
-    public class GlobalExceptionHandlerTests : IDisposable
+    [Collection(GlobalStateTestCollection.Name)]
+    public sealed class GlobalExceptionHandlerTests : IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */

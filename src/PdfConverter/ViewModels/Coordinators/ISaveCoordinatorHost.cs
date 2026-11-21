@@ -11,7 +11,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                                  プロパティ                                  */
         /********************************************************************************/
         /// <summary>読み込むドキュメントのパス</summary>
-        string FilePath { get; }
+        string? FilePath { get; }
 
         /// <summary>PDF のページ数</summary>
         int PageCount { get; }
@@ -29,6 +29,6 @@ namespace PdfConverter.ViewModels.Coordinators
         bool PreserveTransparency { get; }
 
         /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
-        string PageRangeValidationMessage { get; set; }
+        string? PageRangeValidationMessage { get; set; }
     }
 }

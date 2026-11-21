@@ -18,7 +18,7 @@ namespace PdfConverter.Services
         public ResolutionMode ResolutionMode { get; set; }
 
         /// <inheritdoc/>
-        public string ResolutionValue { get; set; }
+        public string ResolutionValue { get; set; } = string.Empty;
 
         /// <inheritdoc/>
         public bool PreserveTransparency { get; set; }

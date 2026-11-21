@@ -14,6 +14,9 @@ namespace PdfConverter.Tests.Helpers
         /// <summary>失敗を模倣する終了コード</summary>
         public const int FailureExitCode = 7;
 
+        /// <summary>成功時の PowerShell スクリプトの param 行</summary>
+        private const string SuccessfulScriptParamLine = "param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)";
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -50,10 +53,39 @@ namespace PdfConverter.Tests.Helpers
             return cmdPath;
         }
 
+        /// <summary>
+        /// 受け取った <c>-env:UserInstallation</c> 引数を記録ファイルへ 1 行ずつ追記する偽 <c>soffice.exe</c> ラッパーを作成する
+        /// </summary>
+        /// <param name="recordPath">引数を追記する記録ファイルのパス</param>
+        /// <param name="success">成功を模倣するかどうか</param>
+        /// <returns>実行可能なラッパーファイルの絶対パス</returns>
+        public static string CreateProfileRecordingWrapper(string recordPath, bool success)
+        {
+            string scriptPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.ps1");
+            string cmdPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.cmd");
+            // PowerShell の -File 起動では -env:値 が -env と 値 の 2 つに分割されて渡されるため、結合して記録する
+            string recordLines = $@"
+$profileArg = $null
+for ($i = 0; $i -lt $Args.Count; $i++) {{
+    $token = $Args[$i].Trim('""')
+    if ($token.StartsWith('-env:UserInstallation=')) {{ $profileArg = $token; break }}
+    if ($token -eq '-env' -and ($i + 1) -lt $Args.Count) {{ $profileArg = '-env:' + $Args[$i + 1].Trim('""'); break }}
+}}
+Add-Content -LiteralPath '{recordPath}' -Value $profileArg
+";
+            string script = success
+                ? GetSuccessfulScriptContent().Replace(SuccessfulScriptParamLine, SuccessfulScriptParamLine + recordLines)
+                : $"{SuccessfulScriptParamLine}{recordLines}exit {FailureExitCode}";
+            File.WriteAllText(scriptPath, script);
+            File.WriteAllText(cmdPath, $"@powershell -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" %*{Environment.NewLine}");
+            return cmdPath;
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+
         /// <summary>
         /// 一時ディレクトリに偽 <c>soffice.exe</c> ラッパーを作成する
         /// </summary>

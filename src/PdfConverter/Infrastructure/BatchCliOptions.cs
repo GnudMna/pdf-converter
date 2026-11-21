@@ -24,10 +24,10 @@ namespace PdfConverter.Infrastructure
         public bool Quiet { get; set; }
 
         /// <summary>出力先フォルダーまたは PDF ファイルのパス</summary>
-        public string OutputPath { get; set; }
+        public string OutputPath { get; set; } = string.Empty;
 
         /// <summary>出力ページ範囲 (<c>null</c> の場合は全ページ)</summary>
-        public string PageRange { get; set; }
+        public string? PageRange { get; set; }
 
         /// <summary>出力画像形式 (<c>null</c> の場合は保存済み設定を使用)</summary>
         public OutputImageFormat? Format { get; set; }
@@ -36,7 +36,7 @@ namespace PdfConverter.Infrastructure
         public ResolutionMode? ResolutionMode { get; set; }
 
         /// <summary>解像度の数値 (<c>null</c> の場合は保存済み設定を使用)</summary>
-        public string ResolutionValue { get; set; }
+        public string? ResolutionValue { get; set; }
 
         /// <summary>透明度を保持するかどうか (<c>null</c> の場合は保存済み設定を使用)</summary>
         public bool? PreserveTransparency { get; set; }

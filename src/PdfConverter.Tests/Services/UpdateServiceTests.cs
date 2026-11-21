@@ -52,11 +52,7 @@ namespace PdfConverter.Tests.Services
         public async Task ApplyUpdateAsync_SendsBearerAndStartsSetup()
         {
             byte[] payload = Encoding.UTF8.GetBytes("setup-bytes");
-            string sha256;
-            using (var sha = SHA256.Create())
-            {
-                sha256 = BitConverter.ToString(sha.ComputeHash(payload)).Replace("-", string.Empty).ToLowerInvariant();
-            }
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
 
             string startedPath = null;
             using (var handler = new StubHandler((request, _) =>
@@ -124,6 +120,53 @@ namespace PdfConverter.Tests.Services
 
                 Assert.Equal(UpdateApplyKind.Failed, result.Kind);
                 Assert.Contains("リリースキー", result.ErrorMessage);
+            }
+        }
+
+        [Theory]
+        [InlineData("0.5.0", @"..\..\evil-setup.exe")]
+        [InlineData("0.5.0", "../evil-setup.exe")]
+        [InlineData("0.5.0", @"C:\evil-setup.exe")]
+        [InlineData(@"..\..", "PdfConverter-0.5.0-x64-setup.exe")]
+        [InlineData("..", "PdfConverter-0.5.0-x64-setup.exe")]
+        public async Task ApplyUpdateAsync_FailsWhenPathEscapesWorkDirectory(string latestVersion, string assetName)
+        {
+            bool requested = false;
+            bool started = false;
+            using (var handler = new StubHandler((_, __) =>
+            {
+                requested = true;
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }))
+            using (var client = new HttpClient(handler))
+            using (var service = new UpdateService(
+                client,
+                ownsHttpClient: false,
+                () => "0.4.0",
+                () => "x64",
+                () => "secret-key",
+                "https://bridge.test",
+                (_, __) =>
+                {
+                    started = true;
+                    return true;
+                }))
+            {
+                UpdateApplyResult result = await service.ApplyUpdateAsync(
+                    new AvailableUpdate
+                    {
+                        LatestVersion = latestVersion,
+                        Tag = "v0.5.0",
+                        AssetName = assetName,
+                        Size = 1,
+                        Sha256 = new string('a', 64),
+                    },
+                    TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateApplyKind.Failed, result.Kind);
+                Assert.Contains("不正", result.ErrorMessage);
+                Assert.False(requested);
+                Assert.False(started);
             }
         }
 
