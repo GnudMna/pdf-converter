@@ -6,8 +6,8 @@ using System.Windows.Data;
 namespace PdfConverter.Converters
 {
     /// <summary>
-    /// バインド値が<c>null</c>のとき<see cref="Visibility.Visible"/>、
-    /// 非<c>null</c>のとき<see cref="Visibility.Collapsed"/>を返すWPF Valueコンバーター
+    /// バインド値が <c>null</c> のとき <see cref="Visibility.Visible"/>、
+    /// 非 <c>null</c> のとき <see cref="Visibility.Collapsed"/> を返す WPF Value コンバーター
     /// </summary>
     /// <remarks>
     /// 通常の<c>null</c>チェックとは可視性の論理が逆になっている点に注意

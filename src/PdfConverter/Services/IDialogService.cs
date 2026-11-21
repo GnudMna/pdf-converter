@@ -19,7 +19,7 @@ namespace PdfConverter.Services
     }
 
     /// <summary>
-    /// ファイル選択・フォルダー選択・メッセージ表示などUIダイアログの抽象化
+    /// ファイル選択・フォルダー選択・メッセージ表示など UI ダイアログの抽象化
     /// </summary>
     public interface IDialogService
     {
@@ -29,24 +29,24 @@ namespace PdfConverter.Services
         /// <summary>
         /// ドキュメントファイル選択ダイアログを表示する
         /// </summary>
-        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は<c>null</c></returns>
+        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は <c>null</c></returns>
         string ShowOpenDocumentFileDialog();
 
         /// <summary>
         /// フォルダー選択ダイアログを表示する
         /// </summary>
-        /// <returns>選択されたフォルダーの絶対パス<br/>キャンセル時は<c>null</c></returns>
+        /// <returns>選択されたフォルダーの絶対パス<br/>キャンセル時は <c>null</c></returns>
         string ShowFolderBrowserDialog();
 
         /// <summary>
-        /// PDFファイル保存ダイアログを表示する
+        /// PDF ファイル保存ダイアログを表示する
         /// </summary>
         /// <param name="suggestedFileName">初期表示するファイル名</param>
-        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は<c>null</c></returns>
+        /// <returns>選択されたファイルの絶対パス<br/>キャンセル時は <c>null</c></returns>
         string ShowSavePdfFileDialog(string suggestedFileName);
 
         /// <summary>
-        /// はい/いいえの確認ダイアログを表示する
+        /// はい / いいえの確認ダイアログを表示する
         /// </summary>
         /// <param name="message">表示するメッセージ</param>
         /// <param name="title">ダイアログのタイトル</param>

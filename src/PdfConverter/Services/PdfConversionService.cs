@@ -14,12 +14,12 @@ using PdfConverter.Models;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// Docnet.Core(PDFium)を使用してPDFページを画像に変換・保存するサービス
+    /// Docnet.Core (PDFium) を使用して PDF ページを画像に変換・保存するサービス
     /// </summary>
     /// <remarks>
     /// 同一ファイルへの連続アクセス時のディスク I/O を削減するため、
-    /// 一定サイズ以下のPDFのみメモリキャッシュする<br/>
-    /// 並列保存時はワーカーごとにDocReaderがPDFを保持するため、
+    /// 一定サイズ以下の PDF のみメモリキャッシュする<br/>
+    /// 並列保存時はワーカーごとに DocReader が PDF を保持するため、
     /// ファイルサイズに応じて並列度を制限しメモリピークを抑える
     /// </remarks>
     public class PdfConversionService : IPdfConversionService
@@ -27,16 +27,16 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>メモリキャッシュの上限(バイト)</summary>
+        /// <summary>メモリキャッシュの上限 (バイト)</summary>
         private const long MaxCacheableFileSizeBytes = 64L * 1024 * 1024;
 
         /// <summary>保存処理の並列ワーカー数の上限</summary>
         private const int MaxSaveParallelism = 4;
 
-        /// <summary>フル並列を許可するPDFサイズの上限(バイト)</summary>
+        /// <summary>フル並列を許可する PDF サイズの上限 (バイト)</summary>
         private const long SmallPdfThresholdBytes = 8L * 1024 * 1024;
 
-        /// <summary>並列度を2に制限するPDFサイズの上限(バイト)</summary>
+        /// <summary>並列度を 2 に制限する PDF サイズの上限 (バイト)</summary>
         private const long MediumPdfThresholdBytes = 32L * 1024 * 1024;
 
         /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
@@ -48,7 +48,7 @@ namespace PdfConverter.Services
         /// <summary>キャッシュされたファイルの生バイト列</summary>
         private byte[] _cachedFileBytes;
 
-        /// <summary>キャッシュ取得時点のファイル最終更新日時(UTC)</summary>
+        /// <summary>キャッシュ取得時点のファイル最終更新日時 (UTC)</summary>
         private DateTime _cachedFileLastWrite;
 
 
@@ -60,7 +60,7 @@ namespace PdfConverter.Services
         {
             if (!File.Exists(filePath))
             {
-                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
             byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
@@ -87,7 +87,7 @@ namespace PdfConverter.Services
         {
             if (!File.Exists(filePath))
             {
-                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
             byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
@@ -107,7 +107,7 @@ namespace PdfConverter.Services
         {
             if (!File.Exists(filePath))
             {
-                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
             byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
@@ -127,8 +127,8 @@ namespace PdfConverter.Services
             int completedCount = 0;
             object progressLock = new object();
 
-            // ワーカーごとに1つのDocReaderを再利用し、ページごとの生成コストを削減する
-            // 大容量PDFではDocReaderごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
+            // ワーカーごとに 1 つの DocReader を再利用し、ページごとの生成コストを削減する
+            // 大容量 PDF では DocReader ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
             int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length);
             IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
@@ -183,7 +183,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="pageIndexes">保存対象のページインデックス一覧</param>
         /// <param name="saveAllPages"><c>true</c>の場合は全ページを保存する</param>
-        /// <param name="pageCount">PDFのページ数</param>
+        /// <param name="pageCount">PDF のページ数</param>
         /// <returns>保存対象のページインデックス一覧</returns>
         /// <exception cref="ArgumentException">有効なページインデックス一覧または"全ページを保存"を選択してください</exception>
         /// <exception cref="ArgumentOutOfRangeException">範囲外のページインデックスが含まれている場合</exception>
@@ -207,17 +207,17 @@ namespace PdfConverter.Services
 
             if (pagesToSave.Any(index => index < 0 || index >= pageCount))
             {
-                throw new ArgumentOutOfRangeException(nameof(pageIndexes), "範囲外のページインデックスが含まれています。PDFのページ数内で指定してください。");
+                throw new ArgumentOutOfRangeException(nameof(pageIndexes), "範囲外のページインデックスが含まれています。PDF のページ数内で指定してください。");
             }
 
             return pagesToSave;
         }
 
         /// <summary>
-        /// 保存処理の並列ワーカー数をCPUコア数とPDFサイズから決定する
+        /// 保存処理の並列ワーカー数を CPU コア数と PDF サイズから決定する
         /// </summary>
         /// <param name="processorCount">利用可能な論理プロセッサ数</param>
-        /// <param name="fileSizeBytes">PDFファイルサイズ(バイト)</param>
+        /// <param name="fileSizeBytes">PDF ファイルサイズ (バイト)</param>
         /// <returns>1以上の並列ワーカー数</returns>
         internal static int ResolveSaveParallelism(int processorCount, long fileSizeBytes)
         {
@@ -264,16 +264,16 @@ namespace PdfConverter.Services
         /// <summary>
         /// ファイルパスと最終更新日時をキーにしたメモリキャッシュから読み込む
         /// </summary>
-        /// <param name="filePath">PDFファイルのパス</param>
+        /// <param name="filePath">PDF ファイルのパス</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        /// <returns>PDFファイルのバイト配列</returns>
-        /// <remarks><see cref="MaxCacheableFileSizeBytes"/>を超えるPDFはキャッシュせず、都度ディスクから読み込む</remarks>
+        /// <returns>PDF ファイルのバイト配列</returns>
+        /// <remarks><see cref="MaxCacheableFileSizeBytes"/> を超える PDF はキャッシュせず、都度ディスクから読み込む</remarks>
         private async Task<byte[]> GetFileBytesAsync(string filePath, CancellationToken cancellationToken = default)
         {
             var fileInfo = new FileInfo(filePath);
             if (!fileInfo.Exists)
             {
-                throw new FileNotFoundException("PDFファイルが見つかりません。", filePath);
+                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
             DateTime lastWrite = fileInfo.LastWriteTimeUtc;
@@ -325,7 +325,7 @@ namespace PdfConverter.Services
         /// <param name="docReader">DocReader</param>
         /// <param name="pageIndex">ページインデックス</param>
         /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>スケーリング済みビットマップ</returns>
@@ -348,7 +348,7 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// <see cref="IPageReader"/>のピクセルデータからビットマップを生成する
+        /// <see cref="IPageReader"/> のピクセルデータからビットマップを生成する
         /// </summary>
         /// <param name="pageReader">PageReader</param>
         /// <returns>ビットマップ</returns>
@@ -358,7 +358,7 @@ namespace PdfConverter.Services
             int height = pageReader.GetPageHeight();
             byte[] imageBytes = pageReader.GetImage();
 
-            // Docnet.CoreはBGRA32形式でピクセルデータを返す(stride = width * 4 bytes)
+            // Docnet.Core は BGRA32 形式でピクセルデータを返す (stride = width * 4 bytes)
             var source = BitmapSource.Create(
                 width,
                 height,
@@ -379,7 +379,7 @@ namespace PdfConverter.Services
         /// <param name="pageIndex">ページインデックス</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
         /// <param name="format">出力画像形式</param>
         /// <param name="preserveTransparency"><c>true</c>の場合は透明度を保持する</param>
         private static void SavePageToFile(IDocReader docReader, int pageIndex, string folderPath, ResolutionMode mode, double value, OutputImageFormat format, bool preserveTransparency)
@@ -397,15 +397,15 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// ファイルの先頭4バイトがPDFマジックナンバー(<c>%PDF</c>)であることを検証する
+        /// ファイルの先頭4バイトが PDF マジックナンバー (<c>%PDF</c>) であることを検証する
         /// </summary>
-        /// <param name="fileBytes">PDFファイルのバイト配列</param>
-        /// <exception cref="InvalidDataException">PDFファイルではない場合</exception>
+        /// <param name="fileBytes">PDF ファイルのバイト配列</param>
+        /// <exception cref="InvalidDataException">PDF ファイルではない場合</exception>
         private static void ValidatePdfHeader(byte[] fileBytes)
         {
             if (fileBytes == null || fileBytes.Length < 4)
             {
-                throw new InvalidDataException("PDFファイルではありません。ファイルが破損している可能性があります。");
+                throw new InvalidDataException("PDF ファイルではありません。ファイルが破損している可能性があります。");
             }
 
             if (fileBytes[0] != '%'
@@ -413,16 +413,16 @@ namespace PdfConverter.Services
                 || fileBytes[2] != 'D'
                 || fileBytes[3] != 'F')
             {
-                throw new InvalidDataException("PDFファイルではありません。ファイルが破損している可能性があります。");
+                throw new InvalidDataException("PDF ファイルではありません。ファイルが破損している可能性があります。");
             }
         }
 
         /// <summary>
-        /// <see cref="ResolutionMode"/>に基づいて<paramref name="source"/>をスケーリングする
+        /// <see cref="ResolutionMode"/> に基づいて<paramref name="source"/> をスケーリングする
         /// </summary>
         /// <param name="source">元ビットマップ</param>
         /// <param name="mode">解像度の指定方法</param>
-        /// <param name="value"><paramref name="mode"/>に対応する数値(幅・高さ・DPI)</param>
+        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
         /// <returns>スケーリング済みビットマップ</returns>
         private static BitmapSource ScaleBitmap(BitmapSource source, ResolutionMode mode, double value)
         {

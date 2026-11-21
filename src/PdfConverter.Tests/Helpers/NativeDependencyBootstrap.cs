@@ -9,9 +9,16 @@ namespace PdfConverter.Tests.Helpers
     /// </summary>
     internal static class NativeDependencyBootstrap
     {
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectory(string lpPathName);
 
+
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
         static NativeDependencyBootstrap()
         {
             string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;

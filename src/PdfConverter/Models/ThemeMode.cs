@@ -5,13 +5,16 @@ namespace PdfConverter.Models
     /// </summary>
     public enum ThemeMode
     {
+        /********************************************************************************/
+        /*                                    列挙値                                    */
+        /********************************************************************************/
         /// <summary>ライトテーマ</summary>
         Light,
 
         /// <summary>ダークテーマ</summary>
         Dark,
 
-        /// <summary>Windowsのシステム設定に従う</summary>
+        /// <summary>Windows のシステム設定に従う</summary>
         System,
     }
 }

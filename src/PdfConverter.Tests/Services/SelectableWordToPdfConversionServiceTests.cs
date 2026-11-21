@@ -1,6 +1,5 @@
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Models;
 using PdfConverter.Services;
@@ -13,6 +12,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class SelectableWordToPdfConversionServiceTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// Microsoft Word 設定時は Word COM サービスへ委譲することを検証する
         /// </summary>

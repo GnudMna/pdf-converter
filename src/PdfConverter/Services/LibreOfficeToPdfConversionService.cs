@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// LibreOffice headlessを使用してWordファイルをPDFに変換するサービス
+    /// LibreOffice headless を使用して Word ファイルを PDF に変換するサービス
     /// </summary>
     public sealed class LibreOfficeToPdfConversionService : IWordToPdfConversionService
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>Word → PDF変換設定</summary>
+        /// <summary>Word → PDF 変換設定</summary>
         private readonly IWordToPdfConversionSettings _settings;
 
 
@@ -23,9 +23,9 @@ namespace PdfConverter.Services
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 指定した設定を使用してLibreOffice経由の変換を行う
+        /// 指定した設定を使用して LibreOffice 経由の変換を行う
         /// </summary>
-        /// <param name="settings">Word → PDF変換設定</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
         public LibreOfficeToPdfConversionService(IWordToPdfConversionSettings settings)
         {
             _settings = settings;
@@ -47,11 +47,11 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// LibreOfficeを起動してPDFを生成する
+        /// LibreOffice を起動して PDF を生成する
         /// </summary>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        /// <returns>生成されたPDFファイルの絶対パス</returns>
+        /// <returns>生成された PDF ファイルの絶対パス</returns>
         private string ConvertInternal(string wordFilePath, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -62,7 +62,7 @@ namespace PdfConverter.Services
 
             try
             {
-                string arguments = BuildArguments(outputDirectory, wordFilePath);
+                string arguments = BuildArguments(outputDirectory, wordFilePath, _settings);
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = sofficePath,
@@ -113,15 +113,21 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// LibreOffice起動引数を組み立てる
+        /// LibreOffice 起動引数を組み立てる
         /// </summary>
         /// <param name="outputDirectory">出力先ディレクトリ</param>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
+        /// <param name="settings">Word → PDF 変換設定</param>
         /// <returns>起動引数</returns>
-        private static string BuildArguments(string outputDirectory, string wordFilePath)
+        internal static string BuildArguments(
+            string outputDirectory,
+            string wordFilePath,
+            IWordToPdfConversionSettings settings)
         {
+            string convertTo = LibreOfficePdfExportFilterBuilder.BuildConvertToArgument(settings);
             return string.Format(
-                "--headless --nologo --nofirststartwizard --convert-to pdf --outdir {0} {1}",
+                "--headless --nologo --nofirststartwizard --convert-to {0} --outdir {1} {2}",
+                QuoteArgument(convertTo),
                 QuoteArgument(outputDirectory),
                 QuoteArgument(wordFilePath));
         }
@@ -131,13 +137,13 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="value">引数値</param>
         /// <returns>引用符で囲んだ引数</returns>
-        private static string QuoteArgument(string value)
+        internal static string QuoteArgument(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
         }
 
         /// <summary>
-        /// 利用可能な標準出力/エラー文字列を読み取る
+        /// 利用可能な標準出力 / エラー文字列を読み取る
         /// </summary>
         /// <param name="reader">読み取り元</param>
         /// <returns>読み取った文字列</returns>

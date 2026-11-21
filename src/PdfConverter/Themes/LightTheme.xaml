@@ -87,4 +87,8 @@
     <SolidColorBrush x:Key="DropOverlayBackgroundBrush" Color="#F0EEF0FF" />
     <SolidColorBrush x:Key="DropOverlayBorderBrush" Color="#FF4F46E5" />
     <SolidColorBrush x:Key="DropOverlayForegroundBrush" Color="#FF3730A3" />
+
+    <!-- 処理中オーバーレイ -->
+    <SolidColorBrush x:Key="BusyOverlayBackgroundBrush" Color="#D9F4F6FB" />
+    <SolidColorBrush x:Key="BusyOverlayForegroundBrush" Color="#FF374151" />
 </ResourceDictionary>

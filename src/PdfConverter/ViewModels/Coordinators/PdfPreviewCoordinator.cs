@@ -9,17 +9,17 @@ using PdfConverter.Services;
 namespace PdfConverter.ViewModels.Coordinators
 {
     /// <summary>
-    /// PDF読み込み・プレビュー生成・ページナビゲーションを担当する
+    /// PDF 読み込み・プレビュー生成・ページナビゲーションを担当する
     /// </summary>
     internal sealed class PdfPreviewCoordinator : IPdfPreviewCoordinator
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
-        /// <summary>PDF変換サービス</summary>
+        /// <summary>PDF 変換サービス</summary>
         private readonly IPdfConversionService _pdfService;
 
-        /// <summary>入力ドキュメントからPDFソースを提供するサービス</summary>
+        /// <summary>入力ドキュメントから PDF ソースを提供するサービス</summary>
         private readonly IDocumentPdfSourceService _documentPdfSourceService;
 
         /// <summary>プレビュータスクの排他制御用オブジェクト</summary>
@@ -31,15 +31,18 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>アクティブなプレビュータスク</summary>
         private Task _activePreviewTask = Task.CompletedTask;
 
+        /// <summary>アクティブなプレビュー UI フィードバック</summary>
+        private PreviewUiFeedback _activePreviewUiFeedback;
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 指定したサービスを使用してPDF読み込み・プレビュー生成・ページナビゲーションを担当する
+        /// 指定したサービスを使用して PDF 読み込み・プレビュー生成・ページナビゲーションを担当する
         /// </summary>
-        /// <param name="pdfService">PDF変換サービス</param>
-        /// <param name="documentPdfSourceService">入力ドキュメントからPDFソースを提供するサービス</param>
+        /// <param name="pdfService">PDF 変換サービス</param>
+        /// <param name="documentPdfSourceService">入力ドキュメントから PDF ソースを提供するサービス</param>
         public PdfPreviewCoordinator(
             IPdfConversionService pdfService,
             IDocumentPdfSourceService documentPdfSourceService)
@@ -53,11 +56,11 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// <see cref="IMainViewModelHost.FilePath"/>のPDFを検証して読み込み、ページ数取得とプレビュー生成を開始する
+        /// <see cref="IPreviewCoordinatorHost.FilePath"/> の PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
-        public void LoadFromPath(IMainViewModelHost host, bool forceReload = false)
+        public void LoadFromPath(IPreviewCoordinatorHost host, bool forceReload = false)
         {
             if (host.IsSaving)
             {
@@ -102,11 +105,11 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDFが読み込み済みのとき、現在の解像度設定でプレビューを再生成する
+        /// PDF が読み込み済みのとき、現在の解像度設定でプレビューを再生成する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public Task RefreshIfLoadedAsync(IMainViewModelHost host)
+        public Task RefreshIfLoadedAsync(IPreviewCoordinatorHost host)
         {
             if (string.IsNullOrEmpty(host.FilePath) || host.PageCount <= 0 || host.IsSaving)
             {
@@ -118,11 +121,11 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 読み込み済みPDFのプレビュー再生成をスケジュールする
+        /// 読み込み済み PDF のプレビュー再生成をスケジュールする
         /// </summary>
-        /// <remarks>プロパティセッターなどUIスレッドから呼び出す用途向け</remarks>
+        /// <remarks>プロパティセッターなど UI スレッドから呼び出す用途向け</remarks>
         /// <param name="host">メインビューモデル</param>
-        public void RequestRefreshIfLoaded(IMainViewModelHost host)
+        public void RequestRefreshIfLoaded(IPreviewCoordinatorHost host)
         {
             TrackPreviewTask(RefreshIfLoadedAsync(host));
         }
@@ -132,11 +135,11 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToPageAsync(IMainViewModelHost host)
+        public async Task GoToPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.PageCount <= 0)
             {
-                host.SetStatus("ページ数が不明です。PDFを読み込んでください。", StatusKind.Warning);
+                host.SetStatus("ページ数が不明です。PDF を読み込んでください。", StatusKind.Warning);
                 return;
             }
 
@@ -149,7 +152,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToPreviousPageAsync(IMainViewModelHost host)
+        public async Task GoToPreviousPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.CurrentPreviewPage <= 1)
             {
@@ -166,7 +169,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
-        public async Task GoToNextPageAsync(IMainViewModelHost host)
+        public async Task GoToNextPageAsync(IPreviewCoordinatorHost host)
         {
             if (host.CurrentPreviewPage >= host.PageCount)
             {
@@ -187,7 +190,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <returns>今回の操作世代番号</returns>
-        private long BeginPreviewOperation(IMainViewModelHost host)
+        private long BeginPreviewOperation(IPreviewCoordinatorHost host)
         {
             host.PrepareCancellation();
             return Interlocked.Increment(ref _previewOperationGeneration);
@@ -245,12 +248,12 @@ namespace PdfConverter.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDFのページ数を取得し、プレビューを生成する
+        /// PDF のページ数を取得し、プレビューを生成する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="operationGeneration">操作世代番号</param>
         /// <returns>非同期操作のタスク</returns>
-        private async Task LoadPageCountAndConvertAsync(IMainViewModelHost host, long operationGeneration)
+        private async Task LoadPageCountAndConvertAsync(IPreviewCoordinatorHost host, long operationGeneration)
         {
             if (string.IsNullOrEmpty(host.FilePath))
             {
@@ -259,6 +262,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
             host.ProgressValue = 0;
             host.IsBusy = true;
+            host.IsProgressBarVisible = true;
             CancellationToken cancellationToken = host.GetCancellationToken();
             string loadingPath = host.FilePath;
 
@@ -296,7 +300,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageCount = 0;
                     host.PreviewImage = null;
                     host.LoadedFilePath = null;
-                    host.SetStatus($"PDFの読み込みに失敗しました: {ex.Message}", StatusKind.Error);
+                    host.SetStatus($"PDF の読み込みに失敗しました: {ex.Message}", StatusKind.Error);
                     return;
                 }
 
@@ -317,13 +321,14 @@ namespace PdfConverter.ViewModels.Coordinators
                 if (IsCurrentPreviewOperation(operationGeneration))
                 {
                     host.IsBusy = false;
+                    host.IsProgressBarVisible = false;
                     host.DisposeCancellation();
                 }
             }
         }
 
         /// <summary>
-        /// PDFのページを画像に変換し、プレビューを更新する
+        /// PDF のページを画像に変換し、プレビューを更新する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="operationGeneration">操作世代番号</param>
@@ -331,7 +336,7 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="manageBusyState">処理中フラグとキャンセルソースのライフサイクルをこのメソッドで管理するかどうか</param>
         /// <returns>非同期操作のタスク</returns>
         private async Task ConvertAsync(
-            IMainViewModelHost host,
+            IPreviewCoordinatorHost host,
             long operationGeneration,
             bool showFieldValidation = false,
             bool manageBusyState = true)
@@ -341,15 +346,20 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            host.ProgressValue = 0;
             host.PrepareCancellation();
             CancellationToken cancellationToken = host.GetCancellationToken();
+
+            PreviewUiFeedback uiFeedback = null;
             if (manageBusyState)
             {
-                host.IsBusy = true;
+                _activePreviewUiFeedback?.Abandon();
+                uiFeedback = new PreviewUiFeedback(host, () => IsCurrentPreviewOperation(operationGeneration));
+                _activePreviewUiFeedback = uiFeedback;
             }
-
-            host.SetStatus("プレビュー生成中...", StatusKind.Progress);
+            else
+            {
+                host.SetStatus("プレビュー生成中...", StatusKind.Progress);
+            }
 
             try
             {
@@ -359,6 +369,8 @@ namespace PdfConverter.ViewModels.Coordinators
                     {
                         return;
                     }
+
+                    uiFeedback?.Abandon();
 
                     if (showFieldValidation)
                     {
@@ -371,8 +383,9 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 host.PageNumberValidationMessage = null;
 
-                if (!CoordinatorHelpers.TryGetResolutionValue(host, out double val, showFieldValidation))
+                if (!CoordinatorHelpers.TryGetResolutionValue(host, host, out double val, showFieldValidation))
                 {
+                    uiFeedback?.Abandon();
                     return;
                 }
 
@@ -384,6 +397,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 string pdfPath = await ResolvePdfPathAsync(host, host.FilePath, operationGeneration, cancellationToken);
                 if (pdfPath == null)
                 {
+                    uiFeedback?.Abandon();
                     return;
                 }
 
@@ -402,13 +416,27 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 host.PreviewImage = previewImage;
-                host.SetStatus("プレビューを更新しました。", StatusKind.Success);
+                if (manageBusyState)
+                {
+                    uiFeedback?.CompleteSuccess();
+                }
+                else
+                {
+                    host.SetStatus("プレビューを更新しました。", StatusKind.Success);
+                }
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
                 if (IsCurrentPreviewOperation(operationGeneration))
                 {
-                    host.SetStatus("プレビュー変換をキャンセルしました。", StatusKind.Info);
+                    if (manageBusyState)
+                    {
+                        uiFeedback?.CompleteCancelled();
+                    }
+                    else
+                    {
+                        host.SetStatus("プレビュー変換をキャンセルしました。", StatusKind.Info);
+                    }
                 }
             }
             catch (Exception ex)
@@ -418,28 +446,43 @@ namespace PdfConverter.ViewModels.Coordinators
                     return;
                 }
 
-                host.SetStatus($"プレビューの生成中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                if (manageBusyState)
+                {
+                    uiFeedback?.CompleteError($"プレビューの生成中にエラーが発生しました: {ex.Message}");
+                }
+                else
+                {
+                    host.SetStatus($"プレビューの生成中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                }
             }
             finally
             {
-                if (manageBusyState && IsCurrentPreviewOperation(operationGeneration))
+                if (manageBusyState)
                 {
-                    host.IsBusy = false;
-                    host.DisposeCancellation();
+                    uiFeedback?.Dispose();
+                    if (_activePreviewUiFeedback == uiFeedback)
+                    {
+                        _activePreviewUiFeedback = null;
+                    }
+
+                    if (IsCurrentPreviewOperation(operationGeneration))
+                    {
+                        host.DisposeCancellation();
+                    }
                 }
             }
         }
 
         /// <summary>
-        /// 入力ドキュメントからPDFレンダリング用のパスを取得する
+        /// 入力ドキュメントから PDF レンダリング用のパスを取得する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
         /// <param name="sourcePath">入力ファイルの絶対パス</param>
         /// <param name="operationGeneration">操作世代番号</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
-        /// <returns>PDFレンダリング用の絶対パス。失敗時は <c>null</c></returns>
+        /// <returns>PDF レンダリング用の絶対パス。失敗時は <c>null</c></returns>
         private async Task<string> ResolvePdfPathAsync(
-            IMainViewModelHost host,
+            IPreviewCoordinatorHost host,
             string sourcePath,
             long operationGeneration,
             CancellationToken cancellationToken)
@@ -447,7 +490,7 @@ namespace PdfConverter.ViewModels.Coordinators
             bool isWordDocument = DocumentFileHelper.IsWordFile(sourcePath);
             if (isWordDocument)
             {
-                host.SetStatus("WordをPDFに変換中...", StatusKind.Progress);
+                host.SetStatus("Word を PDF に変換中...", StatusKind.Progress);
             }
 
             try
@@ -478,8 +521,8 @@ namespace PdfConverter.ViewModels.Coordinators
                 host.LoadedFilePath = null;
                 host.SetStatus(
                     isWordDocument
-                        ? $"WordをPDFに変換に失敗しました: {ex.Message}"
-                        : $"PDFの読み込みに失敗しました: {ex.Message}",
+                        ? $"Word を PDF に変換に失敗しました: {ex.Message}"
+                        : $"PDF の読み込みに失敗しました: {ex.Message}",
                     StatusKind.Error);
                 return null;
             }

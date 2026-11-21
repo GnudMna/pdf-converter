@@ -6,7 +6,7 @@ using System.Windows;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// 入力ドキュメント（PDF / Word）のパス判定に関する共通処理
+    /// 入力ドキュメント (PDF / Word) のパス判定に関する共通処理
     /// </summary>
     public static class DocumentFileHelper
     {
@@ -14,20 +14,20 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 指定したパスがPDFファイルかどうかを判定する
+        /// 指定したパスが PDF ファイルかどうかを判定する
         /// </summary>
         /// <param name="path">ファイルパス</param>
-        /// <returns>true: PDFファイル / false: PDFファイルではない</returns>
+        /// <returns>true: PDF ファイル / false: PDF ファイルではない</returns>
         public static bool IsPdfFile(string path)
         {
             return HasExtension(path, ".pdf");
         }
 
         /// <summary>
-        /// 指定したパスがWordファイルかどうかを判定する
+        /// 指定したパスが Word ファイルかどうかを判定する
         /// </summary>
         /// <param name="path">ファイルパス</param>
-        /// <returns>true: Wordファイル / false: Wordファイルではない</returns>
+        /// <returns>true: Word ファイル / false: Word ファイルではない</returns>
         public static bool IsWordFile(string path)
         {
             return HasExtension(path, ".doc", ".docx");
@@ -44,10 +44,10 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// Word → PDF変換用のファイルパスを検証する
+        /// Word → PDF 変換用のファイルパスを検証する
         /// </summary>
-        /// <param name="wordFilePath">Wordファイルの絶対パス</param>
-        /// <exception cref="ArgumentException">パスが空、またはWordファイルではない場合</exception>
+        /// <param name="wordFilePath">Word ファイルの絶対パス</param>
+        /// <exception cref="ArgumentException">パスが空、または Word ファイルではない場合</exception>
         /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
         public static void ValidateWordFilePath(string wordFilePath)
         {
@@ -109,7 +109,7 @@ namespace PdfConverter.Services
         /// 指定した拡張子のいずれかに一致するかどうかを判定する
         /// </summary>
         /// <param name="path">ファイルパス</param>
-        /// <param name="extensions">拡張子一覧（先頭にドットを含む）</param>
+        /// <param name="extensions">拡張子一覧 (先頭にドットを含む)</param>
         /// <returns>true: 一致 / false: 一致しない</returns>
         private static bool HasExtension(string path, params string[] extensions)
         {

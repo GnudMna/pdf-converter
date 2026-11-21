@@ -16,7 +16,7 @@ namespace PdfConverter.Infrastructure
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// サービスを登録して<see cref="IServiceProvider"/>を構築する
+        /// サービスを登録して <see cref="IServiceProvider"/> を構築する
         /// </summary>
         /// <returns><see cref="IServiceProvider"/></returns>
         public static IServiceProvider Configure()
@@ -24,6 +24,7 @@ namespace PdfConverter.Infrastructure
             var services = new ServiceCollection();
             services.AddSingleton<IPdfConversionService, PdfConversionService>();
             services.AddSingleton<IWordToPdfConversionSettings, WordToPdfConversionSettings>();
+            services.AddSingleton<IImageExportSettings, ImageExportSettings>();
             services.AddSingleton<MicrosoftWordToPdfConversionService>();
             services.AddSingleton<LibreOfficeToPdfConversionService>();
             services.AddSingleton<IWordToPdfConversionService>(provider =>

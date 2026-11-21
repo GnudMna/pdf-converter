@@ -1,0 +1,36 @@
+<UserControl x:Class="PdfConverter.Views.BusyOverlay"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DesignHeight="320"
+             d:DesignWidth="480">
+
+    <Border Background="{DynamicResource BusyOverlayBackgroundBrush}"
+            CornerRadius="10"
+            IsHitTestVisible="False">
+        <StackPanel HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Margin="20">
+            <Path Style="{StaticResource BusySpinnerPath}"
+                  HorizontalAlignment="Center" />
+            <TextBlock Text="{Binding StatusMessage}"
+                       Margin="0,14,0,0"
+                       MaxWidth="280"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource BusyOverlayForegroundBrush}" />
+            <TextBlock Text="キャンセルする場合は「キャンセル」を押してください"
+                       Margin="0,8,0,0"
+                       MaxWidth="280"
+                       FontSize="12"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="{DynamicResource BusyOverlayForegroundBrush}"
+                       Opacity="0.85" />
+        </StackPanel>
+    </Border>
+</UserControl>

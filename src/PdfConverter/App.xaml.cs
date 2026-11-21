@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
 using PdfConverter.Themes;
@@ -11,7 +12,7 @@ namespace PdfConverter
 {
     /// <summary>
     /// アプリケーションのエントリーポイント<br/>
-    /// 起動時にネイティブDLLの検索パスを設定し、依存関係を組み立てる
+    /// 起動時にネイティブ DLL の検索パスを設定し、依存関係を組み立てる
     /// </summary>
     public partial class App : Application
     {
@@ -26,8 +27,8 @@ namespace PdfConverter
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// 指定したディレクトリをプロセスのDLL検索パスに追加するWin32 API<br/>
-        /// Docnet.Coreが依存するPDFiumネイティブDLLを<c>lib\</c>サブフォルダーから読み込めるようにするために<c>P/Invoke</c>で呼び出す
+        /// 指定したディレクトリをプロセスの DLL 検索パスに追加する Win32 API<br/>
+        /// Docnet.Core が依存する PDFium ネイティブ DLL を <c>lib\</c> サブフォルダーから読み込めるようにするために <c>P/Invoke</c> で呼び出す
         /// </summary>
         [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
         private static extern bool SetDllDirectory(string lpPathName);
@@ -35,6 +36,10 @@ namespace PdfConverter
         /// <inheritdoc/>
         protected override void OnStartup(StartupEventArgs e)
         {
+            ToolTipService.InitialShowDelayProperty.OverrideMetadata(
+                typeof(FrameworkElement),
+                new FrameworkPropertyMetadata(200));
+
             GlobalExceptionHandler.Register();
 
             var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)

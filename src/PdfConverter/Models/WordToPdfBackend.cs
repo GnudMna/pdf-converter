@@ -1,10 +1,13 @@
 namespace PdfConverter.Models
 {
     /// <summary>
-    /// Word → PDF変換に使用するエンジン
+    /// Word → PDF 変換に使用するエンジン
     /// </summary>
     public enum WordToPdfBackend
     {
+        /********************************************************************************/
+        /*                                    列挙値                                    */
+        /********************************************************************************/
         /// <summary>Microsoft Word (COM)</summary>
         MicrosoftWord,
 

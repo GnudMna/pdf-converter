@@ -7,7 +7,7 @@ namespace PdfConverter.Commands
 {
     /// <summary>
     /// 非同期処理を実行するコマンド<br/>
-    /// 実行中は再入を防止し、完了まで<see cref="CanExecute"/>を<c>false</c>にする
+    /// 実行中は再入を防止し、完了まで <see cref="CanExecute"/> を <c>false</c> にする
     /// </summary>
     public class AsyncRelayCommand : IRelayCommand
     {

@@ -2,8 +2,8 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
+using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels.Coordinators;
@@ -16,6 +16,9 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
     /// </summary>
     public class PdfPreviewCoordinatorTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパスが空の場合に何も処理されないことを検証する
         /// </summary>
@@ -27,7 +30,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             coordinator.LoadFromPath(host);
 
-            host.StatusMessage.Should().BeNull();
+            Assert.Null(host.StatusMessage);
         }
 
         /// <summary>
@@ -44,10 +47,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             coordinator.LoadFromPath(host);
 
-            host.PageCount.Should().Be(0);
-            host.PreviewImage.Should().BeNull();
-            host.LoadedFilePath.Should().BeNull();
-            host.StatusMessage.Should().Contain("見つかりません");
+            Assert.Equal(0, host.PageCount);
+            Assert.Null(host.PreviewImage);
+            Assert.Null(host.LoadedFilePath);
+            Assert.Contains("見つかりません", host.StatusMessage);
         }
 
         /// <summary>
@@ -64,7 +67,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 coordinator.LoadFromPath(host);
 
-                host.StatusMessage.Should().Contain("Word");
+                Assert.Contains("Word", host.StatusMessage);
             }
             finally
             {
@@ -93,7 +96,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 保存処理中（IsSaving）のときに新しい読み込みが開始されないことを検証する
+        /// 保存処理中 (IsSaving) のときに新しい読み込みが開始されないことを検証する
         /// </summary>
         [Fact]
         public void LoadFromPath_WhenSaving_DoesNotStartLoad()
@@ -148,12 +151,12 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 coordinator.LoadFromPath(host, forceReload: true);
                 await Task.Delay(50);
 
-                host.IsBusy.Should().BeTrue();
+                Assert.True(host.IsBusy);
 
                 pageCountGate.SetResult(1);
                 await WaitForAsyncOperations();
 
-                host.IsBusy.Should().BeFalse();
+                Assert.False(host.IsBusy);
             }
             finally
             {
@@ -194,10 +197,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 coordinator.LoadFromPath(host, forceReload: true);
                 await WaitForAsyncOperations();
 
-                host.PageCount.Should().Be(3);
-                host.PreviewImage.Should().BeSameAs(bitmap);
-                host.StatusMessage.Should().Contain("更新");
-                host.IsBusy.Should().BeFalse();
+                Assert.Equal(3, host.PageCount);
+                Assert.Same(bitmap, host.PreviewImage);
+                Assert.Contains("更新", host.StatusMessage);
+                Assert.False(host.IsBusy);
             }
             finally
             {
@@ -235,7 +238,95 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             {
                 await coordinator.GoToPreviousPageAsync(host);
 
-                host.PageNumber.Should().Be("1");
+                Assert.Equal("1", host.PageNumber);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// プレビュー切り替えが短時間で完了した場合は処理中 UI を出さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToNextPageAsync_WhenPreviewCompletesQuickly_DoesNotShowBusyUi()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                PageCount = 3,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+                StatusMessage = "初期状態",
+                StatusKind = StatusKind.Info,
+            };
+            System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
+            StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(previewBitmap);
+
+            try
+            {
+                await coordinator.GoToNextPageAsync(host);
+
+                Assert.Equal("2", host.PageNumber);
+                Assert.False(host.IsBusy);
+                Assert.Equal("初期状態", host.StatusMessage);
+                Assert.Equal(StatusKind.Info, host.StatusKind);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// プレビュー切り替えが遅い場合のみ処理中 UI を出すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToNextPageAsync_WhenPreviewIsSlow_ActivatesBusyUi()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                PageCount = 3,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+            };
+            var convertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
+            System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
+            StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(convertGate.Task);
+
+            try
+            {
+                Task navigationTask = coordinator.GoToNextPageAsync(host);
+                await Task.Delay(PreviewUiFeedback.ActivationDelayMilliseconds + 100);
+
+                Assert.True(host.IsBusy);
+                Assert.Equal(StatusKind.Progress, host.StatusKind);
+
+                convertGate.SetResult(previewBitmap);
+                await navigationTask;
+
+                Assert.False(host.IsBusy);
+                Assert.Contains("更新", host.StatusMessage);
             }
             finally
             {
@@ -295,8 +386,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 firstConvertGate.SetResult(firstBitmap);
                 await WaitForAsyncOperations();
 
-                host.PreviewImage.Should().BeSameAs(secondBitmap);
-                host.IsBusy.Should().BeFalse();
+                Assert.Same(secondBitmap, host.PreviewImage);
+                Assert.False(host.IsBusy);
             }
             finally
             {
@@ -305,7 +396,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// PDF が未読み込み（PageCount が 0）のときにプレビュー再生成が行われないことを検証する
+        /// PDF が未読み込み (PageCount が 0) のときにプレビュー再生成が行われないことを検証する
         /// </summary>
         [Fact]
         public async Task RefreshIfLoadedAsync_WhenNotLoaded_DoesNothing()
@@ -323,6 +414,11 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()), Times.Never);
         }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
 
         private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf)
         {

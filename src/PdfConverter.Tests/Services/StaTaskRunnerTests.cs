@@ -1,7 +1,6 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
@@ -12,6 +11,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class StaTaskRunnerTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// キャンセル時にクリーンアップ処理が呼び出されることを検証する
         /// </summary>
@@ -34,8 +36,8 @@ namespace PdfConverter.Tests.Services
                 cts.CancelAfter(50);
 
                 Func<Task> act = async () => await task.ConfigureAwait(false);
-                await act.Should().ThrowAsync<OperationCanceledException>();
-                cleanupInvoked.Should().BeTrue();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(act);
+                Assert.True(cleanupInvoked);
             }
         }
     }

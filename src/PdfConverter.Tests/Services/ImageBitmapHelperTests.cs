@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
@@ -13,6 +12,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class ImageBitmapHelperTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// 各出力形式に対応するファイル拡張子が正しく返されることを検証する
         /// </summary>
@@ -22,7 +24,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(OutputImageFormat.Bmp, ".bmp")]
         public void GetFileExtension_ReturnsExpectedExtension(OutputImageFormat format, string expected)
         {
-            ImageBitmapHelper.GetFileExtension(format).Should().Be(expected);
+            Assert.Equal(expected, ImageBitmapHelper.GetFileExtension(format));
         }
 
         /// <summary>
@@ -33,7 +35,7 @@ namespace PdfConverter.Tests.Services
         {
             Action act = () => ImageBitmapHelper.GetFileExtension((OutputImageFormat)999);
 
-            act.Should().Throw<ArgumentOutOfRangeException>();
+            Assert.Throws<ArgumentOutOfRangeException>(act);
         }
 
         /// <summary>
@@ -45,7 +47,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(OutputImageFormat.Jpeg, false)]
         public void SupportsTransparency_ReturnsExpectedValue(OutputImageFormat format, bool expected)
         {
-            ImageBitmapHelper.SupportsTransparency(format).Should().Be(expected);
+            Assert.Equal(expected, ImageBitmapHelper.SupportsTransparency(format));
         }
 
         /// <summary>
@@ -60,7 +62,7 @@ namespace PdfConverter.Tests.Services
 
                 var result = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency: true);
 
-                result.Should().BeSameAs(source);
+                Assert.Same(source, result);
             });
         }
 
@@ -76,9 +78,9 @@ namespace PdfConverter.Tests.Services
 
                 var result = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency: false);
 
-                result.Should().NotBeSameAs(source);
-                result.IsFrozen.Should().BeTrue();
-                result.PixelWidth.Should().Be(source.PixelWidth);
+                Assert.NotSame(source, result);
+                Assert.True(result.IsFrozen);
+                Assert.Equal(source.PixelWidth, result.PixelWidth);
             });
         }
 
@@ -92,7 +94,7 @@ namespace PdfConverter.Tests.Services
             {
                 Action act = () => ImageBitmapHelper.ApplyTransparency(null, true);
 
-                act.Should().Throw<ArgumentNullException>();
+                Assert.Throws<ArgumentNullException>(act);
             });
         }
 
@@ -111,8 +113,8 @@ namespace PdfConverter.Tests.Services
                 {
                     ImageBitmapHelper.SaveToFile(source, outputPath, OutputImageFormat.Png);
 
-                    File.Exists(outputPath).Should().BeTrue();
-                    new FileInfo(outputPath).Length.Should().BeGreaterThan(0);
+                    Assert.True(File.Exists(outputPath));
+                    Assert.True(new FileInfo(outputPath).Length > 0);
                 }
                 finally
                 {
@@ -136,7 +138,7 @@ namespace PdfConverter.Tests.Services
 
                 Action act = () => ImageBitmapHelper.SaveToFile(source, "", OutputImageFormat.Png);
 
-                act.Should().Throw<ArgumentException>();
+                Assert.Throws<ArgumentException>(act);
             });
         }
     }

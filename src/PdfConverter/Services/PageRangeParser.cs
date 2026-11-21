@@ -5,7 +5,7 @@ using System.Linq;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// "1,3-5"形式のページ範囲文字列を解析するユーティリティ
+    /// "1,3-5" 形式のページ範囲文字列を解析するユーティリティ
     /// </summary>
     public static class PageRangeParser
     {
@@ -13,13 +13,13 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// ページ範囲文字列を解析して0始まりのページインデックス一覧を返す
+        /// ページ範囲文字列を解析して 0 始まりのページインデックス一覧を返す
         /// </summary>
         /// <param name="pageRange">カンマ区切りのページ番号・範囲文字列</param>
-        /// <param name="pageCount">PDFの総ページ数(範囲検証に使用)</param>
-        /// <returns>重複排除・昇順ソート済みの0始まりページインデックス一覧</returns>
+        /// <param name="pageCount">PDF の総ページ数 (範囲検証に使用)</param>
+        /// <returns>重複排除・昇順ソート済みの 0 始まりページインデックス一覧</returns>
         /// <exception cref="FormatException">番号や範囲の書式が不正な場合</exception>
-        /// <exception cref="ArgumentOutOfRangeException">ページ番号がPDFのページ数を超える場合</exception>
+        /// <exception cref="ArgumentOutOfRangeException">ページ番号が PDF のページ数を超える場合</exception>
         /// <exception cref="ArgumentException">解析結果が空の場合</exception>
         public static IReadOnlyList<int> Parse(string pageRange, int pageCount)
         {
@@ -44,7 +44,7 @@ namespace PdfConverter.Services
 
                     if (start < 1 || end < 1 || start > end || end > pageCount)
                     {
-                        throw new ArgumentOutOfRangeException(nameof(pageRange), "ページ範囲が無効です。PDFのページ数内で指定してください。");
+                        throw new ArgumentOutOfRangeException(nameof(pageRange), "ページ範囲が無効です。PDF のページ数内で指定してください。");
                     }
 
                     for (int i = start; i <= end; i++)

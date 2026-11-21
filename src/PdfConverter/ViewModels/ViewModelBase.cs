@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace PdfConverter.ViewModels
 {
     /// <summary>
-    /// <see cref="INotifyPropertyChanged"/>の共通実装を提供するViewModel基底クラス
+    /// <see cref="INotifyPropertyChanged"/> の共通実装を提供する ViewModel 基底クラス
     /// </summary>
     public abstract class ViewModelBase : INotifyPropertyChanged
     {

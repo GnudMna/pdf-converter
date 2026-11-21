@@ -67,7 +67,7 @@ namespace PdfConverter.Themes
         }
 
         /// <summary>
-        /// Windowsのアプリテーマ設定がダークかどうかを返す
+        /// Windows のアプリテーマ設定がダークかどうかを返す
         /// </summary>
         /// <returns>true: ダークテーマ / false: ライトテーマ</returns>
         public static bool IsSystemDarkMode()
@@ -86,7 +86,7 @@ namespace PdfConverter.Themes
         }
 
         /// <summary>
-        /// 設定文字列を<see cref="ThemeMode"/>に変換する
+        /// 設定文字列を <see cref="ThemeMode"/> に変換する
         /// </summary>
         /// <param name="value">設定文字列</param>
         /// <returns><see cref="ThemeMode"/></returns>

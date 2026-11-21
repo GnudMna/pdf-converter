@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
@@ -17,12 +16,24 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class PdfConversionServiceTests
     {
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
         static PdfConversionServiceTests()
         {
             _ = typeof(NativeDependencyBootstrap);
         }
 
+
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
         private readonly PdfConversionService _service = new PdfConversionService();
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
 
         /// <summary>
         /// 有効な PDF から正しいページ数が取得できることを検証する
@@ -36,7 +47,7 @@ namespace PdfConverter.Tests.Services
             {
                 int pageCount = await _service.GetPdfPageCountAsync(pdfPath);
 
-                pageCount.Should().Be(2);
+                Assert.Equal(2, pageCount);
             }
             finally
             {
@@ -54,7 +65,7 @@ namespace PdfConverter.Tests.Services
 
             Func<Task> act = () => _service.GetPdfPageCountAsync(missingPath);
 
-            await act.Should().ThrowAsync<FileNotFoundException>();
+            await Assert.ThrowsAsync<FileNotFoundException>(act);
         }
 
         /// <summary>
@@ -69,7 +80,7 @@ namespace PdfConverter.Tests.Services
             {
                 Func<Task> act = () => _service.GetPdfPageCountAsync(invalidPath);
 
-                await act.Should().ThrowAsync<InvalidDataException>();
+                await Assert.ThrowsAsync<InvalidDataException>(act);
             }
             finally
             {
@@ -93,7 +104,7 @@ namespace PdfConverter.Tests.Services
 
                     Func<Task> act = () => _service.GetPdfPageCountAsync(pdfPath, cts.Token);
 
-                    await act.Should().ThrowAsync<OperationCanceledException>();
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(act);
                 }
             }
             finally
@@ -116,10 +127,10 @@ namespace PdfConverter.Tests.Services
                 {
                     var bitmap = await _service.ConvertPdfPageToImageAsync(pdfPath, pageIndex: 0);
 
-                    bitmap.Should().NotBeNull();
-                    bitmap.PixelWidth.Should().BeGreaterThan(0);
-                    bitmap.PixelHeight.Should().BeGreaterThan(0);
-                    bitmap.IsFrozen.Should().BeTrue();
+                    Assert.NotNull(bitmap);
+                    Assert.True(bitmap.PixelWidth > 0);
+                    Assert.True(bitmap.PixelHeight > 0);
+                    Assert.True(bitmap.IsFrozen);
                 });
             }
             finally
@@ -146,8 +157,8 @@ namespace PdfConverter.Tests.Services
                         ResolutionMode.Width,
                         value: 100);
 
-                    bitmap.PixelWidth.Should().Be(100);
-                    bitmap.PixelHeight.Should().Be(100);
+                    Assert.Equal(100, bitmap.PixelWidth);
+                    Assert.Equal(100, bitmap.PixelHeight);
                 });
             }
             finally
@@ -168,7 +179,7 @@ namespace PdfConverter.Tests.Services
             {
                 Func<Task> act = () => _service.ConvertPdfPageToImageAsync(pdfPath, pageIndex: 99);
 
-                await act.Should().ThrowAsync<ArgumentOutOfRangeException>();
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(act);
             }
             finally
             {
@@ -196,11 +207,11 @@ namespace PdfConverter.Tests.Services
                     format: OutputImageFormat.Png,
                     progress: new Progress<SaveProgressReport>(progressReports.Add));
 
-                File.Exists(Path.Combine(outputDirectory, "page_1.png")).Should().BeTrue();
-                File.Exists(Path.Combine(outputDirectory, "page_2.png")).Should().BeTrue();
-                progressReports.Should().NotBeEmpty();
-                progressReports.Last().Percentage.Should().Be(100);
-                progressReports.Last().Message.Should().Contain("2/2");
+                Assert.True(File.Exists(Path.Combine(outputDirectory, "page_1.png")));
+                Assert.True(File.Exists(Path.Combine(outputDirectory, "page_2.png")));
+                Assert.NotEmpty(progressReports);
+                Assert.Equal(100, progressReports.Last().Percentage);
+                Assert.Contains("2/2", progressReports.Last().Message);
             }
             finally
             {
@@ -227,7 +238,7 @@ namespace PdfConverter.Tests.Services
                     saveAllPages: true,
                     format: OutputImageFormat.Jpeg);
 
-                Directory.GetFiles(outputDirectory, "page_*.jpg").Should().HaveCount(3);
+                Assert.Equal(3, Directory.GetFiles(outputDirectory, "page_*.jpg").Length);
             }
             finally
             {
@@ -253,7 +264,7 @@ namespace PdfConverter.Tests.Services
                     outputDirectory,
                     saveAllPages: false);
 
-                await act.Should().ThrowAsync<ArgumentException>();
+                await Assert.ThrowsAsync<ArgumentException>(act);
             }
             finally
             {
@@ -271,7 +282,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(1, 1 * 1024 * 1024, 1)]
         public void ResolveSaveParallelism_SmallPdf_UsesCpuBoundCap(int processorCount, long fileSizeBytes, int expected)
         {
-            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+            Assert.Equal(expected, PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes));
         }
 
         /// <summary>
@@ -282,7 +293,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(2, 16L * 1024 * 1024, 2)]
         public void ResolveSaveParallelism_MediumPdf_CapsAtTwo(int processorCount, long fileSizeBytes, int expected)
         {
-            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+            Assert.Equal(expected, PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes));
         }
 
         /// <summary>
@@ -293,7 +304,7 @@ namespace PdfConverter.Tests.Services
         [InlineData(8, 100L * 1024 * 1024, 1)]
         public void ResolveSaveParallelism_LargePdf_IsSequential(int processorCount, long fileSizeBytes, int expected)
         {
-            PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes).Should().Be(expected);
+            Assert.Equal(expected, PdfConversionService.ResolveSaveParallelism(processorCount, fileSizeBytes));
         }
 
         /// <summary>
@@ -319,7 +330,7 @@ namespace PdfConverter.Tests.Services
                         cancellationToken: cts.Token);
                 }
 
-                Directory.GetFiles(outputDirectory).Should().BeEmpty();
+                Assert.Empty(Directory.GetFiles(outputDirectory));
             }
             finally
             {

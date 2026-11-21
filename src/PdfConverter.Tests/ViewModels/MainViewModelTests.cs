@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Commands;
 using PdfConverter.Models;
@@ -16,6 +15,9 @@ namespace PdfConverter.Tests.ViewModels
     /// </summary>
     public class MainViewModelTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// ファイルパス未設定時に PageIndicator が選択を促すメッセージを返すことを検証する
         /// </summary>
@@ -24,7 +26,7 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
 
-            viewModel.PageIndicator.Should().Be("ファイルを選択してください");
+            Assert.Equal("ファイルを選択してください", viewModel.PageIndicator);
         }
 
         /// <summary>
@@ -37,7 +39,7 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.FilePath = "C:\\sample.pdf";
             viewModel.PageCount = 0;
 
-            viewModel.PageIndicator.Should().Be("ページ数を読み込んでいます...");
+            Assert.Equal("ページ数を読み込んでいます...", viewModel.PageIndicator);
         }
 
         /// <summary>
@@ -51,36 +53,41 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.PageCount = 5;
             viewModel.PageNumber = "3";
 
-            viewModel.PageIndicator.Should().Be("3/5 ページ");
+            Assert.Equal("3/5 ページ", viewModel.PageIndicator);
         }
 
         /// <summary>
-        /// 出力形式を JPEG に変更したときに透明度保持が自動的に無効化されることを検証する
+        /// ページ数が 0 のときはページ移動 UI を非表示にすることを検証する
         /// </summary>
         [Fact]
-        public void OutputImageFormat_Jpeg_DisablesPreserveTransparency()
+        public void IsPageNavigationVisible_WhenNoPages_IsFalse()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
-            viewModel.PreserveTransparency = true;
 
-            viewModel.OutputImageFormat = OutputImageFormat.Jpeg;
+            Assert.False(viewModel.IsPageNavigationVisible);
 
-            viewModel.PreserveTransparency.Should().BeFalse();
-            viewModel.IsTransparencySelectable.Should().BeFalse();
+            viewModel.PageCount = 3;
+
+            Assert.True(viewModel.IsPageNavigationVisible);
         }
 
         /// <summary>
-        /// 出力形式を PNG に設定したときに透明度の選択が可能であることを検証する
+        /// 総ページ数の桁数に応じてページ番号入力欄の最小幅が広がることを検証する
         /// </summary>
         [Fact]
-        public void OutputImageFormat_Png_AllowsTransparency()
+        public void PageNumberInputMinWidth_ExpandsForLargePageCount()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.PageCount = 12;
+            viewModel.PageNumber = "1";
 
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
+            var narrowWidth = viewModel.PageNumberInputMinWidth;
 
-            viewModel.IsTransparencySelectable.Should().BeTrue();
+            viewModel.PageCount = 1234;
+            viewModel.PageNumber = "1234";
+
+            Assert.True(viewModel.PageNumberInputMinWidth > narrowWidth);
+            Assert.True(viewModel.PageCountDisplayMinWidth > 16);
         }
 
         /// <summary>
@@ -94,8 +101,8 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.LoadPdfFromPath();
 
-            viewModel.PageCount.Should().Be(0);
-            viewModel.StatusMessage.Should().Contain("見つかりません");
+            Assert.Equal(0, viewModel.PageCount);
+            Assert.Contains("見つかりません", viewModel.StatusMessage);
             pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -113,7 +120,7 @@ namespace PdfConverter.Tests.ViewModels
             {
                 viewModel.LoadPdfFromPath(forceReload: true);
 
-                viewModel.StatusMessage.Should().Contain(".pdf");
+                Assert.Contains(".pdf", viewModel.StatusMessage);
                 pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
             }
             finally
@@ -145,7 +152,7 @@ namespace PdfConverter.Tests.ViewModels
             {
                 StaTestHelper.Run(() => viewModel.BrowseCommand.Execute(null));
 
-                viewModel.FilePath.Should().Be(selectedPath);
+                Assert.Equal(selectedPath, viewModel.FilePath);
                 dialog.Verify(d => d.ShowOpenDocumentFileDialog(), Times.Once);
             }
             finally
@@ -165,7 +172,7 @@ namespace PdfConverter.Tests.ViewModels
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
 
-            viewModel.StatusMessage.Should().Contain("ありません");
+            Assert.Contains("ありません", viewModel.StatusMessage);
             clipboard.Verify(c => c.CopyImage(It.IsAny<System.Windows.Media.Imaging.BitmapSource>(), It.IsAny<bool>()), Times.Never);
         }
 
@@ -178,14 +185,14 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
             System.Windows.Media.Imaging.BitmapSource image = null;
             StaTestHelper.Run(() => image = BitmapTestHelper.CreateBitmap());
-            viewModel.OutputImageFormat = OutputImageFormat.Png;
-            viewModel.PreserveTransparency = true;
+            viewModel.ExportSettings.OutputImageFormat = OutputImageFormat.Png;
+            viewModel.ExportSettings.PreserveTransparency = true;
             viewModel.PreviewImage = image;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
 
             clipboard.Verify(c => c.CopyImage(image, true), Times.Once);
-            viewModel.StatusMessage.Should().Contain("コピーしました");
+            Assert.Contains("コピーしました", viewModel.StatusMessage);
         }
 
         /// <summary>
@@ -197,7 +204,7 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.FilePath = null;
 
-            viewModel.SaveCommand.CanExecute(null).Should().BeFalse();
+            Assert.False(viewModel.SaveCommand.CanExecute(null));
         }
 
         /// <summary>
@@ -210,11 +217,11 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.FilePath = "C:\\sample.pdf";
             viewModel.IsBusy = false;
 
-            viewModel.SaveCommand.CanExecute(null).Should().BeTrue();
+            Assert.True(viewModel.SaveCommand.CanExecute(null));
         }
 
         /// <summary>
-        /// 処理中（IsBusy）のときに BrowseCommand が実行不可能であることを検証する
+        /// 処理中 (IsBusy) のときに BrowseCommand が実行不可能であることを検証する
         /// </summary>
         [Fact]
         public void BrowseCommand_WhenBusy_CannotExecute()
@@ -223,11 +230,11 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.IsBusy = true;
 
             ((IRelayCommand)viewModel.BrowseCommand).RaiseCanExecuteChanged();
-            viewModel.BrowseCommand.CanExecute(null).Should().BeFalse();
+            Assert.False(viewModel.BrowseCommand.CanExecute(null));
         }
 
         /// <summary>
-        /// 処理中（IsBusy）のときに CancelCommand が実行可能であることを検証する
+        /// 処理中 (IsBusy) のときに CancelCommand が実行可能であることを検証する
         /// </summary>
         [Fact]
         public void CancelCommand_WhenBusy_CanExecute()
@@ -236,7 +243,7 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.IsBusy = true;
 
             ((IRelayCommand)viewModel.CancelCommand).RaiseCanExecuteChanged();
-            viewModel.CancelCommand.CanExecute(null).Should().BeTrue();
+            Assert.True(viewModel.CancelCommand.CanExecute(null));
         }
 
         /// <summary>
@@ -257,8 +264,8 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.StatusMessage = "updated";
 
-            raised.Should().BeTrue();
-            viewModel.StatusMessage.Should().Be("updated");
+            Assert.True(raised);
+            Assert.Equal("updated", viewModel.StatusMessage);
         }
 
         /// <summary>
@@ -272,8 +279,8 @@ namespace PdfConverter.Tests.ViewModels
             Directory.CreateDirectory(folder);
             viewModel.FilePath = "C:\\sample.pdf";
             viewModel.PageCount = 1;
-            viewModel.PageRange = "1";
-            viewModel.ResolutionValue = "1080";
+            viewModel.ExportSettings.PageRange = "1";
+            viewModel.ExportSettings.ResolutionValue = "1080";
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);
             pdf.Setup(p => p.SavePdfPagesToImagesAsync(
                     It.IsAny<string>(),
@@ -291,10 +298,14 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.SaveCommand.Execute(null);
             await Task.Delay(300);
 
-            viewModel.StatusMessage.Should().Contain("完了");
+            Assert.Contains("完了", viewModel.StatusMessage);
             Directory.Delete(folder, recursive: true);
         }
 
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static System.Windows.Media.Imaging.BitmapSource CreatePreviewBitmap()
         {
             System.Windows.Media.Imaging.BitmapSource image = null;
@@ -317,7 +328,7 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
 
-            viewModel.LoadPdfFromPathCommand.CanExecute(null).Should().BeTrue();
+            Assert.True(viewModel.LoadPdfFromPathCommand.CanExecute(null));
         }
 
         /// <summary>
@@ -329,7 +340,7 @@ namespace PdfConverter.Tests.ViewModels
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.IsBusy = true;
 
-            viewModel.LoadPdfFromPathCommand.CanExecute(null).Should().BeFalse();
+            Assert.False(viewModel.LoadPdfFromPathCommand.CanExecute(null));
         }
 
         /// <summary>
@@ -345,7 +356,7 @@ namespace PdfConverter.Tests.ViewModels
             {
                 viewModel.HandleDroppedDocument(pdfPath);
 
-                viewModel.FilePath.Should().Be(pdfPath);
+                Assert.Equal(pdfPath, viewModel.FilePath);
             }
             finally
             {
@@ -365,7 +376,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.HandleDroppedDocument("C:\\dropped.pdf");
 
-            viewModel.FilePath.Should().Be("C:\\existing.pdf");
+            Assert.Equal("C:\\existing.pdf", viewModel.FilePath);
         }
     }
 }

@@ -1,19 +1,21 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
-using FluentAssertions;
 using PdfConverter.Services;
 using Xunit;
 
 namespace PdfConverter.Tests.Services
 {
     /// <summary>
-    /// <see cref="ProcessWaitHelper"/>の動作を検証する
+    /// <see cref="ProcessWaitHelper"/> の動作を検証する
     /// </summary>
     public class ProcessWaitHelperTests
     {
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
-        /// タイムアウト時にプロセスを終了し<see cref="TimeoutException"/>を送出することを検証する
+        /// タイムアウト時にプロセスを終了し <see cref="TimeoutException"/> を送出することを検証する
         /// </summary>
         [Fact]
         public void WaitForExit_TimesOut_KillsProcess()
@@ -34,8 +36,9 @@ namespace PdfConverter.Tests.Services
                     CancellationToken.None,
                     "timeout");
 
-                act.Should().Throw<TimeoutException>().WithMessage("timeout");
-                process.HasExited.Should().BeTrue();
+                var ex = Assert.Throws<TimeoutException>(act);
+                Assert.Contains("timeout", ex.Message);
+                Assert.True(process.HasExited);
             }
         }
 
@@ -64,8 +67,8 @@ namespace PdfConverter.Tests.Services
                     cts.Token,
                     "timeout");
 
-                act.Should().Throw<OperationCanceledException>();
-                process.HasExited.Should().BeTrue();
+                Assert.Throws<OperationCanceledException>(act);
+                Assert.True(process.HasExited);
             }
         }
     }

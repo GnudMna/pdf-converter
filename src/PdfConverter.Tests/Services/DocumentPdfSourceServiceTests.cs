@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using FluentAssertions;
 using Moq;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
@@ -15,6 +14,9 @@ namespace PdfConverter.Tests.Services
     /// </summary>
     public class DocumentPdfSourceServiceTests
     {
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
         private static DocumentPdfSourceService CreateService(
             Mock<IWordToPdfConversionService> wordToPdf,
             Mock<IWordToPdfConversionSettings> settings = null)
@@ -23,6 +25,10 @@ namespace PdfConverter.Tests.Services
             return new DocumentPdfSourceService(wordToPdf.Object, settings.Object);
         }
 
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
         /// <summary>
         /// PDF 入力の場合は元ファイルパスをそのまま返すことを検証する
         /// </summary>
@@ -37,7 +43,7 @@ namespace PdfConverter.Tests.Services
             {
                 string result = await service.GetPdfPathAsync(path, CancellationToken.None);
 
-                result.Should().Be(path);
+                Assert.Equal(path, result);
                 wordToPdf.Verify(
                     w => w.ConvertToPdfAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
                     Times.Never);
@@ -49,7 +55,7 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// Word 入力の場合は Word → PDF変換サービスを呼び出すことを検証する
+        /// Word 入力の場合は Word → PDF 変換サービスを呼び出すことを検証する
         /// </summary>
         [Fact]
         public async Task GetPdfPathAsync_WordInput_UsesWordToPdfService()
@@ -68,7 +74,7 @@ namespace PdfConverter.Tests.Services
             {
                 string result = await service.GetPdfPathAsync(wordPath, CancellationToken.None);
 
-                result.Should().Be(pdfPath);
+                Assert.Equal(pdfPath, result);
                 wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Once);
             }
             finally
@@ -127,11 +133,11 @@ namespace PdfConverter.Tests.Services
             try
             {
                 await service.GetPdfPathAsync(wordPath, CancellationToken.None);
-                File.Exists(pdfPath).Should().BeTrue();
+                Assert.True(File.Exists(pdfPath));
 
                 service.Dispose();
 
-                File.Exists(pdfPath).Should().BeFalse();
+                Assert.False(File.Exists(pdfPath));
             }
             finally
             {
