@@ -28,5 +28,8 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /// <summary>現在の設定を保存する</summary>
         void Save();
+
+        /// <summary>永続化済みの設定をメモリへ再読み込みする</summary>
+        void Reload();
     }
 }

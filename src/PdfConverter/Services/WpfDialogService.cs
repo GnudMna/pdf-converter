@@ -16,17 +16,21 @@ namespace PdfConverter.Services
         /********************************************************************************/
         private readonly IUpdateService _updateService;
 
+        private readonly IUserSettingsService _userSettingsService;
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 更新サービスを受け取り初期化する
+        /// 更新・ユーザー設定サービスを受け取り初期化する
         /// </summary>
         /// <param name="updateService">更新サービス</param>
-        public WpfDialogService(IUpdateService updateService)
+        /// <param name="userSettingsService">ユーザー設定サービス</param>
+        public WpfDialogService(IUpdateService updateService, IUserSettingsService userSettingsService)
         {
             _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
+            _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
         }
 
 
@@ -101,7 +105,7 @@ namespace PdfConverter.Services
         public void ShowAbout()
         {
             var owner = Application.Current?.MainWindow;
-            var aboutDialog = new AboutDialog(_updateService, this)
+            var aboutDialog = new AboutDialog(_updateService, _userSettingsService, this)
             {
                 Owner = owner,
             };

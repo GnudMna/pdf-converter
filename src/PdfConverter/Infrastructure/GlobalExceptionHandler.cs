@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -14,6 +15,13 @@ namespace PdfConverter.Infrastructure
     public static class GlobalExceptionHandler
     {
         /********************************************************************************/
+        /*                                    定数                                      */
+        /********************************************************************************/
+        /// <summary>致命的な UI 例外で終了するときの終了コード</summary>
+        internal const int FatalUiExceptionExitCode = 1;
+
+
+        /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
         /// <summary>ハンドラ登録済みかどうか</summary>
@@ -25,6 +33,9 @@ namespace PdfConverter.Infrastructure
             get => ApplicationLogger.LogDirectory;
             set => ApplicationLogger.LogDirectory = value;
         }
+
+        /// <summary>致命的例外後の終了処理 (テスト時に差し替え可能)</summary>
+        internal static Action ShutdownAfterFatalException { get; set; } = ShutdownApplicationAfterFatalException;
 
 
         /********************************************************************************/
@@ -92,6 +103,34 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>
+        /// プロセス状態の継続が危険な例外かどうかを判定する
+        /// </summary>
+        /// <param name="exception">判定する例外</param>
+        /// <returns>true: 致命的 / false: 継続可能とみなす</returns>
+        internal static bool IsFatalException(Exception exception)
+        {
+            if (exception == null)
+            {
+                return false;
+            }
+
+            Exception root = Unwrap(exception);
+            return root is OutOfMemoryException
+                || root is InsufficientMemoryException
+                || root is AccessViolationException
+                || root is SEHException
+                || root is BadImageFormatException
+                || root is TypeLoadException
+                || root is AppDomainUnloadedException
+                || root is StackOverflowException
+                || root is NullReferenceException
+                || root is InvalidCastException
+                || root is IndexOutOfRangeException
+                || root is RankException
+                || root is ArrayTypeMismatchException;
+        }
+
         /// <summary>現在のアプリケーションの Dispatcher を取得する</summary>
         private static Dispatcher CurrentDispatcher => Application.Current?.Dispatcher;
 
@@ -100,8 +139,27 @@ namespace PdfConverter.Infrastructure
         /// <param name="e">イベントの引数</param>
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
-            Report(e.Exception, "UI", ExceptionReportKind.UserInterface);
+            Exception exception = e.Exception;
+            if (CancellationExceptionHelper.IsOrContainsCancellation(exception))
+            {
+                // キャンセルは正常系として握りつぶし、アプリは継続する
+                e.Handled = true;
+                return;
+            }
+
+            bool isFatal = IsFatalException(exception);
+            Report(
+                exception,
+                "UI",
+                isFatal ? ExceptionReportKind.Fatal : ExceptionReportKind.UserInterface);
+
+            // 既定の WPF クラッシュダイアログと二重表示しないよう、常に Handled にする
             e.Handled = true;
+
+            if (isFatal)
+            {
+                ShutdownAfterFatalException?.Invoke();
+            }
         }
 
         /// <summary>バックグラウンドタスクの未観測例外が発生したときのハンドラ</summary>
@@ -168,8 +226,10 @@ namespace PdfConverter.Infrastructure
         /// <param name="kind">例外の種類</param>
         private static void NotifyUserCore(Exception exception, string source, ExceptionReportKind kind)
         {
-            string message =
-                $"予期しないエラーが発生しました。{Environment.NewLine}{Environment.NewLine}{ExceptionFormattingHelper.GetUserMessage(exception)}";
+            string detail = ExceptionFormattingHelper.GetUserMessage(exception);
+            string message = kind == ExceptionReportKind.Fatal
+                ? $"致命的なエラーが発生したため、アプリケーションを終了します。{Environment.NewLine}{Environment.NewLine}{detail}"
+                : $"予期しないエラーが発生しました。{Environment.NewLine}{Environment.NewLine}{detail}";
 
             if (TryUpdateMainViewModelStatus(message))
             {
@@ -207,6 +267,19 @@ namespace PdfConverter.Infrastructure
             return true;
         }
 
+        /// <summary>致命的な UI 例外の後にアプリケーションを終了する</summary>
+        private static void ShutdownApplicationAfterFatalException()
+        {
+            try
+            {
+                Application.Current?.Shutdown(FatalUiExceptionExitCode);
+            }
+            catch (Exception ex)
+            {
+                ApplicationLogger.Error("UI", "致命的例外後の終了処理に失敗しました。", ex);
+            }
+        }
+
     }
 
     /// <summary>
@@ -220,7 +293,7 @@ namespace PdfConverter.Infrastructure
         /// <summary>ログ・ステータスバー・ダイアログ</summary>
         UserInterface,
 
-        /// <summary>致命的エラー(ログとダイアログ)</summary>
+        /// <summary>致命的エラー (ログ・ダイアログ・必要に応じて終了)</summary>
         Fatal,
     }
 }

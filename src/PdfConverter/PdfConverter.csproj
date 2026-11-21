@@ -78,6 +78,7 @@
       <HintPath>..\packages\Ookii.Dialogs.Wpf.5.0.1\lib\net462\Ookii.Dialogs.Wpf.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Data" />
     <Reference Include="System.Runtime.CompilerServices.Unsafe, Version=6.0.3.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
       <HintPath>..\packages\System.Runtime.CompilerServices.Unsafe.6.1.2\lib\net462\System.Runtime.CompilerServices.Unsafe.dll</HintPath>
@@ -115,6 +116,11 @@
     <Compile Include="Infrastructure\GlobalExceptionHandler.cs" />
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Infrastructure\UpdateReleaseKey.cs" />
+    <Compile Include="Infrastructure\UserSettingsBootstrapResult.cs" />
+    <Compile Include="Infrastructure\UserSettingsInitializer.cs" />
+    <Compile Include="Properties\Settings.cs" />
+    <Compile Include="Services\IUserSettingsService.cs" />
+    <Compile Include="Services\UserSettingsService.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
     <Compile Include="Services\IUpdateService.cs" />
     <Compile Include="Services\SemVerComparer.cs" />

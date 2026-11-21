@@ -87,5 +87,26 @@ namespace PdfConverter.ViewModels
 
         /// <summary>テーマの選択肢</summary>
         public IReadOnlyList<ThemeModeOption> ThemeModeOptions => ThemeModeOptionsList;
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
+        /// <summary>
+        /// 保存済み設定から UI 状態を再読み込みする (テーマ適用は行わない)
+        /// </summary>
+        public void ReloadFromStore()
+        {
+            ThemeMode mode = ThemeManager.LoadSavedThemeMode();
+            if (_themeMode != mode)
+            {
+                _themeMode = mode;
+                OnPropertyChanged(nameof(ThemeMode));
+            }
+
+            OnPropertyChanged(nameof(IsLightThemeSelected));
+            OnPropertyChanged(nameof(IsDarkThemeSelected));
+            OnPropertyChanged(nameof(IsSystemThemeSelected));
+        }
     }
 }

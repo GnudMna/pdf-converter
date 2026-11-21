@@ -104,34 +104,50 @@
             </ScrollViewer>
 
             <Grid Grid.Row="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
                 <TextBlock x:Name="UpdateStatusText"
-                           VerticalAlignment="Center"
-                           HorizontalAlignment="Left"
-                           MaxWidth="220"
+                           Grid.Row="0"
+                           Margin="0,0,0,12"
                            TextWrapping="Wrap"
                            FontSize="11"
                            Foreground="{DynamicResource MutedForegroundBrush}"
                            AutomationProperties.LiveSetting="Polite" />
-                <StackPanel Orientation="Horizontal"
-                            HorizontalAlignment="Right">
-                    <Button x:Name="CheckUpdateButton"
-                            Content="更新を確認"
-                            MinWidth="110"
-                            Margin="0,0,10,0"
-                            Click="CheckUpdateButton_Click"
+
+                <Grid Grid.Row="1">
+                    <Button x:Name="ResetSettingsButton"
+                            Content="設定をリセット"
+                            MinWidth="120"
+                            HorizontalAlignment="Left"
+                            Click="ResetSettingsButton_Click"
                             Style="{StaticResource SecondaryButton}"
-                            AutomationProperties.Name="更新を確認" />
-                    <Button x:Name="OpenNoticesButton"
-                            Content="ライセンス全文を開く"
-                            MinWidth="140"
-                            Margin="0,0,10,0"
-                            Click="OpenNoticesButton_Click"
-                            Style="{StaticResource SecondaryButton}" />
-                    <Button Content="閉じる"
-                            MinWidth="100"
-                            Click="CloseButton_Click"
-                            Style="{StaticResource PrimaryButton}" />
-                </StackPanel>
+                            ToolTip="テーマ・変換設定など、保存済みのユーザー設定を既定値に戻します。"
+                            AutomationProperties.Name="設定をリセット"
+                            AutomationProperties.HelpText="テーマ・変換設定など、保存済みのユーザー設定を既定値に戻します。" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Right">
+                        <Button x:Name="CheckUpdateButton"
+                                Content="更新を確認"
+                                MinWidth="110"
+                                Margin="0,0,10,0"
+                                Click="CheckUpdateButton_Click"
+                                Style="{StaticResource SecondaryButton}"
+                                AutomationProperties.Name="更新を確認" />
+                        <Button x:Name="OpenNoticesButton"
+                                Content="ライセンス全文を開く"
+                                MinWidth="140"
+                                Margin="0,0,10,0"
+                                Click="OpenNoticesButton_Click"
+                                Style="{StaticResource SecondaryButton}" />
+                        <Button Content="閉じる"
+                                MinWidth="100"
+                                Click="CloseButton_Click"
+                                Style="{StaticResource PrimaryButton}" />
+                    </StackPanel>
+                </Grid>
             </Grid>
         </Grid>
     </Border>

@@ -124,6 +124,11 @@ namespace PdfConverter.Services
                 throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
             }
 
+            if (string.IsNullOrWhiteSpace(folderPath))
+            {
+                throw new ArgumentException("保存先フォルダーのパスが指定されていません。", nameof(folderPath));
+            }
+
             byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken);
             if (cancellationToken.IsCancellationRequested)
             {
@@ -143,50 +148,61 @@ namespace PdfConverter.Services
             int completedCount = 0;
             object progressLock = new object();
 
-            // ワーカーごとに 1 つの DocReader を再利用し、ページごとの生成コストを削減する
-            // 大容量 PDF では DocReader ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
-            int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length);
-            IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
+            // 失敗・キャンセル時に保存先へ部分出力を残さないため、一時ディレクトリへ書き出してから一括反映する
+            string stagingDirectory = PdfConverterTempDirectory.CreateTempWorkDirectory();
+            try
+            {
+                // ワーカーごとに 1 つの DocReader を再利用し、ページごとの生成コストを削減する
+                // 大容量 PDF では DocReader ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
+                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileBytes.Length);
+                IReadOnlyList<IReadOnlyList<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
-            var tasks = partitions
-                .Where(partition => partition.Count > 0)
-                .Select(partition => Task.Run(() =>
-                {
-                    if (cancellationToken.IsCancellationRequested)
+                var tasks = partitions
+                    .Where(partition => partition.Count > 0)
+                    .Select(partition => Task.Run(() =>
                     {
-                        return;
-                    }
-
-                    using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
-                    {
-                        foreach (int pageIndex in partition)
+                        if (cancellationToken.IsCancellationRequested)
                         {
-                            if (cancellationToken.IsCancellationRequested)
-                            {
-                                return;
-                            }
+                            return;
+                        }
 
-                            SavePageToFile(docReader, pageIndex, folderPath, format, preserveTransparency);
-                            int completed = Interlocked.Increment(ref completedCount);
-                            var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
-                            lock (progressLock)
+                        using (var docReader = DocLib.Instance.GetDocReader(fileBytes, new PageDimensions(renderScale)))
+                        {
+                            foreach (int pageIndex in partition)
                             {
-                                progress?.Report(report);
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    return;
+                                }
+
+                                SavePageToFile(docReader, pageIndex, stagingDirectory, format, preserveTransparency);
+                                int completed = Interlocked.Increment(ref completedCount);
+                                var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
+                                lock (progressLock)
+                                {
+                                    progress?.Report(report);
+                                }
                             }
                         }
-                    }
-                }));
+                    }));
 
-            await Task.WhenAll(tasks);
+                await Task.WhenAll(tasks);
 
-            if (cancellationToken.IsCancellationRequested)
-            {
-                return;
+                if (cancellationToken.IsCancellationRequested || completedCount != total)
+                {
+                    return;
+                }
+
+                CommitStagedFiles(stagingDirectory, folderPath, pagesToSave, format);
+
+                if (progress != null)
+                {
+                    progress.Report(new SaveProgressReport(100.0, $"保存中... {total}/{total} ページ"));
+                }
             }
-
-            if (progress != null && completedCount == total)
+            finally
             {
-                progress.Report(new SaveProgressReport(100.0, $"保存中... {total}/{total} ページ"));
+                PdfConverterTempDirectory.TryDeleteDirectory(stagingDirectory);
             }
         }
 
@@ -438,6 +454,53 @@ namespace PdfConverter.Services
                 string outputPath = Path.Combine(folderPath, $"page_{pageIndex + 1}{extension}");
                 ImageBitmapHelper.SaveToFile(processed, outputPath, format);
             }
+        }
+
+        /// <summary>
+        /// ステージング済みの画像ファイルを保存先フォルダーへ反映する
+        /// </summary>
+        /// <param name="stagingDirectory">ステージングディレクトリの絶対パス</param>
+        /// <param name="folderPath">保存先フォルダーの絶対パス</param>
+        /// <param name="pagesToSave">保存対象のページインデックス一覧</param>
+        /// <param name="format">出力画像形式</param>
+        /// <exception cref="FileNotFoundException">ステージング済みファイルが見つからない場合</exception>
+        private static void CommitStagedFiles(
+            string stagingDirectory,
+            string folderPath,
+            IReadOnlyList<int> pagesToSave,
+            OutputImageFormat format)
+        {
+            Directory.CreateDirectory(folderPath);
+            string extension = ImageBitmapHelper.GetFileExtension(format);
+
+            foreach (int pageIndex in pagesToSave)
+            {
+                string fileName = $"page_{pageIndex + 1}{extension}";
+                string sourcePath = Path.Combine(stagingDirectory, fileName);
+                if (!File.Exists(sourcePath))
+                {
+                    throw new FileNotFoundException(
+                        $"ステージングされた出力ファイルが見つかりません: {fileName}",
+                        sourcePath);
+                }
+
+                string destinationPath = Path.Combine(folderPath, fileName);
+                ReplaceFile(sourcePath, destinationPath);
+            }
+        }
+
+        /// <summary>
+        /// ソースファイルで宛先ファイルを置き換える
+        /// </summary>
+        /// <param name="sourcePath">反映元ファイルの絶対パス</param>
+        /// <param name="destinationPath">反映先ファイルの絶対パス</param>
+        /// <remarks>
+        /// 一時ディレクトリと保存先が異ボリュームでも動くよう、コピー後にソースを削除する
+        /// </remarks>
+        private static void ReplaceFile(string sourcePath, string destinationPath)
+        {
+            File.Copy(sourcePath, destinationPath, overwrite: true);
+            File.Delete(sourcePath);
         }
 
         /// <summary>

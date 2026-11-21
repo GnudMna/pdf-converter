@@ -39,7 +39,9 @@ namespace PdfConverter.Services
         /// 指定したページ群を画像ファイルとしてフォルダーへ一括保存する
         /// </summary>
         /// <remarks>
-        /// CPU コア数に応じた並列処理で保存し、進捗を <paramref name="progress"/> で報告する
+        /// CPU コア数に応じた並列処理で保存し、進捗を <paramref name="progress"/> で報告する<br/>
+        /// 画像は一時ディレクトリへ書き出したうえで、全ページ完了後に保存先へ反映する<br/>
+        /// キャンセルまたは失敗時は保存先を変更せず、部分出力を残さない
         /// </remarks>
         /// <param name="filePath">PDF ファイルの絶対パス</param>
         /// <param name="pageIndexes">保存対象のページインデックス一覧 (0 始まり)<br/><paramref name="saveAllPages"/> が <c>true</c> の場合は無視される</param>

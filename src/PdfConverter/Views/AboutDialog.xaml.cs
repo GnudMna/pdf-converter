@@ -16,6 +16,7 @@ namespace PdfConverter.Views
         /*                                 ローカル変数                                 */
         /********************************************************************************/
         private readonly IUpdateService _updateService;
+        private readonly IUserSettingsService _userSettingsService;
         private readonly IDialogService _dialogService;
         private bool _updateInProgress;
 
@@ -24,13 +25,18 @@ namespace PdfConverter.Views
         /*                                コンストラクタ                                */
         /********************************************************************************/
         /// <summary>
-        /// 更新・ダイアログサービスを受け取り初期化する
+        /// 更新・設定・ダイアログサービスを受け取り初期化する
         /// </summary>
         /// <param name="updateService">更新サービス</param>
+        /// <param name="userSettingsService">ユーザー設定サービス</param>
         /// <param name="dialogService">ダイアログサービス</param>
-        public AboutDialog(IUpdateService updateService, IDialogService dialogService)
+        public AboutDialog(
+            IUpdateService updateService,
+            IUserSettingsService userSettingsService,
+            IDialogService dialogService)
         {
             _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
+            _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
             _dialogService = dialogService ?? throw new ArgumentNullException(nameof(dialogService));
             InitializeComponent();
             BindMetadata();
@@ -149,6 +155,38 @@ namespace PdfConverter.Views
                         "更新の確認",
                         DialogIcon.Error);
                     break;
+            }
+        }
+
+        private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool confirmed = _dialogService.ShowYesNo(
+                "テーマ・画像出力・Word 変換などの保存済み設定をすべて既定値に戻します。\n\nよろしいですか？",
+                "設定のリセット",
+                DialogIcon.Warning,
+                "リセット",
+                "キャンセル");
+            if (!confirmed)
+            {
+                return;
+            }
+
+            try
+            {
+                _userSettingsService.ResetToDefaults();
+                UpdateStatusText.Text = "設定を既定値に戻しました。";
+                _dialogService.ShowMessage(
+                    "設定を既定値に戻しました。",
+                    "設定のリセット",
+                    DialogIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                UpdateStatusText.Text = string.Empty;
+                _dialogService.ShowMessage(
+                    $"設定のリセットに失敗しました。\n\n{ex.Message}",
+                    "設定のリセット",
+                    DialogIcon.Error);
             }
         }
 

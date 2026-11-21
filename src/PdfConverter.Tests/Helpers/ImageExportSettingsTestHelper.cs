@@ -26,6 +26,7 @@ namespace PdfConverter.Tests.Helpers
             mock.SetupSet(s => s.ResolutionMode = It.IsAny<ResolutionMode>());
             mock.SetupSet(s => s.ResolutionValue = It.IsAny<string>());
             mock.SetupSet(s => s.PreserveTransparency = It.IsAny<bool>());
+            mock.Setup(s => s.Reload());
             return mock;
         }
     }

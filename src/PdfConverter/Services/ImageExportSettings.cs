@@ -32,10 +32,7 @@ namespace PdfConverter.Services
         /// </summary>
         public ImageExportSettings()
         {
-            OutputImageFormat = OutputImageFormatParser.Parse(Settings.Default.OutputImageFormat);
-            ResolutionMode = ResolutionModeParser.Parse(Settings.Default.ResolutionMode);
-            ResolutionValue = ResolveResolutionValue(ResolutionMode, Settings.Default.ResolutionValue);
-            PreserveTransparency = ResolvePreserveTransparency(OutputImageFormat, Settings.Default.PreserveTransparency);
+            LoadFromStore();
         }
 
 
@@ -52,10 +49,25 @@ namespace PdfConverter.Services
             Settings.Default.Save();
         }
 
+        /// <inheritdoc/>
+        public void Reload()
+        {
+            LoadFromStore();
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>永続化済み設定をプロパティへ読み込む</summary>
+        private void LoadFromStore()
+        {
+            OutputImageFormat = OutputImageFormatParser.Parse(Settings.Default.OutputImageFormat);
+            ResolutionMode = ResolutionModeParser.Parse(Settings.Default.ResolutionMode);
+            ResolutionValue = ResolveResolutionValue(ResolutionMode, Settings.Default.ResolutionValue);
+            PreserveTransparency = ResolvePreserveTransparency(OutputImageFormat, Settings.Default.PreserveTransparency);
+        }
+
         /// <summary>
         /// 保存済みの解像度値を検証し、不正な場合は既定値にフォールバックする
         /// </summary>

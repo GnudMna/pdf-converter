@@ -25,6 +25,9 @@ namespace PdfConverter.ViewModels
         /// <summary>クリップボードサービス</summary>
         private readonly IClipboardService _clipboardService;
 
+        /// <summary>ユーザー設定サービス</summary>
+        private readonly IUserSettingsService _userSettingsService;
+
         /* --------------------------- コーディネーター関連 --------------------------- */
         /// <summary>Coordinator 向けホストアダプター</summary>
         private readonly IMainViewModelHost _coordinatorHost;
@@ -66,12 +69,14 @@ namespace PdfConverter.ViewModels
             IPdfPreviewCoordinator previewCoordinator,
             IPdfSaveCoordinator saveCoordinator,
             IWordToPdfConversionSettings wordToPdfSettings,
-            IImageExportSettings imageExportSettings)
+            IImageExportSettings imageExportSettings,
+            IUserSettingsService userSettingsService)
         {
             _dialogService = dialogService;
             _clipboardService = clipboardService;
             _previewCoordinator = previewCoordinator;
             _saveCoordinator = saveCoordinator;
+            _userSettingsService = userSettingsService ?? throw new ArgumentNullException(nameof(userSettingsService));
             _coordinatorHost = new MainViewModelCoordinatorHost(this);
 
             Theme = new ThemeSettingsViewModel();
@@ -94,6 +99,8 @@ namespace PdfConverter.ViewModels
             CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
             LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
             ShowAboutCommand = new RelayCommand(() => _dialogService.ShowAbout());
+
+            _userSettingsService.SettingsReset += OnUserSettingsReset;
         }
 
 
@@ -311,6 +318,20 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>ユーザー設定リセット後に UI 状態を同期する</summary>
+        private void OnUserSettingsReset(object sender, EventArgs e)
+        {
+            Theme.ReloadFromStore();
+            WordSettings.ReloadFromStore(reloadDocument: true);
+            ExportSettings.ReloadFromStore();
+            if (!string.IsNullOrEmpty(FilePath) && DocumentFileHelper.IsPdfFile(FilePath) && !IsBusy)
+            {
+                _previewCoordinator.RequestRefreshIfLoaded(_coordinatorHost);
+            }
+
+            SetStatus("設定を既定値に戻しました。", StatusKind.Success);
+        }
+
         /// <summary>Word ファイルが読み込み済みの場合にプレビューを再生成する</summary>
         private void ReloadWordDocumentIfLoaded()
         {

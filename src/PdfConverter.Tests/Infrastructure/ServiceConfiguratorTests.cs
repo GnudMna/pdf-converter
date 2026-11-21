@@ -14,6 +14,18 @@ namespace PdfConverter.Tests.Infrastructure
     public class ServiceConfiguratorTests
     {
         /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>テスト用の設定初期化結果で DI を構築する</summary>
+        private static IServiceProvider CreateProvider()
+        {
+            return ServiceConfigurator.Configure(new UserSettingsBootstrapResult(
+                recoveredFromCorruption: false,
+                upgraded: false));
+        }
+
+
+        /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
@@ -22,7 +34,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_RegistersCoreServices()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
 
             Assert.NotNull(provider.GetService(typeof(IPdfConversionService)));
             Assert.NotNull(provider.GetService(typeof(IWordToPdfConversionService)));
@@ -31,6 +43,7 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.NotNull(provider.GetService(typeof(IUpdateService)));
             Assert.NotNull(provider.GetService(typeof(IClipboardService)));
             Assert.NotNull(provider.GetService(typeof(IImageExportSettings)));
+            Assert.NotNull(provider.GetService(typeof(IUserSettingsService)));
             Assert.NotNull(provider.GetService(typeof(IBatchExportService)));
         }
 
@@ -40,7 +53,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_RegistersTransientCoordinators()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
 
             var previewCoordinator1 = provider.GetService(typeof(IPdfPreviewCoordinator));
             var previewCoordinator2 = provider.GetService(typeof(IPdfPreviewCoordinator));
@@ -59,7 +72,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_RegistersTransientViewModel()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
             var viewModel1 = (MainViewModel)provider.GetService(typeof(MainViewModel));
             var viewModel2 = (MainViewModel)provider.GetService(typeof(MainViewModel));
 
@@ -74,7 +87,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_PdfConversionService_IsSingleton()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
             var service1 = provider.GetService(typeof(IPdfConversionService));
             var service2 = provider.GetService(typeof(IPdfConversionService));
 
@@ -87,7 +100,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_ResolvesIMainWindowViewModel()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
 
             Assert.NotNull(provider.GetService(typeof(IMainWindowViewModel)));
         }
@@ -98,7 +111,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void Configure_DisposeDocumentPdfSourceService()
         {
-            var provider = ServiceConfigurator.Configure();
+            var provider = CreateProvider();
 
             var service = provider.GetRequiredService<IDocumentPdfSourceService>();
             Assert.IsAssignableFrom<IDisposable>(service);

@@ -30,6 +30,7 @@ namespace PdfConverter.Tests.Helpers
             mock.SetupSet(s => s.OptimizeFor = It.IsAny<WordToPdfOptimizeFor>());
             mock.SetupSet(s => s.ExportBookmarks = It.IsAny<bool>());
             mock.SetupSet(s => s.ExportComments = It.IsAny<bool>());
+            mock.Setup(s => s.Reload());
             return mock;
         }
     }

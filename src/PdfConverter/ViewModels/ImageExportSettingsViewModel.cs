@@ -222,6 +222,28 @@ namespace PdfConverter.ViewModels
             PageRangeValidationMessage = null;
         }
 
+        /// <summary>
+        /// 永続化サービスから UI 状態を再読み込みする
+        /// </summary>
+        public void ReloadFromStore()
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            _outputImageFormat = _settings.OutputImageFormat;
+            _resolutionMode = _settings.ResolutionMode;
+            _resolutionValue = _settings.ResolutionValue;
+            _preserveTransparency = _settings.PreserveTransparency;
+            OnPropertyChanged(nameof(OutputImageFormat));
+            OnPropertyChanged(nameof(ResolutionMode));
+            OnPropertyChanged(nameof(ResolutionValue));
+            OnPropertyChanged(nameof(PreserveTransparency));
+            OnPropertyChanged(nameof(IsTransparencySelectable));
+            ClearValidationMessages();
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */

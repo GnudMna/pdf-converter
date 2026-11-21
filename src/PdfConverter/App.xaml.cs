@@ -45,12 +45,14 @@ namespace PdfConverter
 
             GlobalExceptionHandler.Register();
 
+            UserSettingsBootstrapResult settingsBootstrap = UserSettingsInitializer.Initialize();
+
             PdfConverterTempDirectory.CleanupStaleEntries(PdfConverterTempDirectory.DefaultStaleAge);
 
             SetDllDirectory(ApplicationStartupHelper.GetNativeDllSearchPath(
                 System.Reflection.Assembly.GetExecutingAssembly().Location));
 
-            if (TryRunBatchMode(e.Args))
+            if (TryRunBatchMode(e.Args, settingsBootstrap))
             {
                 return;
             }
@@ -59,7 +61,7 @@ namespace PdfConverter
 
             ThemeManager.Initialize();
 
-            _serviceProvider = ServiceConfigurator.Configure();
+            _serviceProvider = ServiceConfigurator.Configure(settingsBootstrap);
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
 
@@ -68,6 +70,17 @@ namespace PdfConverter
             {
                 mainWindow.Dispatcher.BeginInvoke(
                     new Action(() => viewModel.HandleDroppedDocument(initialFilePath)),
+                    DispatcherPriority.Loaded);
+            }
+
+            if (settingsBootstrap.RecoveredFromCorruption)
+            {
+                var dialogService = _serviceProvider.GetRequiredService<IDialogService>();
+                mainWindow.Dispatcher.BeginInvoke(
+                    new Action(() => dialogService.ShowMessage(
+                        "ユーザー設定ファイルが破損していたため、既定値に戻しました。",
+                        "設定の初期化",
+                        DialogIcon.Warning)),
                     DispatcherPriority.Loaded);
             }
         }
@@ -92,8 +105,9 @@ namespace PdfConverter
         /// バッチ / ヘッドレスモードで起動された場合に変換を実行する
         /// </summary>
         /// <param name="args">起動引数</param>
+        /// <param name="settingsBootstrap">起動時のユーザー設定初期化結果</param>
         /// <returns>true: バッチモードとして処理済み / false: GUI 起動を続行</returns>
-        private bool TryRunBatchMode(string[] args)
+        private bool TryRunBatchMode(string[] args, UserSettingsBootstrapResult settingsBootstrap)
         {
             if (!BatchCliParser.TryParse(args, out BatchCliOptions options, out string parseError))
             {
@@ -113,7 +127,7 @@ namespace PdfConverter
                 }
                 else
                 {
-                    _serviceProvider = ServiceConfigurator.Configure();
+                    _serviceProvider = ServiceConfigurator.Configure(settingsBootstrap);
                     var batchExportService = _serviceProvider.GetRequiredService<IBatchExportService>();
                     exitCode = batchExportService.RunAsync(options, CancellationToken.None).GetAwaiter().GetResult();
                 }

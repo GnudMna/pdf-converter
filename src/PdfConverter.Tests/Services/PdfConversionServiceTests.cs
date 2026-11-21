@@ -338,5 +338,76 @@ namespace PdfConverter.Tests.Services
                 PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
             }
         }
+
+        /// <summary>
+        /// 保存途中でキャンセルされた場合、保存先に部分出力を残さず既存ファイルも維持することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_CancelledMidway_DoesNotLeavePartialOutput()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 8);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string existingPath = Path.Combine(outputDirectory, "page_1.png");
+            const string existingContent = "keep-me";
+            File.WriteAllText(existingPath, existingContent);
+
+            try
+            {
+                using (var cts = new CancellationTokenSource())
+                {
+                    var progress = new Progress<SaveProgressReport>(_ => cts.Cancel());
+
+                    await _service.SavePdfPagesToImagesAsync(
+                        pdfPath,
+                        pageIndexes: null,
+                        outputDirectory,
+                        saveAllPages: true,
+                        format: OutputImageFormat.Png,
+                        progress: progress,
+                        cancellationToken: cts.Token);
+                }
+
+                Assert.Equal(existingContent, File.ReadAllText(existingPath));
+                Assert.Equal(
+                    new[] { existingPath },
+                    Directory.GetFiles(outputDirectory).OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 保存成功時は既存の同名ファイルを上書きすることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_Success_OverwritesExistingFiles()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 1);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string existingPath = Path.Combine(outputDirectory, "page_1.png");
+            File.WriteAllText(existingPath, "old-content");
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    new[] { 0 },
+                    outputDirectory,
+                    saveAllPages: false,
+                    format: OutputImageFormat.Png);
+
+                Assert.True(File.Exists(existingPath));
+                Assert.NotEqual("old-content", File.ReadAllText(existingPath));
+                Assert.True(new FileInfo(existingPath).Length > 0);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
     }
 }

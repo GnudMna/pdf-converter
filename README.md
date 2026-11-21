@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.4.1-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.4.2-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -250,6 +250,8 @@ cd installer
 | `%LOCALAPPDATA%\PDF Converter\logs\app.log` | 操作ログ・警告 |
 | `%LOCALAPPDATA%\PDF Converter\logs\error.log` | エラーと例外の詳細 |
 
+ユーザー設定 (テーマ・画像出力・Word 変換など) は Windows のユーザー構成 (`user.config`) に保存されます。起動時に破損を検出すると既定値へ回復し、バージョンアップ時は旧設定を引き継ぎます。手動で初期化したい場合は、バージョン情報ダイアログの **設定をリセット** を使えます。
+
 ---
 
 ## 🧪 テスト
@@ -293,7 +295,7 @@ pdf-converter/
 │  ├─ PdfConverter/                # アプリ本体 (WPF / MVVM)
 │  │  ├─ Commands/                 # コマンド実装
 │  │  ├─ Converters/               # 値変換
-│  │  ├─ Infrastructure/           # ログ・例外処理・DI 構成・起動補助・CLI 解析
+│  │  ├─ Infrastructure/           # ログ・例外処理・DI 構成・設定初期化・起動補助・CLI 解析
 │  │  │  ├─ BatchCliParser.cs      # バッチ / ヘッドレスモードの引数解析
 │  │  │  ├─ BatchCliOptions.cs   # バッチモードのオプション
 │  │  │  └─ BatchConsoleHelper.cs # バッチモードのコンソール出力

@@ -28,7 +28,8 @@ namespace PdfConverter.Tests.Services
         public void Constructor_CreatesInstance()
         {
             var update = new Mock<IUpdateService>();
-            var service = new WpfDialogService(update.Object);
+            var userSettings = new Mock<IUserSettingsService>();
+            var service = new WpfDialogService(update.Object, userSettings.Object);
 
             Assert.NotNull(service);
             Assert.IsAssignableFrom<IDialogService>(service);

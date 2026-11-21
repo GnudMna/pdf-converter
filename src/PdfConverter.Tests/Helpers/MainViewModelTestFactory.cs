@@ -22,13 +22,15 @@ namespace PdfConverter.Tests.Helpers
             var documentPdfSource = DocumentPdfSourceTestHelper.CreatePassthrough();
             var wordToPdfSettings = WordToPdfConversionSettingsTestHelper.Create();
             var imageExportSettings = ImageExportSettingsTestHelper.Create();
+            var userSettings = new Mock<IUserSettingsService>();
             var viewModel = new MainViewModel(
                 dialog.Object,
                 clipboard.Object,
                 new PdfPreviewCoordinator(pdf.Object, documentPdfSource.Object),
                 new PdfSaveCoordinator(pdf.Object, documentPdfSource.Object, dialog.Object),
                 wordToPdfSettings.Object,
-                imageExportSettings.Object);
+                imageExportSettings.Object,
+                userSettings.Object);
             return (viewModel, pdf, dialog, clipboard);
         }
     }

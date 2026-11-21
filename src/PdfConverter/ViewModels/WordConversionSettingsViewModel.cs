@@ -231,6 +231,36 @@ namespace PdfConverter.ViewModels
 
 
         /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
+        /// <summary>
+        /// 永続化サービスから UI 状態を再読み込みする
+        /// </summary>
+        /// <param name="reloadDocument">読み込み済み Word 文書を再読み込みするかどうか</param>
+        public void ReloadFromStore(bool reloadDocument = true)
+        {
+            _backend = _settings.Backend;
+            _libreOfficePath = _settings.LibreOfficePath ?? string.Empty;
+            _pdfFormat = _settings.PdfFormat;
+            _optimizeFor = _settings.OptimizeFor;
+            _exportBookmarks = _settings.ExportBookmarks;
+            _exportComments = _settings.ExportComments;
+            OnPropertyChanged(nameof(Backend));
+            OnPropertyChanged(nameof(LibreOfficePath));
+            OnPropertyChanged(nameof(IsLibreOfficePathVisible));
+            OnPropertyChanged(nameof(PdfFormat));
+            OnPropertyChanged(nameof(OptimizeFor));
+            OnPropertyChanged(nameof(ExportBookmarks));
+            OnPropertyChanged(nameof(ExportComments));
+
+            if (reloadDocument)
+            {
+                _reloadDocument?.Invoke();
+            }
+        }
+
+
+        /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>設定を保存し、必要に応じて Word 文書を再読み込みする</summary>

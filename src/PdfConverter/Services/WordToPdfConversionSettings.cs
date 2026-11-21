@@ -46,12 +46,7 @@ namespace PdfConverter.Services
         /// </summary>
         public WordToPdfConversionSettings()
         {
-            Backend = WordToPdfBackendParser.Parse(Settings.Default.WordToPdfBackend);
-            LibreOfficePath = Settings.Default.LibreOfficePath ?? string.Empty;
-            PdfFormat = WordToPdfPdfFormatParser.Parse(Settings.Default.WordToPdfPdfFormat);
-            OptimizeFor = WordToPdfOptimizeForParser.Parse(Settings.Default.WordToPdfOptimizeFor);
-            ExportBookmarks = Settings.Default.WordToPdfExportBookmarks;
-            ExportComments = Settings.Default.WordToPdfExportComments;
+            LoadFromStore();
         }
 
 
@@ -69,6 +64,28 @@ namespace PdfConverter.Services
             Settings.Default.WordToPdfExportComments = ExportComments;
             Settings.Default.Save();
             SettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        /// <inheritdoc/>
+        public void Reload()
+        {
+            LoadFromStore();
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>永続化済み設定をプロパティへ読み込む</summary>
+        private void LoadFromStore()
+        {
+            Backend = WordToPdfBackendParser.Parse(Settings.Default.WordToPdfBackend);
+            LibreOfficePath = Settings.Default.LibreOfficePath ?? string.Empty;
+            PdfFormat = WordToPdfPdfFormatParser.Parse(Settings.Default.WordToPdfPdfFormat);
+            OptimizeFor = WordToPdfOptimizeForParser.Parse(Settings.Default.WordToPdfOptimizeFor);
+            ExportBookmarks = Settings.Default.WordToPdfExportBookmarks;
+            ExportComments = Settings.Default.WordToPdfExportComments;
         }
     }
 }

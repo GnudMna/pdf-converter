@@ -36,5 +36,9 @@ namespace PdfConverter.Tests.Helpers
         {
             SaveCount++;
         }
+
+        public void Reload()
+        {
+        }
     }
 }

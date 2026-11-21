@@ -18,13 +18,21 @@ namespace PdfConverter.Infrastructure
         /// <summary>
         /// サービスを登録して <see cref="IServiceProvider"/> を構築する
         /// </summary>
+        /// <param name="bootstrapResult">起動時のユーザー設定初期化結果</param>
         /// <returns><see cref="IServiceProvider"/></returns>
-        public static IServiceProvider Configure()
+        public static IServiceProvider Configure(UserSettingsBootstrapResult bootstrapResult)
         {
+            if (bootstrapResult == null)
+            {
+                throw new ArgumentNullException(nameof(bootstrapResult));
+            }
+
             var services = new ServiceCollection();
+            services.AddSingleton(bootstrapResult);
             services.AddSingleton<IPdfConversionService, PdfConversionService>();
             services.AddSingleton<IWordToPdfConversionSettings, WordToPdfConversionSettings>();
             services.AddSingleton<IImageExportSettings, ImageExportSettings>();
+            services.AddSingleton<IUserSettingsService, UserSettingsService>();
             services.AddSingleton<MicrosoftWordToPdfConversionService>();
             services.AddSingleton<LibreOfficeToPdfConversionService>();
             services.AddSingleton<IWordToPdfConversionService>(provider =>
