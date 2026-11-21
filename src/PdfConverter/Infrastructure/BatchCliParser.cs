@@ -122,6 +122,7 @@ namespace PdfConverter.Infrastructure
 
 複数ファイルを同じ出力フォルダーへ保存する場合、各ファイルは
 <出力フォルダー>\<ファイル名>\page_1.png のようにサブフォルダーへ出力されます。
+別フォルダーの同名ファイルなど、出力先が重なる場合は 2 件目以降に _2、_3 を付けます (例: x、x_2)。
 入力が 1 件のみの場合は <出力フォルダー>\page_1.png 形式です。
 ページ番号は総ページ数の桁数までゼロ埋めされます (例: 12 ページなら page_01.png)。
 
@@ -185,27 +186,58 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
             switch (switchName)
             {
                 case "help":
+                case "h":
                 case "?":
-                    options.ShowHelp = true;
+                    if (!TryReadFlagValue(arg, value, out bool showHelp, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.ShowHelp = showHelp;
                     return true;
                 case "batch":
                 case "b":
-                    return true;
+                    return TryReadFlagValue(arg, value, out _, out errorMessage);
                 case "quiet":
                 case "q":
-                    options.Quiet = true;
+                    if (!TryReadFlagValue(arg, value, out bool quiet, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.Quiet = quiet;
                     return true;
                 case "overwrite":
-                    options.OverwriteExisting = true;
+                    if (!TryReadFlagValue(arg, value, out bool overwrite, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.OverwriteExisting = overwrite;
                     return true;
                 case "export-pdf":
-                    options.ExportPdfOnly = true;
+                    if (!TryReadFlagValue(arg, value, out bool exportPdf, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.ExportPdfOnly = exportPdf;
                     return true;
                 case "transparent":
-                    options.PreserveTransparency = true;
+                    if (!TryReadFlagValue(arg, value, out bool transparent, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PreserveTransparency = transparent;
                     return true;
                 case "no-transparent":
-                    options.PreserveTransparency = false;
+                    if (!TryReadFlagValue(arg, value, out bool noTransparent, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PreserveTransparency = !noTransparent;
                     return true;
                 case "output":
                 case "o":
@@ -308,6 +340,35 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
 
             switchName = NormalizeSwitchName(arg.Substring(0, separatorIndex));
             value = arg.Substring(separatorIndex + 1).Trim().Trim('"');
+            return true;
+        }
+
+        /// <summary>フラグ系スイッチの値を読み取る (<c>--overwrite=false</c> 形式の値を反映する)</summary>
+        /// <param name="arg">引数</param>
+        /// <param name="inlineValue">同一引数内の値 (値の指定がなければ null)</param>
+        /// <param name="flag">フラグの値 (値の指定がなければ true)</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 読み取り成功</returns>
+        private static bool TryReadFlagValue(
+            string arg,
+            string? inlineValue,
+            out bool flag,
+            [NotNullWhen(false)] out string? errorMessage)
+        {
+            errorMessage = null;
+            flag = true;
+
+            if (inlineValue == null)
+            {
+                return true;
+            }
+
+            if (!bool.TryParse(inlineValue, out flag))
+            {
+                errorMessage = $"オプション {arg} の値は true または false で指定してください。";
+                return false;
+            }
+
             return true;
         }
 

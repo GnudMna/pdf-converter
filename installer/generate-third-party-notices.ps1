@@ -3,6 +3,7 @@
 # obj/project.assets.json (dotnet restore の結果) と NuGet パッケージのメタデータから、
 # サードパーティライセンス一覧を生成します。self-contained 配布のため
 # 同梱される .NET ランタイムのライセンスも含めます。
+# 末尾に利用者向けドキュメント (mdBook の HTML) に含まれる素材の表示 (licenses\user-docs-notices.txt) を追記します。
 #
 # 事前に対象プラットフォームで dotnet restore / publish を実行しておく必要があります。
 #
@@ -297,6 +298,16 @@ foreach ($runtimePack in $runtimePacks) {
         $sections += New-Section -Title "$($runtimePack.id) third-party notices" -Body (Get-Content -LiteralPath $noticesFile.FullName -Raw)
     }
 }
+
+# 利用者向けドキュメント (docs\。mdBook の HTML) に含まれる素材は NuGet の依存ではないため、
+# installer\licenses\user-docs-notices.txt の表示を末尾に追記する (版の一致は build-user-docs.ps1 が検証する)
+$userDocsNoticesPath = Join-Path $licensesFolder 'user-docs-notices.txt'
+if (-not (Test-Path $userDocsNoticesPath)) {
+    throw "利用者向けドキュメントの素材表示が見つかりません: $userDocsNoticesPath"
+}
+
+$sections += ''
+$sections += (Get-Content -LiteralPath $userDocsNoticesPath -Raw -Encoding utf8).TrimEnd()
 
 $outputDirectory = Split-Path -Parent $OutputPath
 if ($outputDirectory -and -not (Test-Path $outputDirectory)) {

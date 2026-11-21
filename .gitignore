@@ -431,3 +431,6 @@ FodyWeavers.xsd
 *.msm
 *.msp
 dist/
+
+# Claude Code personal settings
+.claude/settings.local.json

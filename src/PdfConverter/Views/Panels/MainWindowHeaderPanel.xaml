@@ -49,6 +49,18 @@
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
+                <Button Command="{Binding OpenUserDocsCommand}"
+                        Style="{StaticResource CompactToolbarButton}"
+                        Width="34"
+                        Height="28"
+                        Padding="0"
+                        Margin="0,0,4,0"
+                        ToolTip="ドキュメント (F1)"
+                        AutomationProperties.Name="ドキュメント"
+                        AutomationProperties.HelpText="使い方のドキュメントをブラウザーで開きます">
+                    <Path Style="{StaticResource ThemeModeIconPath}"
+                          Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M9.5 9.5 A2.5 2.5 0 1 1 12 12 L12 13.5 M12 16.5 L12 17" />
+                </Button>
                 <Button Command="{Binding ShowAboutCommand}"
                         Style="{StaticResource CompactToolbarButton}"
                         Width="34"

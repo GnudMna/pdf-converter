@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Moq;
 using PdfConverter.Commands;
 using PdfConverter.Models;
+using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using Xunit;
 
@@ -139,14 +140,20 @@ namespace PdfConverter.Tests.ViewModels
             string selectedPath = CreateTempPdfPath();
             dialog.Setup(d => d.ShowOpenDocumentFileDialog()).Returns(selectedPath);
             pdf.Setup(p => p.GetPdfPageCountAsync(selectedPath, It.IsAny<CancellationToken>())).ReturnsAsync(1);
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     selectedPath,
                     0,
                     It.IsAny<ResolutionMode>(),
                     It.IsAny<double>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(CreatePreviewBitmap());
+                .ReturnsAsync(() =>
+                {
+                    var bitmap = CreatePreviewBitmap();
+                    return new PdfPagePreview(bitmap, bitmap.PixelWidth, bitmap.PixelHeight);
+                });
 
             try
             {
@@ -162,17 +169,17 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
-        /// プレビュー画像がない状態でコピーコマンドを実行した場合にエラーステータスが設定され、クリップボード操作が行われないことを検証する
+        /// プレビュー画像がない状態ではコピーコマンドが実行不可で、実行してもクリップボード操作が行われないことを検証する
         /// </summary>
         [Fact]
-        public void CopyToClipboardCommand_WithoutPreview_SetsStatusMessage()
+        public void CopyToClipboardCommand_WithoutPreview_CannotExecuteAndDoesNotCopy()
         {
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
             viewModel.Preview.PreviewImage = null;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
 
-            Assert.Contains("ありません", viewModel.StatusMessage);
+            Assert.False(viewModel.CopyToClipboardCommand.CanExecute(null));
             clipboard.Verify(c => c.CopyImage(It.IsAny<System.Windows.Media.Imaging.BitmapSource>(), It.IsAny<bool>()), Times.Never);
         }
 
@@ -344,6 +351,19 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
+        /// OpenUserDocsCommand がダイアログサービスへドキュメントの表示を委譲することを検証する
+        /// </summary>
+        [Fact]
+        public void OpenUserDocsCommand_OpensUserDocs()
+        {
+            var (viewModel, _, dialog, _) = MainViewModelTestFactory.Create();
+
+            viewModel.OpenUserDocsCommand.Execute(null);
+
+            dialog.Verify(d => d.OpenUserDocs(), Times.Once);
+        }
+
+        /// <summary>
         /// ドロップされた PDF パスが FilePath に設定されることを検証する
         /// </summary>
         [Fact]
@@ -377,6 +397,25 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.HandleDroppedDocument("C:\\dropped.pdf");
 
             Assert.Equal("C:\\existing.pdf", viewModel.FilePath);
+        }
+
+        /// <summary>
+        /// 複数ファイルのドロップ時に読み込んだファイル名を含む通知ダイアログを表示することを検証する
+        /// </summary>
+        [Fact]
+        public void NotifyMultipleFilesDropped_ShowsMessageWithLoadedFileName()
+        {
+            var (viewModel, _, dialog, _) = MainViewModelTestFactory.Create();
+
+            viewModel.NotifyMultipleFilesDropped(3, "C:\\docs\\first.pdf");
+
+            dialog.Verify(
+                d => d.ShowMessage(
+                    It.Is<string>(m => m.Contains("3 件") && m.Contains("first.pdf")),
+                    It.IsAny<string>(),
+                    DialogIcon.Information,
+                    It.IsAny<string>()),
+                Times.Once);
         }
     }
 }

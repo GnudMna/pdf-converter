@@ -154,5 +154,45 @@ namespace PdfConverter.Tests.Services
             /// <summary>マクロのセキュリティレベル</summary>
             public int AutomationSecurity { get; set; }
         }
+
+        /// <summary>
+        /// 正常終了が上限時間内に完了した場合は強制終了しないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunCleanupWithKillFallbackAsync_CleanupCompletes_DoesNotKill()
+        {
+            bool killed = false;
+
+            await MicrosoftWordToPdfConversionService.RunCleanupWithKillFallbackAsync(
+                () => { },
+                () => killed = true,
+                TimeSpan.FromSeconds(30));
+
+            Assert.False(killed);
+        }
+
+        /// <summary>
+        /// 正常終了が戻らない場合に、上限時間後に強制終了して呼び出し元へ制御を戻すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunCleanupWithKillFallbackAsync_CleanupHangs_KillsAfterGracePeriod()
+        {
+            using var release = new ManualResetEventSlim(false);
+            bool killed = false;
+
+            try
+            {
+                await MicrosoftWordToPdfConversionService.RunCleanupWithKillFallbackAsync(
+                    () => release.Wait(),
+                    () => killed = true,
+                    TimeSpan.FromMilliseconds(50));
+
+                Assert.True(killed);
+            }
+            finally
+            {
+                release.Set();
+            }
+        }
     }
 }

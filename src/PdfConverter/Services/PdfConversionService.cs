@@ -20,9 +20,11 @@ namespace PdfConverter.Services
     /// 描画サイズが <see cref="PdfiumDocument.MaxRenderPixels"/> を超えるページがある場合は、書き出しを始める前に中断する<br/>
     /// PDFium の呼び出しは <see cref="PdfiumDocument"/> がグローバルロックで直列化するため、
     /// 並列化で短縮されるのはビットマップ生成・画像エンコード・ファイル書き込みのみ<br/>
-    /// PDF 解析やファイル反映が UI スレッドで実行されないよう、内部の await はすべて ConfigureAwait(false) とする
+    /// PDF 解析やファイル反映が UI スレッドで実行されないよう、内部の await はすべて ConfigureAwait(false) とする<br/>
+    /// ページ数取得とページ単位の描画 (プレビュー) では、直近に開いた PDFium の文書を開いたまま再利用し、ページ移動ごとの読み込み・解析を省く<br/>
+    /// メモリキャッシュの上限を超える PDF はファイル全体を読み込まず、PDFium が必要とした範囲だけをファイルから読む
     /// </remarks>
-    public class PdfConversionService : IPdfConversionService
+    public sealed class PdfConversionService : IPdfConversionService, IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -46,9 +48,6 @@ namespace PdfConverter.Services
         /// <summary>32 ビットプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
         private const long SaveRenderPixelBudgetX86 = 100_000_000;
 
-        /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
-        private const double PdfiumNativeDpi = 72.0;
-
         /// <summary>PDF ヘッダー (<c>%PDF</c>) を探索するファイル先頭からの最大オフセット (バイト)</summary>
         /// <remarks>PDF 仕様および PDFium と同じく、先頭 1024 バイト以内のヘッダーを許容する</remarks>
         private const int MaxPdfHeaderOffset = 1024;
@@ -65,6 +64,12 @@ namespace PdfConverter.Services
         /// <summary>キャッシュ取得時点のファイル最終更新日時 (UTC)</summary>
         private DateTime _cachedFileLastWrite;
 
+        /// <summary>開いたまま再利用する PDFium の文書 (<see cref="_cacheLock"/> で保護する)</summary>
+        private CachedDocument? _cachedDocument;
+
+        /// <summary>破棄済みかどうか</summary>
+        private bool _disposed;
+
 
         /********************************************************************************/
         /*                                  プロパティ                                  */
@@ -79,48 +84,70 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public async Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, bool preserveTransparency = true, CancellationToken cancellationToken = default)
         {
-            if (!File.Exists(filePath))
+            CachedDocument cachedDocument = await AcquireDocumentAsync(filePath, cancellationToken).ConfigureAwait(false);
+            try
             {
-                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
-            }
-
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-            return await Task.Run(() =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                using (var document = new PdfiumDocument(fileBytes))
+                return await Task.Run(() =>
                 {
-                    if (pageIndex < 0 || pageIndex >= document.PageCount)
-                    {
-                        throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
-                    }
+                    cancellationToken.ThrowIfCancellationRequested();
 
+                    PdfiumDocument document = cachedDocument.Document;
+                    ValidatePageIndex(document, pageIndex);
                     double renderScale = ComputeRenderScale(document, pageIndex, mode, value);
                     return RenderPage(document, pageIndex, renderScale, preserveTransparency, cancellationToken);
-                }
-            }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                cachedDocument.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<PdfPagePreview> RenderPdfPagePreviewAsync(string filePath, int pageIndex, ResolutionMode mode, double value, bool preserveTransparency, int maxPixelWidth, int maxPixelHeight, CancellationToken cancellationToken = default)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(maxPixelWidth, 1);
+            ArgumentOutOfRangeException.ThrowIfLessThan(maxPixelHeight, 1);
+
+            CachedDocument cachedDocument = await AcquireDocumentAsync(filePath, cancellationToken).ConfigureAwait(false);
+            try
+            {
+                return await Task.Run(() =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    PdfiumDocument document = cachedDocument.Document;
+                    ValidatePageIndex(document, pageIndex);
+                    double renderScale = ComputeRenderScale(document, pageIndex, mode, value);
+
+                    // 出力解像度で描画できないページは、縮小すれば描画できても保存時と同じく失敗させる
+                    (int outputWidth, int outputHeight) = document.GetRenderSize(pageIndex, renderScale);
+                    (double pageWidth, double pageHeight) = document.GetPageSize(pageIndex);
+                    double previewScale = ComputePreviewScale(pageWidth, pageHeight, renderScale, maxPixelWidth, maxPixelHeight);
+
+                    BitmapSource image = RenderPage(document, pageIndex, previewScale, preserveTransparency, cancellationToken);
+                    return new PdfPagePreview(image, outputWidth, outputHeight);
+                }, cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                cachedDocument.Release();
+            }
         }
 
         /// <inheritdoc/>
         public async Task<int> GetPdfPageCountAsync(string filePath, CancellationToken cancellationToken = default)
         {
-            if (!File.Exists(filePath))
-            {
-                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
-            }
-
-            byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-
-            return await Task.Run(() =>
+            CachedDocument cachedDocument = await AcquireDocumentAsync(filePath, cancellationToken).ConfigureAwait(false);
+            try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                using (var document = new PdfiumDocument(fileBytes))
-                {
-                    return document.PageCount;
-                }
-            }, cancellationToken).ConfigureAwait(false);
+                return cachedDocument.Document.PageCount;
+            }
+            finally
+            {
+                cachedDocument.Release();
+            }
         }
 
         /// <inheritdoc/>
@@ -186,11 +213,12 @@ namespace PdfConverter.Services
                                 cancellationToken.ThrowIfCancellationRequested();
 
                                 SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency);
-                                int completed = Interlocked.Increment(ref completedCount);
-                                var report = new SaveProgressReport(completed * 100.0 / total, $"保存中... {completed}/{total} ページ");
+
+                                // 件数の加算から通知までを同じロックで行い、並列ワーカー間で進捗が逆戻りしないようにする
                                 lock (progressLock)
                                 {
-                                    progress?.Report(report);
+                                    completedCount++;
+                                    progress?.Report(new SaveProgressReport(completedCount * 100.0 / total, $"保存中... {completedCount}/{total} ページ"));
                                 }
                             }
                         }
@@ -212,6 +240,29 @@ namespace PdfConverter.Services
             {
                 PdfConverterTempDirectory.TryDeleteDirectory(stagingDirectory);
             }
+        }
+
+        /// <summary>
+        /// 再利用のため開いている文書とメモリキャッシュを破棄する
+        /// </summary>
+        /// <remarks>使用中の文書は、使用が終わった時点で閉じる</remarks>
+        public void Dispose()
+        {
+            CachedDocument? cachedDocument;
+            lock (_cacheLock)
+            {
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                cachedDocument = _cachedDocument;
+                _cachedDocument = null;
+                InvalidateCacheUnsafe();
+            }
+
+            cachedDocument?.Evict();
         }
 
 
@@ -367,6 +418,131 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
+        /// 指定ファイルの PDFium の文書を、開いたままの文書があれば再利用し、なければ開いて取得する
+        /// </summary>
+        /// <remarks>
+        /// ファイルパス・最終更新日時・ファイルサイズが一致する場合のみ再利用し、一致しない場合は開き直して古い文書を手放す<br/>
+        /// <see cref="MaxCacheableFileSizeBytes"/> 以下の PDF はメモリキャッシュしたバイト列から、超える PDF はファイルから必要な範囲だけを読んで開く<br/>
+        /// 呼び出し側は使用後に必ず <see cref="CachedDocument.Release"/> を呼ぶこと
+        /// </remarks>
+        /// <param name="filePath">PDF ファイルのパス</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>参照を 1 つ取得済みの文書</returns>
+        /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
+        /// <exception cref="InvalidDataException">PDF ファイルではない、または開けない場合</exception>
+        /// <exception cref="ObjectDisposedException">破棄済みの場合</exception>
+        private async Task<CachedDocument> AcquireDocumentAsync(string filePath, CancellationToken cancellationToken)
+        {
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists)
+            {
+                throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
+            }
+
+            DateTime lastWrite = fileInfo.LastWriteTimeUtc;
+            long fileSize = fileInfo.Length;
+
+            lock (_cacheLock)
+            {
+                ObjectDisposedException.ThrowIf(_disposed, this);
+                if (_cachedDocument != null
+                    && _cachedDocument.Matches(filePath, lastWrite, fileSize)
+                    && _cachedDocument.TryAddReference())
+                {
+                    return _cachedDocument;
+                }
+            }
+
+            PdfiumDocument document;
+            if (fileSize <= MaxCacheableFileSizeBytes)
+            {
+                byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
+                document = await Task.Run(() => new PdfiumDocument(fileBytes), cancellationToken).ConfigureAwait(false);
+            }
+            else
+            {
+                document = await Task.Run(() => OpenLargeFile(filePath), cancellationToken).ConfigureAwait(false);
+            }
+
+            var cachedDocument = new CachedDocument(document, filePath, lastWrite, fileSize);
+            CachedDocument? previousDocument;
+            lock (_cacheLock)
+            {
+                if (_disposed)
+                {
+                    document.Dispose();
+                    throw new ObjectDisposedException(nameof(PdfConversionService));
+                }
+
+                previousDocument = _cachedDocument;
+                _cachedDocument = cachedDocument;
+            }
+
+            previousDocument?.Evict();
+            return cachedDocument;
+        }
+
+        /// <summary>
+        /// メモリキャッシュの上限を超える PDF を、ヘッダーを検証したうえでファイル全体を読み込まずに開く
+        /// </summary>
+        /// <param name="filePath">PDF ファイルのパス</param>
+        /// <returns>開いた文書</returns>
+        /// <exception cref="InvalidDataException">PDF ファイルではない、または開けない場合</exception>
+        private static PdfiumDocument OpenLargeFile(string filePath)
+        {
+            byte[] header;
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            {
+                header = new byte[(int)Math.Min(stream.Length, MaxPdfHeaderOffset + 4)];
+                stream.ReadExactly(header);
+            }
+
+            ValidatePdfHeader(header);
+            return PdfiumDocument.OpenFile(filePath);
+        }
+
+        /// <summary>
+        /// ページインデックスが文書の範囲内であることを検証する
+        /// </summary>
+        /// <param name="document">PDF 文書</param>
+        /// <param name="pageIndex">ページインデックス</param>
+        /// <exception cref="ArgumentOutOfRangeException">範囲外の場合</exception>
+        private static void ValidatePageIndex(PdfiumDocument document, int pageIndex)
+        {
+            if (pageIndex < 0 || pageIndex >= document.PageCount)
+            {
+                throw new ArgumentOutOfRangeException(nameof(pageIndex), "ページインデックスが範囲外です。");
+            }
+        }
+
+        /// <summary>
+        /// 出力解像度の描画倍率を上限に、ページが指定サイズに収まるプレビューの描画倍率を返す
+        /// </summary>
+        /// <remarks>
+        /// 出力解像度で収まる場合は出力解像度のまま描画し、拡大はしない<br/>
+        /// 極端に細長いページでも短辺が 1px 未満にならないよう、短辺が 1px になる倍率を下限とする
+        /// </remarks>
+        /// <param name="pageWidth">ページの幅 (ポイント)</param>
+        /// <param name="pageHeight">ページの高さ (ポイント)</param>
+        /// <param name="renderScale">出力解像度の描画倍率</param>
+        /// <param name="maxPixelWidth">プレビュー画像の最大幅 (px)</param>
+        /// <param name="maxPixelHeight">プレビュー画像の最大高さ (px)</param>
+        /// <returns>プレビューの描画倍率 (1.0 = 72 DPI)</returns>
+        internal static double ComputePreviewScale(double pageWidth, double pageHeight, double renderScale, int maxPixelWidth, int maxPixelHeight)
+        {
+            double fitRatio = Math.Min(maxPixelWidth / (pageWidth * renderScale), maxPixelHeight / (pageHeight * renderScale));
+
+            // NaN (不正なページサイズ) も出力解像度のまま描画し、描画サイズの検証で失敗させる
+            if (!(fitRatio < 1.0))
+            {
+                return renderScale;
+            }
+
+            double minimumScale = ScaleToReachLength(Math.Min(pageWidth, pageHeight), 1);
+            return Math.Min(renderScale, Math.Max(renderScale * fitRatio, minimumScale));
+        }
+
+        /// <summary>
         /// 解像度モードと値から PDFium のレンダリングスケールを計算する
         /// </summary>
         /// <param name="document">PDF 文書</param>
@@ -383,17 +559,41 @@ namespace PdfConverter.Services
 
             if (mode == ResolutionMode.Dpi)
             {
-                return value / PdfiumNativeDpi;
+                return value / PdfiumDocument.NativeDpi;
             }
 
-            (int naturalWidth, int naturalHeight) = document.GetPagePixelSize(samplePageIndex, 1.0);
+            // 切り捨て前の実数サイズで倍率を求める (整数化すると A4 の 841.92pt などで出力が 1px ずれる)
+            (double naturalWidth, double naturalHeight) = document.GetPageSize(samplePageIndex);
+            double naturalLength = mode == ResolutionMode.Width ? naturalWidth : naturalHeight;
 
-            if (mode == ResolutionMode.Width)
+            return ScaleToReachLength(naturalLength, value);
+        }
+
+        /// <summary>
+        /// 実数の長さに掛けて切り捨てたとき、ちょうど目標のピクセル数になる倍率を返す
+        /// </summary>
+        /// <remarks>
+        /// 浮動小数点の丸め誤差で <c>naturalLength * scale</c> が目標をわずかに下回ると、切り捨てで 1px 小さくなる<br/>
+        /// そのため下回る間は倍率を最小単位だけ引き上げる
+        /// </remarks>
+        /// <param name="naturalLength">倍率 1.0 での長さ (ポイント)</param>
+        /// <param name="targetPixels">目標のピクセル数</param>
+        /// <returns>PDFium レンダリングスケール (1.0 = 72 DPI)</returns>
+        private static double ScaleToReachLength(double naturalLength, double targetPixels)
+        {
+            double scale = targetPixels / naturalLength;
+            if (!double.IsFinite(scale))
             {
-                return value / naturalWidth;
+                return scale;
             }
 
-            return value / naturalHeight;
+            double floorTarget = Math.Floor(targetPixels);
+            while (Math.Floor(naturalLength * scale) < floorTarget)
+            {
+                scale = Math.BitIncrement(scale);
+            }
+
+            return scale;
         }
 
         /// <summary>
@@ -446,44 +646,61 @@ namespace PdfConverter.Services
         /// <param name="pagesToSave">保存対象のページインデックス一覧</param>
         /// <param name="pageCount">PDF の総ページ数 (ファイル名のゼロ埋め桁数に使用)</param>
         /// <param name="format">出力画像形式</param>
+        /// <remarks>
+        /// 時間のかかるコピーを先に済ませ、保存先の既存ファイルには手を付けない<br/>
+        /// 1. 全ファイルを保存先フォルダー内の一時ファイルへコピーする<br/>
+        /// 2. 既存ファイルを退避しながら、一時ファイルを同一ボリューム内のリネームで配置する<br/>
+        /// いずれかの段階で失敗した場合は、配置済みのファイルを削除して退避した既存ファイルを元に戻す
+        /// </remarks>
         /// <exception cref="FileNotFoundException">ステージング済みファイルが見つからない場合</exception>
         private static void CommitStagedFiles(
             string stagingDirectory,
             string folderPath,
-            IReadOnlyList<int> pagesToSave,
+            List<int> pagesToSave,
             int pageCount,
             OutputImageFormat format)
         {
             Directory.CreateDirectory(folderPath);
 
-            foreach (int pageIndex in pagesToSave)
+            string token = Guid.NewGuid().ToString("N");
+            var entries = new List<CommitEntry>(pagesToSave.Count);
+            try
             {
-                string fileName = PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format);
-                string sourcePath = Path.Combine(stagingDirectory, fileName);
-                if (!File.Exists(sourcePath))
+                foreach (int pageIndex in pagesToSave)
                 {
-                    throw new FileNotFoundException(
-                        $"ステージングされた出力ファイルが見つかりません: {fileName}",
-                        sourcePath);
+                    string fileName = PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format);
+                    string sourcePath = Path.Combine(stagingDirectory, fileName);
+                    if (!File.Exists(sourcePath))
+                    {
+                        throw new FileNotFoundException(
+                            $"ステージングされた出力ファイルが見つかりません: {fileName}",
+                            sourcePath);
+                    }
+
+                    var entry = new CommitEntry(Path.Combine(folderPath, fileName), token);
+                    entries.Add(entry);
+                    entry.CopyToTemp(sourcePath);
                 }
 
-                string destinationPath = Path.Combine(folderPath, fileName);
-                ReplaceFile(sourcePath, destinationPath);
+                foreach (CommitEntry entry in entries)
+                {
+                    entry.Install();
+                }
             }
-        }
+            catch
+            {
+                for (int i = entries.Count - 1; i >= 0; i--)
+                {
+                    entries[i].Rollback();
+                }
 
-        /// <summary>
-        /// ソースファイルで宛先ファイルを置き換える
-        /// </summary>
-        /// <param name="sourcePath">反映元ファイルの絶対パス</param>
-        /// <param name="destinationPath">反映先ファイルの絶対パス</param>
-        /// <remarks>
-        /// 一時ディレクトリと保存先が異ボリュームでも動くよう、コピー後にソースを削除する
-        /// </remarks>
-        private static void ReplaceFile(string sourcePath, string destinationPath)
-        {
-            File.Copy(sourcePath, destinationPath, overwrite: true);
-            File.Delete(sourcePath);
+                throw;
+            }
+
+            foreach (CommitEntry entry in entries)
+            {
+                entry.Cleanup();
+            }
         }
 
         /// <summary>
@@ -524,6 +741,234 @@ namespace PdfConverter.Services
             }
 
             return -1;
+        }
+
+
+        /********************************************************************************/
+        /*                                    ネスト型                                  */
+        /********************************************************************************/
+        /// <summary>
+        /// 開いたまま再利用する PDFium の文書と、その使用数を管理する
+        /// </summary>
+        /// <remarks>
+        /// キャッシュから外された (<see cref="Evict"/>) 後、使用中の参照がすべて解放された時点で文書を閉じる
+        /// </remarks>
+        private sealed class CachedDocument
+        {
+            /// <summary>使用数と破棄状態を保護するロックオブジェクト</summary>
+            private readonly object _referenceLock = new object();
+
+            /// <summary>文書を開いたファイルのパス</summary>
+            private readonly string _filePath;
+
+            /// <summary>文書を開いた時点のファイル最終更新日時 (UTC)</summary>
+            private readonly DateTime _lastWrite;
+
+            /// <summary>文書を開いた時点のファイルサイズ (バイト)</summary>
+            private readonly long _fileSize;
+
+            /// <summary>使用中の参照の数</summary>
+            private int _referenceCount;
+
+            /// <summary>キャッシュから外されたかどうか</summary>
+            private bool _evicted;
+
+            /// <summary>
+            /// 開いた文書を、参照を 1 つ取得した状態で保持する
+            /// </summary>
+            /// <param name="document">開いた文書</param>
+            /// <param name="filePath">文書を開いたファイルのパス</param>
+            /// <param name="lastWrite">文書を開いた時点のファイル最終更新日時 (UTC)</param>
+            /// <param name="fileSize">文書を開いた時点のファイルサイズ (バイト)</param>
+            public CachedDocument(PdfiumDocument document, string filePath, DateTime lastWrite, long fileSize)
+            {
+                Document = document;
+                _filePath = filePath;
+                _lastWrite = lastWrite;
+                _fileSize = fileSize;
+                _referenceCount = 1;
+            }
+
+            /// <summary>PDFium の文書</summary>
+            public PdfiumDocument Document { get; }
+
+            /// <summary>
+            /// 指定したファイルの現在の状態から開いた文書かどうかを返す
+            /// </summary>
+            /// <param name="filePath">ファイルのパス</param>
+            /// <param name="lastWrite">ファイル最終更新日時 (UTC)</param>
+            /// <param name="fileSize">ファイルサイズ (バイト)</param>
+            /// <returns>一致する場合は <c>true</c></returns>
+            public bool Matches(string filePath, DateTime lastWrite, long fileSize)
+            {
+                return _filePath == filePath && _lastWrite == lastWrite && _fileSize == fileSize;
+            }
+
+            /// <summary>
+            /// 参照を 1 つ取得する
+            /// </summary>
+            /// <returns>取得できた場合は <c>true</c>、キャッシュから外されている場合は <c>false</c></returns>
+            public bool TryAddReference()
+            {
+                lock (_referenceLock)
+                {
+                    if (_evicted)
+                    {
+                        return false;
+                    }
+
+                    _referenceCount++;
+                    return true;
+                }
+            }
+
+            /// <summary>
+            /// 参照を 1 つ解放し、キャッシュから外されていて参照がなくなった場合は文書を閉じる
+            /// </summary>
+            public void Release()
+            {
+                bool shouldDispose;
+                lock (_referenceLock)
+                {
+                    _referenceCount--;
+                    shouldDispose = _evicted && _referenceCount == 0;
+                }
+
+                if (shouldDispose)
+                {
+                    Document.Dispose();
+                }
+            }
+
+            /// <summary>
+            /// キャッシュから外し、参照がなければ文書を閉じる
+            /// </summary>
+            public void Evict()
+            {
+                bool shouldDispose;
+                lock (_referenceLock)
+                {
+                    if (_evicted)
+                    {
+                        return;
+                    }
+
+                    _evicted = true;
+                    shouldDispose = _referenceCount == 0;
+                }
+
+                if (shouldDispose)
+                {
+                    Document.Dispose();
+                }
+            }
+        }
+
+        /// <summary>
+        /// 保存先への反映対象 1 ファイル分の状態を保持し、置き換えと巻き戻しを行う
+        /// </summary>
+        /// <remarks>
+        /// 一時ファイル・退避ファイルは保存先と同じフォルダーに置くため、置き換えはすべて同一ボリューム内のリネームで完結する
+        /// </remarks>
+        private sealed class CommitEntry
+        {
+            /// <summary>反映先ファイルの絶対パス</summary>
+            private readonly string _destinationPath;
+
+            /// <summary>反映先フォルダー内に作成した一時ファイルの絶対パス</summary>
+            private readonly string _tempPath;
+
+            /// <summary>既存の反映先ファイルの退避先の絶対パス</summary>
+            private readonly string _backupPath;
+
+            /// <summary>既存の反映先ファイルを退避済みの場合は <c>true</c></summary>
+            private bool _backedUp;
+
+            /// <summary>一時ファイルを反映先へ配置済みの場合は <c>true</c></summary>
+            private bool _installed;
+
+            /// <summary>
+            /// 反映先と一時ファイル・退避ファイルのパスを指定してインスタンスを生成する
+            /// </summary>
+            /// <param name="destinationPath">反映先ファイルの絶対パス</param>
+            /// <param name="token">一時ファイル・退避ファイルの名前に付ける一意な識別子</param>
+            public CommitEntry(string destinationPath, string token)
+            {
+                _destinationPath = destinationPath;
+                _tempPath = $"{destinationPath}.{token}.tmp";
+                _backupPath = $"{destinationPath}.{token}.bak";
+            }
+
+            /// <summary>
+            /// ステージング済みファイルを反映先フォルダー内の一時ファイルへコピーする
+            /// </summary>
+            /// <param name="sourcePath">ステージング済みファイルの絶対パス</param>
+            public void CopyToTemp(string sourcePath)
+            {
+                File.Copy(sourcePath, _tempPath, overwrite: false);
+            }
+
+            /// <summary>
+            /// 既存の反映先ファイルを退避したうえで、一時ファイルを反映先へ配置する
+            /// </summary>
+            public void Install()
+            {
+                if (File.Exists(_destinationPath))
+                {
+                    File.Move(_destinationPath, _backupPath);
+                    _backedUp = true;
+                }
+
+                File.Move(_tempPath, _destinationPath);
+                _installed = true;
+            }
+
+            /// <summary>
+            /// 反映前の状態へ戻す (戻せなかった場合も例外は送出しない)
+            /// </summary>
+            public void Rollback()
+            {
+                TryRun(() =>
+                {
+                    if (_installed)
+                    {
+                        File.Delete(_destinationPath);
+                    }
+                });
+                TryRun(() =>
+                {
+                    if (_backedUp)
+                    {
+                        File.Move(_backupPath, _destinationPath);
+                    }
+                });
+                TryRun(() => File.Delete(_tempPath));
+            }
+
+            /// <summary>
+            /// 反映の完了後に一時ファイル・退避ファイルを削除する (削除できなくても例外は送出しない)
+            /// </summary>
+            public void Cleanup()
+            {
+                TryRun(() => File.Delete(_tempPath));
+                TryRun(() => File.Delete(_backupPath));
+            }
+
+            /// <summary>
+            /// ファイル操作を実行し、I/O 系の例外は無視する
+            /// </summary>
+            /// <param name="action">実行する操作</param>
+            private static void TryRun(Action action)
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // 後始末・巻き戻しは最善努力とし、元の例外を優先する
+                }
+            }
         }
     }
 }

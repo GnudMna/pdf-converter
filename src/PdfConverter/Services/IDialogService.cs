@@ -78,5 +78,13 @@ namespace PdfConverter.Services
         /// バージョン情報とオープンソースクレジットのダイアログを表示する
         /// </summary>
         void ShowAbout();
+
+        /// <summary>
+        /// 利用者向けドキュメントを既定のブラウザーで開く
+        /// </summary>
+        /// <remarks>
+        /// ドキュメントが同梱されていない場合 (開発ビルドなど) は、その旨を表示する
+        /// </remarks>
+        void OpenUserDocs();
     }
 }

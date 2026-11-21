@@ -3,9 +3,11 @@
 # 必要環境:
 #   - .NET SDK 10 以降 (dotnet CLI)
 #   - Inno Setup 6 — ISCC.exe
+#   - mdBook (利用者向けドキュメントの生成。版は build-user-docs.ps1 の $UserDocsMdBookVersion に固定)
 #
 # アプリは .NET ランタイム同梱 (self-contained) で dotnet publish し、
 # src\PdfConverter\bin\<Platform>\publish の内容をインストーラーへ格納します。
+# 利用者向けドキュメント (docs/user) は mdBook で HTML 化し、publish 出力の docs\ に複製します。
 #
 # インストーラーは管理者権限を要求しないユーザー単位インストールです。
 # インストール先: %LOCALAPPDATA%\Programs\PDF Converter
@@ -29,6 +31,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'build-common.ps1')
+. (Join-Path $PSScriptRoot 'build-user-docs.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $projectPath = Join-Path $repoRoot 'src\PdfConverter\PdfConverter.csproj'
@@ -107,10 +110,29 @@ function Write-ThirdPartyNotices {
     & $generateScript -OutputPath $noticesPath -Platform $TargetPlatform
 }
 
+function Copy-UserDocs {
+    param(
+        [string] $TargetPlatform,
+        [string] $UserDocsDir
+    )
+
+    $docsDir = Join-Path (Get-PublishDir -TargetPlatform $TargetPlatform) 'docs'
+
+    # -SkipBuild で前回の publish 出力を使う場合に、旧版のファイルが混ざらないよう作り直す
+    if (Test-Path -LiteralPath $docsDir) {
+        Remove-Item -LiteralPath $docsDir -Recurse -Force
+    }
+
+    Write-Host "利用者向けドキュメントを複製しています ($TargetPlatform)..."
+    Copy-Item -LiteralPath $UserDocsDir -Destination $docsDir -Recurse -Force
+    Assert-UserDocsPages -DocsDir $docsDir
+}
+
 function Build-Installer {
     param(
         [string] $TargetPlatform,
-        [string] $AppVersion
+        [string] $AppVersion,
+        [string] $UserDocsDir
     )
 
     $sourceDir = Get-PublishDir -TargetPlatform $TargetPlatform
@@ -119,6 +141,7 @@ function Build-Installer {
     }
 
     Write-ThirdPartyNotices -TargetPlatform $TargetPlatform
+    Copy-UserDocs -TargetPlatform $TargetPlatform -UserDocsDir $UserDocsDir
 
     $iscc = Find-ISCC
     Write-Host "Inno Setup: $iscc"
@@ -149,6 +172,9 @@ try {
 
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null
 
+    # 利用者向けドキュメントはプラットフォームに依らないため 1 回だけ生成する
+    $userDocsDir = Invoke-UserDocsBuild -RepoRoot $repoRoot
+
     # project.assets.json は最後に復元したプラットフォームの内容になるため、
     # publish → 通知生成 → インストーラー作成をプラットフォームごとに続けて行う
     foreach ($plat in $platformsToBuild) {
@@ -159,7 +185,7 @@ try {
             Publish-App -TargetPlatform $plat
         }
 
-        Build-Installer -TargetPlatform $plat -AppVersion $appVersion
+        Build-Installer -TargetPlatform $plat -AppVersion $appVersion -UserDocsDir $userDocsDir
     }
 
     Write-Host ''

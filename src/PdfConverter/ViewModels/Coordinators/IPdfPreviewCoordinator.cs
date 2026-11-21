@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using System.Windows.Media.Imaging;
 
 namespace PdfConverter.ViewModels.Coordinators
 {
@@ -50,5 +51,21 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
         Task GoToNextPageAsync(IPreviewCoordinatorHost host);
+
+        /// <summary>
+        /// プレビュー画像を表示する領域のサイズ変更を通知し、表示中のプレビューが粗くなる場合は少し待ってから描画し直す
+        /// </summary>
+        /// <param name="host">プレビュー操作ホスト</param>
+        void NotifyPreviewViewportChanged(IPreviewCoordinatorHost host);
+
+        /// <summary>
+        /// 表示中のプレビューと同じページ・設定の画像を出力解像度で取得する
+        /// </summary>
+        /// <remarks>
+        /// プレビューが表示サイズに縮小されている場合のみ出力解像度で描画し直し、それ以外は表示中の画像をそのまま返す
+        /// </remarks>
+        /// <param name="host">プレビュー操作ホスト</param>
+        /// <returns>出力解像度の画像。プレビューがない・キャンセル・失敗の場合は <c>null</c> (ステータスは設定済み)</returns>
+        Task<BitmapSource?> GetOutputResolutionPreviewImageAsync(IPreviewCoordinatorHost host);
     }
 }

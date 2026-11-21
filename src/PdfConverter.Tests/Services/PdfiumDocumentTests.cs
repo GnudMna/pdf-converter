@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PdfConverter.Services;
+using PdfConverter.Tests.Helpers;
 using Xunit;
 
 namespace PdfConverter.Tests.Services
@@ -39,6 +40,30 @@ namespace PdfConverter.Tests.Services
                 Assert.Equal((200, 100), document.GetPagePixelSize(0, 1.0));
                 Assert.Equal((400, 200), document.GetPagePixelSize(0, 2.0));
                 Assert.Equal((25, 40), document.GetPagePixelSize(1, 0.5));
+            }
+        }
+
+        /// <summary>
+        /// 整数でないページサイズが切り捨てられずに取得できることを検証する
+        /// </summary>
+        [Fact]
+        public void GetPageSize_FractionalPageSize_KeepsDecimalPart()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPageSizes((595.92, 841.92));
+
+            try
+            {
+                using (var document = new PdfiumDocument(File.ReadAllBytes(pdfPath)))
+                {
+                    (double width, double height) = document.GetPageSize(0);
+
+                    Assert.Equal(595.92, width, 2);
+                    Assert.Equal(841.92, height, 2);
+                }
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
             }
         }
 
@@ -128,6 +153,26 @@ namespace PdfConverter.Tests.Services
 
                 Assert.Equal(300, bitmap.PixelWidth);
                 Assert.Equal(150, bitmap.PixelHeight);
+            }
+        }
+
+        /// <summary>
+        /// 描画倍率に応じた DPI がビットマップのメタデータに設定されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(1.0, 72.0)]
+        [InlineData(1.5, 108.0)]
+        [InlineData(300.0 / 72.0, 300.0)]
+        public void RenderPage_Scale_SetsDpiMetadata(double scale, double expectedDpi)
+        {
+            byte[] pdf = BuildPdf(new[] { (72, 72) });
+
+            using (var document = new PdfiumDocument(pdf))
+            {
+                BitmapSource bitmap = document.RenderPage(0, scale);
+
+                Assert.Equal(expectedDpi, bitmap.DpiX, 6);
+                Assert.Equal(expectedDpi, bitmap.DpiY, 6);
             }
         }
 

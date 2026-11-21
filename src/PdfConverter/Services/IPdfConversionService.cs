@@ -36,6 +36,24 @@ namespace PdfConverter.Services
         Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, bool preserveTransparency = true, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// PDF の指定ページを、出力解像度を上限として指定サイズに収まるよう縮小したプレビューとして描画する
+        /// </summary>
+        /// <remarks>
+        /// 出力解像度での描画サイズが上限を超える場合は、縮小して描画できる場合でも保存と同じく失敗させる
+        /// </remarks>
+        /// <param name="filePath">PDF ファイルの絶対パス</param>
+        /// <param name="pageIndex">変換対象のページインデックス (0 始まり)</param>
+        /// <param name="mode">解像度の指定方法</param>
+        /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
+        /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
+        /// <param name="maxPixelWidth">プレビュー画像の最大幅 (px、1 以上)</param>
+        /// <param name="maxPixelHeight">プレビュー画像の最大高さ (px、1 以上)</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <returns>プレビュー画像と出力解像度での描画サイズ</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxPixelWidth"/> または <paramref name="maxPixelHeight"/> が 1 未満の場合</exception>
+        Task<PdfPagePreview> RenderPdfPagePreviewAsync(string filePath, int pageIndex, ResolutionMode mode, double value, bool preserveTransparency, int maxPixelWidth, int maxPixelHeight, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// 指定したページ群を画像ファイルとしてフォルダーへ一括保存する
         /// </summary>
         /// <remarks>

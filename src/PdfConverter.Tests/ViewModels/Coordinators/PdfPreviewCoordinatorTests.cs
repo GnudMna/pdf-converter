@@ -137,14 +137,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             };
 
             pdf.Setup(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>())).Returns(pageCountGate.Task);
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     It.IsAny<string>(),
                     It.IsAny<int>(),
                     It.IsAny<Models.ResolutionMode>(),
                     It.IsAny<double>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync((System.Windows.Media.Imaging.BitmapSource)null);
+                .ReturnsAsync((PdfPagePreview)null);
 
             try
             {
@@ -183,14 +185,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             };
 
             pdf.Setup(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>())).ReturnsAsync(3);
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     path,
                     0,
                     host.ResolutionMode,
                     1080,
                     true,
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(bitmap);
+                .ReturnsAsync(CreatePreview(bitmap));
 
             try
             {
@@ -225,14 +229,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             };
             System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
             StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     It.IsAny<string>(),
                     It.IsAny<int>(),
                     It.IsAny<Models.ResolutionMode>(),
                     It.IsAny<double>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(previewBitmap);
+                .ReturnsAsync(CreatePreview(previewBitmap));
 
             try
             {
@@ -264,14 +270,16 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             };
             System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
             StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     It.IsAny<string>(),
                     It.IsAny<int>(),
                     It.IsAny<Models.ResolutionMode>(),
                     It.IsAny<double>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(previewBitmap);
+                .ReturnsAsync(CreatePreview(previewBitmap));
 
             try
             {
@@ -302,15 +310,17 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 PageNumber = "1",
                 ResolutionValue = "1080",
             };
-            var convertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
+            var convertGate = new TaskCompletionSource<PdfPagePreview>();
             System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
             StaTestHelper.Run(() => previewBitmap = BitmapTestHelper.CreateBitmap());
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     It.IsAny<string>(),
                     It.IsAny<int>(),
                     It.IsAny<Models.ResolutionMode>(),
                     It.IsAny<double>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(convertGate.Task);
 
@@ -322,7 +332,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 Assert.True(host.IsBusy);
                 Assert.Equal(StatusKind.Progress, host.StatusKind);
 
-                convertGate.SetResult(previewBitmap);
+                convertGate.SetResult(CreatePreview(previewBitmap));
                 await navigationTask;
 
                 Assert.False(host.IsBusy);
@@ -342,7 +352,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         {
             var coordinator = CreateCoordinator(out var pdf);
             string path = CreateTempPdfPath();
-            var firstConvertGate = new TaskCompletionSource<System.Windows.Media.Imaging.BitmapSource>();
+            var firstConvertGate = new TaskCompletionSource<PdfPagePreview>();
             System.Windows.Media.Imaging.BitmapSource firstBitmap = null;
             System.Windows.Media.Imaging.BitmapSource secondBitmap = null;
             StaTestHelper.Run(() =>
@@ -359,22 +369,26 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 ResolutionValue = "1080",
             };
 
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     path,
                     0,
                     Models.ResolutionMode.Width,
                     1080,
                     true,
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(firstConvertGate.Task);
-            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
                     path,
                     0,
                     Models.ResolutionMode.Width,
                     800,
                     true,
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(secondBitmap);
+                .ReturnsAsync(CreatePreview(secondBitmap));
 
             try
             {
@@ -383,7 +397,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 host.ResolutionValue = "800";
                 coordinator.RequestRefreshIfLoaded(host);
 
-                firstConvertGate.SetResult(firstBitmap);
+                firstConvertGate.SetResult(CreatePreview(firstBitmap));
                 await WaitForAsyncOperations();
 
                 Assert.Same(secondBitmap, host.PreviewImage);
@@ -406,19 +420,254 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
 
             await coordinator.RefreshIfLoadedAsync(host);
 
-            pdf.Verify(p => p.ConvertPdfPageToImageAsync(
+            pdf.Verify(p => p.RenderPdfPagePreviewAsync(
                 It.IsAny<string>(),
                 It.IsAny<int>(),
                 It.IsAny<Models.ResolutionMode>(),
                 It.IsAny<double>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
+                It.IsAny<int>(),
                 It.IsAny<CancellationToken>()), Times.Never);
+        }
+
+        /// <summary>
+        /// プレビューを表示領域のサイズを上限として描画することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToPageAsync_WithViewportSize_RendersPreviewWithinViewport()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PreviewViewportPixelWidth = 640;
+            host.PreviewViewportPixelHeight = 480;
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+
+                VerifyPreviewRendered(pdf, 640, 480, Times.Once());
+                Assert.Same(bitmap, host.PreviewImage);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 表示領域のサイズが未確定の場合は既定の最大サイズでプレビューを描画することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GoToPageAsync_ViewportNotMeasured_RendersPreviewWithinFallbackSize()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+
+                VerifyPreviewRendered(
+                    pdf,
+                    PdfPreviewCoordinator.FallbackPreviewMaxPixelSize,
+                    PdfPreviewCoordinator.FallbackPreviewMaxPixelSize,
+                    Times.Once());
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 縮小描画したプレビューの出力解像度の画像は、同じページ・設定で出力解像度のまま描画し直して返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetOutputResolutionPreviewImageAsync_DownscaledPreview_RendersAtOutputResolution()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            System.Windows.Media.Imaging.BitmapSource previewBitmap = null;
+            System.Windows.Media.Imaging.BitmapSource outputBitmap = null;
+            StaTestHelper.Run(() =>
+            {
+                previewBitmap = BitmapTestHelper.CreateBitmap();
+                outputBitmap = BitmapTestHelper.CreateBitmap(32, 32);
+            });
+            SetupPreview(pdf, new PdfPagePreview(previewBitmap, 32, 32));
+            pdf.Setup(p => p.ConvertPdfPageToImageAsync(
+                    host.FilePath,
+                    0,
+                    Models.ResolutionMode.Width,
+                    1080,
+                    true,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outputBitmap);
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                System.Windows.Media.Imaging.BitmapSource image = await coordinator.GetOutputResolutionPreviewImageAsync(host);
+
+                Assert.Same(outputBitmap, image);
+                Assert.Same(previewBitmap, host.PreviewImage);
+                Assert.False(host.IsBusy);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 出力解像度のまま描画したプレビューは、描画し直さずに表示中の画像を返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetOutputResolutionPreviewImageAsync_PreviewAtOutputResolution_ReturnsDisplayedImage()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                System.Windows.Media.Imaging.BitmapSource image = await coordinator.GetOutputResolutionPreviewImageAsync(host);
+
+                Assert.Same(bitmap, image);
+                pdf.Verify(p => p.ConvertPdfPageToImageAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<CancellationToken>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 縮小描画したプレビューの表示領域が広がった場合は、少し待ってから新しいサイズで描画し直すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task NotifyPreviewViewportChanged_ViewportGrowsWithDownscaledPreview_RerendersPreview()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PreviewViewportPixelWidth = 8;
+            host.PreviewViewportPixelHeight = 8;
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, new PdfPagePreview(bitmap, 100, 100));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                host.PreviewViewportPixelWidth = 64;
+                host.PreviewViewportPixelHeight = 64;
+                coordinator.NotifyPreviewViewportChanged(host);
+
+                VerifyPreviewRendered(pdf, 64, 64, Times.Never());
+                await Task.Delay(PdfPreviewCoordinator.ViewportRefreshDelayMilliseconds + 300, cancellationToken: TestContext.Current.CancellationToken);
+
+                VerifyPreviewRendered(pdf, 64, 64, Times.Once());
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
+        }
+
+        /// <summary>
+        /// 出力解像度のまま描画したプレビューは、表示領域が広がっても描画し直さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task NotifyPreviewViewportChanged_PreviewAtOutputResolution_DoesNotRerender()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            var host = CreateLoadedHost();
+            host.PreviewViewportPixelWidth = 8;
+            host.PreviewViewportPixelHeight = 8;
+            System.Windows.Media.Imaging.BitmapSource bitmap = null;
+            StaTestHelper.Run(() => bitmap = BitmapTestHelper.CreateBitmap());
+            SetupPreview(pdf, CreatePreview(bitmap));
+
+            try
+            {
+                await coordinator.GoToPageAsync(host);
+                host.PreviewViewportPixelWidth = 64;
+                host.PreviewViewportPixelHeight = 64;
+                coordinator.NotifyPreviewViewportChanged(host);
+                await Task.Delay(PdfPreviewCoordinator.ViewportRefreshDelayMilliseconds + 300, cancellationToken: TestContext.Current.CancellationToken);
+
+                VerifyPreviewRendered(pdf, 64, 64, Times.Never());
+            }
+            finally
+            {
+                File.Delete(host.FilePath);
+            }
         }
 
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+
+        private static PdfPagePreview CreatePreview(System.Windows.Media.Imaging.BitmapSource bitmap)
+        {
+            return new PdfPagePreview(bitmap, bitmap.PixelWidth, bitmap.PixelHeight);
+        }
+
+        private static TestMainViewModelHost CreateLoadedHost()
+        {
+            return new TestMainViewModelHost
+            {
+                FilePath = CreateTempPdfPath(),
+                PageCount = 1,
+                PageNumber = "1",
+                ResolutionMode = Models.ResolutionMode.Width,
+                ResolutionValue = "1080",
+            };
+        }
+
+        private static void SetupPreview(Mock<IPdfConversionService> pdf, PdfPagePreview preview)
+        {
+            pdf.Setup(p => p.RenderPdfPagePreviewAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<int>(),
+                    It.IsAny<Models.ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<int>(),
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(preview);
+        }
+
+        private static void VerifyPreviewRendered(Mock<IPdfConversionService> pdf, int maxPixelWidth, int maxPixelHeight, Times times)
+        {
+            pdf.Verify(p => p.RenderPdfPagePreviewAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<Models.ResolutionMode>(),
+                It.IsAny<double>(),
+                It.IsAny<bool>(),
+                maxPixelWidth,
+                maxPixelHeight,
+                It.IsAny<CancellationToken>()), times);
+        }
 
         private static PdfPreviewCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf)
         {

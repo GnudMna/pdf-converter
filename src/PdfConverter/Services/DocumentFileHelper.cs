@@ -287,6 +287,21 @@ namespace PdfConverter.Services
             return false;
         }
 
+        /// <summary>
+        /// ドラッグ中のデータに含まれるファイルの総数を取得する
+        /// </summary>
+        /// <param name="data">ドラッグ中のデータ</param>
+        /// <returns>ファイル数 (ファイルが含まれない場合は 0)</returns>
+        public static int GetDroppedFileCount(IDataObject? data)
+        {
+            if (data == null || !data.GetDataPresent(DataFormats.FileDrop))
+            {
+                return 0;
+            }
+
+            return data.GetData(DataFormats.FileDrop) is string[] files ? files.Length : 0;
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */

@@ -1,7 +1,10 @@
 using System;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows;
 using Microsoft.Win32;
 using Ookii.Dialogs.Wpf;
+using PdfConverter.Infrastructure;
 using PdfConverter.Views;
 
 namespace PdfConverter.Services
@@ -111,6 +114,35 @@ namespace PdfConverter.Services
             };
 
             aboutDialog.ShowDialog();
+        }
+
+        /// <inheritdoc/>
+        public void OpenUserDocs()
+        {
+            if (!ApplicationMetadata.IsUserDocsAvailable)
+            {
+                ShowMessage(
+                    "ドキュメントはインストール版に同梱されます。",
+                    "ドキュメント",
+                    DialogIcon.Information);
+                return;
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = ApplicationMetadata.UserDocsIndexFilePath,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Win32Exception ex)
+            {
+                ShowMessage(
+                    $"ドキュメントを開けませんでした。\n\n{ex.Message}",
+                    "ドキュメント",
+                    DialogIcon.Error);
+            }
         }
     }
 }

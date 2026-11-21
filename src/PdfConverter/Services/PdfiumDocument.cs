@@ -13,6 +13,7 @@ namespace PdfConverter.Services
     /// <remarks>
     /// PDFium はスレッドセーフではないため、すべてのネイティブ呼び出しをプロセス共通のロックで直列化する<br/>
     /// PDFium は文書を閉じるまで入力バッファーを参照するため、バイト配列を固定 (ピン留め) して保持する<br/>
+    /// <see cref="OpenFile"/> で開いた文書はファイル全体を読み込まず、PDFium が必要とした範囲だけをファイルから読む<br/>
     /// ハイライト・スタンプなどの注釈と、フォームフィールドの入力内容も描画する<br/>
     /// メモリ不足や int のオーバーフローを防ぐため、1 ページあたりの描画画素数を <see cref="MaxRenderPixels"/> までに制限する
     /// </remarks>
@@ -30,6 +31,9 @@ namespace PdfConverter.Services
         /// <summary>BGRA32 の 1 ピクセルあたりのバイト数</summary>
         private const int BytesPerPixel = 4;
 
+        /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
+        internal const double NativeDpi = 72.0;
+
         /// <summary>64 ビットプロセスで描画できる 1 ページあたりの最大画素数 (BGRA32 で約 1.2 GB)</summary>
         internal const long MaxRenderPixelsX64 = 300_000_000;
 
@@ -39,6 +43,13 @@ namespace PdfConverter.Services
 
         /// <summary>PDFium の描画フラグ: 注釈を描画する (<c>FPDF_ANNOT</c>)</summary>
         private const int RenderFlagAnnotations = 0x01;
+
+        /// <summary><see cref="OpenFile"/> で開いたファイルの読み込みバッファーのサイズ (バイト)</summary>
+        /// <remarks>PDFium は構文解析中に小さな範囲を近い位置から繰り返し読むため、システムコールの回数を抑える</remarks>
+        private const int FileReadBufferSize = 16 * 1024;
+
+        /// <summary>読み込みコールバックが 1 回に読み込む最大バイト数</summary>
+        private const int MaxReadChunkSize = 1024 * 1024;
 
         /// <summary>フォーム環境に渡す <c>FPDF_FORMFILLINFO</c> の構造体バージョン</summary>
         private const int FormFillInfoVersion = 2;
@@ -61,6 +72,18 @@ namespace PdfConverter.Services
         /// <summary>フォーム環境のハンドル (フォームを描画できない場合は <c>null</c>)</summary>
         private FpdfFormHandleT? _formHandle;
 
+        /// <summary>ファイルから開いた場合の入力ストリーム (バイト配列から開いた場合は <c>null</c>)</summary>
+        private FileStream? _fileStream;
+
+        /// <summary>ファイルから開いた場合のファイルアクセス情報 (PDFium が文書を閉じるまで参照するため保持する)</summary>
+        private FPDF_FILEACCESS? _fileAccess;
+
+        /// <summary>PDFium に渡した読み込みコールバック (ネイティブ側が参照する間 GC に回収されないよう保持する)</summary>
+        private GetBlockCallback? _getBlockCallback;
+
+        /// <summary>読み込みコールバックで使い回す読み込みバッファー</summary>
+        private byte[] _readBuffer = Array.Empty<byte>();
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -81,24 +104,46 @@ namespace PdfConverter.Services
             _bufferHandle = GCHandle.Alloc(fileBytes, GCHandleType.Pinned);
             try
             {
-                lock (PdfiumLock)
-                {
-                    EnsureLibraryInitialized();
-
-                    FpdfDocumentT? document = fpdfview.FPDF_LoadMemDocument(_bufferHandle.AddrOfPinnedObject(), fileBytes.Length, null);
-                    if (document == null || document.__Instance == IntPtr.Zero)
-                    {
-                        throw CreateLoadException(fpdfview.FPDF_GetLastError());
-                    }
-
-                    _document = document;
-                    PageCount = fpdfview.FPDF_GetPageCount(document);
-                    InitializeFormFillEnvironment(document);
-                }
+                PageCount = LoadDocument(() => fpdfview.FPDF_LoadMemDocument(_bufferHandle.AddrOfPinnedObject(), fileBytes.Length, null));
             }
             catch
             {
                 _bufferHandle.Free();
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// 開いたファイルストリームから、PDFium が必要とした範囲だけを読み込む文書を開く
+        /// </summary>
+        /// <param name="fileStream">読み取り可能かつシーク可能なファイルストリーム (文書の破棄時に閉じる)</param>
+        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損・パスワード保護など)</exception>
+        private PdfiumDocument(FileStream fileStream)
+        {
+            long length = fileStream.Length;
+            if (length == 0)
+            {
+                throw new InvalidDataException("PDF のデータが空です。");
+            }
+
+            // FPDF_FILEACCESS のファイル長と読み込み位置は Windows では 32 ビットの unsigned long
+            if (length > uint.MaxValue)
+            {
+                throw new InvalidDataException("4 GB 以上の PDF ファイルには対応していません。");
+            }
+
+            _fileStream = fileStream;
+            _getBlockCallback = ReadBlock;
+            _fileAccess = CreateFileAccess((uint)length, _getBlockCallback);
+            try
+            {
+                PageCount = LoadDocument(() => fpdfview.FPDF_LoadCustomDocument(_fileAccess, null));
+            }
+            catch
+            {
+                _fileAccess.Dispose();
+                _fileAccess = null;
+                _fileStream = null;
                 throw;
             }
         }
@@ -118,6 +163,37 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
+        /// PDF ファイルを、ファイル全体を読み込まずに開く
+        /// </summary>
+        /// <remarks>
+        /// 文書を破棄するまでファイルを開いたままにする。ほかのプロセスによる書き込み・削除は妨げない<br/>
+        /// 開いている間にファイルが書き換えられた場合の描画結果は保証しない
+        /// </remarks>
+        /// <param name="filePath">PDF ファイルのパス</param>
+        /// <returns>開いた文書</returns>
+        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損・パスワード保護など)</exception>
+        /// <exception cref="IOException">ファイルを開けない場合</exception>
+        public static PdfiumDocument OpenFile(string filePath)
+        {
+            var fileStream = new FileStream(
+                filePath,
+                FileMode.Open,
+                FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete,
+                FileReadBufferSize,
+                FileOptions.RandomAccess);
+            try
+            {
+                return new PdfiumDocument(fileStream);
+            }
+            catch
+            {
+                fileStream.Dispose();
+                throw;
+            }
+        }
+
+        /// <summary>
         /// 指定した倍率で描画したときのページのピクセルサイズを返す
         /// </summary>
         /// <param name="pageIndex">ページインデックス (0 始まり)</param>
@@ -126,6 +202,19 @@ namespace PdfConverter.Services
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageIndex"/> が範囲外の場合</exception>
         /// <exception cref="InvalidDataException">ページサイズを取得できない場合</exception>
         public (int Width, int Height) GetPagePixelSize(int pageIndex, double scale)
+        {
+            (double width, double height) = GetPageSize(pageIndex);
+            return ((int)(width * scale), (int)(height * scale));
+        }
+
+        /// <summary>
+        /// ページの寸法を返す (1.0 = 72 DPI のピクセルに相当するポイント数、小数点以下を保持)
+        /// </summary>
+        /// <param name="pageIndex">ページインデックス (0 始まり)</param>
+        /// <returns>幅と高さ (ポイント)</returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageIndex"/> が範囲外の場合</exception>
+        /// <exception cref="InvalidDataException">ページサイズを取得できない場合</exception>
+        public (double Width, double Height) GetPageSize(int pageIndex)
         {
             ValidatePageIndex(pageIndex);
 
@@ -139,7 +228,7 @@ namespace PdfConverter.Services
                     throw new InvalidDataException($"ページサイズを取得できませんでした (ページ {pageIndex + 1})。");
                 }
 
-                return ((int)(width * scale), (int)(height * scale));
+                return (width, height);
             }
         }
 
@@ -221,11 +310,13 @@ namespace PdfConverter.Services
                 }
             }
 
+            // 1 ポイント = 1 ピクセル (scale 1.0) が 72 DPI なので、倍率を掛けた値を DPI メタデータとして設定する
+            double dpi = NativeDpi * scale;
             var source = BitmapSource.Create(
                 width,
                 height,
-                96,
-                96,
+                dpi,
+                dpi,
                 PixelFormats.Bgra32,
                 null,
                 pixels,
@@ -257,6 +348,12 @@ namespace PdfConverter.Services
             _formFillInfo?.Dispose();
             _formFillInfo = null;
 
+            _fileAccess?.Dispose();
+            _fileAccess = null;
+            _fileStream?.Dispose();
+            _fileStream = null;
+            _getBlockCallback = null;
+
             if (_bufferHandle.IsAllocated)
             {
                 _bufferHandle.Free();
@@ -277,6 +374,106 @@ namespace PdfConverter.Services
 
             fpdfview.FPDF_InitLibrary();
             _libraryInitialized = true;
+        }
+
+        /// <summary>
+        /// 文書を読み込み、フォーム環境を初期化する
+        /// </summary>
+        /// <param name="load">ロック内で PDFium の読み込み関数を呼び出し、文書ハンドルを返す関数</param>
+        /// <returns>ページ数</returns>
+        /// <exception cref="InvalidDataException">PDF を開けない場合</exception>
+        private int LoadDocument(Func<FpdfDocumentT?> load)
+        {
+            lock (PdfiumLock)
+            {
+                EnsureLibraryInitialized();
+
+                FpdfDocumentT? document = load();
+                if (document == null || document.__Instance == IntPtr.Zero)
+                {
+                    throw CreateLoadException(fpdfview.FPDF_GetLastError());
+                }
+
+                _document = document;
+                int pageCount = fpdfview.FPDF_GetPageCount(document);
+                InitializeFormFillEnvironment(document);
+                return pageCount;
+            }
+        }
+
+        /// <summary>
+        /// PDFium に渡すファイルアクセス情報を生成する
+        /// </summary>
+        /// <remarks>
+        /// PDFiumCore の <see cref="FPDF_FILEACCESS"/> はファイル長を 64 ビット、各フィールドを 64 ビット環境の位置で定義しており、
+        /// 32 ビット環境の C の構造体と配置が一致しない<br/>
+        /// そのため確保された領域へ、実行環境の C の配置に合わせた <see cref="NativeFileAccess"/> を書き込む
+        /// </remarks>
+        /// <param name="fileLength">ファイル長 (バイト)</param>
+        /// <param name="getBlock">読み込みコールバック</param>
+        /// <returns>ファイルアクセス情報</returns>
+        private static FPDF_FILEACCESS CreateFileAccess(uint fileLength, GetBlockCallback getBlock)
+        {
+            var fileAccess = new FPDF_FILEACCESS();
+            if (Marshal.SizeOf<NativeFileAccess>() > Marshal.SizeOf<FPDF_FILEACCESS.__Internal>())
+            {
+                fileAccess.Dispose();
+                throw new PlatformNotSupportedException("PDFium のファイルアクセス情報を確保できません。");
+            }
+
+            var native = new NativeFileAccess
+            {
+                FileLength = fileLength,
+                GetBlock = Marshal.GetFunctionPointerForDelegate(getBlock),
+                Param = IntPtr.Zero,
+            };
+            Marshal.StructureToPtr(native, fileAccess.__Instance, false);
+            return fileAccess;
+        }
+
+        /// <summary>
+        /// PDFium の要求に応じて、ファイルの指定範囲を読み込む (PDFium の呼び出し中にのみ呼ばれるため <see cref="PdfiumLock"/> を保持している)
+        /// </summary>
+        /// <remarks>例外をネイティブ側へ送出するとプロセスが終了するため、失敗はすべて戻り値で返す</remarks>
+        /// <param name="param">未使用</param>
+        /// <param name="position">読み込み開始位置 (バイト)</param>
+        /// <param name="buffer">読み込み先のバッファー</param>
+        /// <param name="size">読み込むバイト数</param>
+        /// <returns>成功した場合は 0 以外、失敗した場合は 0</returns>
+        private int ReadBlock(IntPtr param, uint position, IntPtr buffer, uint size)
+        {
+            try
+            {
+                FileStream? stream = _fileStream;
+                if (stream == null || size > int.MaxValue || (long)position + size > stream.Length)
+                {
+                    return 0;
+                }
+
+                // 大きな画像ストリームなどの一括要求でもバッファーが肥大化しないよう、上限サイズずつ読んで書き込む
+                int remaining = (int)size;
+                if (_readBuffer.Length < Math.Min(remaining, MaxReadChunkSize))
+                {
+                    _readBuffer = new byte[Math.Min(remaining, MaxReadChunkSize)];
+                }
+
+                stream.Position = position;
+                IntPtr destination = buffer;
+                while (remaining > 0)
+                {
+                    int chunk = Math.Min(remaining, _readBuffer.Length);
+                    stream.ReadExactly(_readBuffer, 0, chunk);
+                    Marshal.Copy(_readBuffer, 0, destination, chunk);
+                    destination = IntPtr.Add(destination, chunk);
+                    remaining -= chunk;
+                }
+
+                return 1;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
         }
 
         /// <summary>
@@ -444,6 +641,37 @@ namespace PdfConverter.Services
         private FpdfDocumentT GetDocument()
         {
             return _document ?? throw new ObjectDisposedException(nameof(PdfiumDocument));
+        }
+
+
+        /********************************************************************************/
+        /*                                    ネスト型                                  */
+        /********************************************************************************/
+        /// <summary>
+        /// <c>FPDF_FILEACCESS.m_GetBlock</c> の関数ポインター型
+        /// </summary>
+        /// <param name="param"><c>m_Param</c> の値</param>
+        /// <param name="position">読み込み開始位置 (バイト)</param>
+        /// <param name="buffer">読み込み先のバッファー</param>
+        /// <param name="size">読み込むバイト数</param>
+        /// <returns>成功した場合は 0 以外、失敗した場合は 0</returns>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int GetBlockCallback(IntPtr param, uint position, IntPtr buffer, uint size);
+
+        /// <summary>
+        /// 実行環境の C の配置に合わせた <c>FPDF_FILEACCESS</c> 構造体
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeFileAccess
+        {
+            /// <summary>ファイル長 (<c>m_FileLen</c>、Windows の unsigned long は 32 ビット)</summary>
+            public uint FileLength;
+
+            /// <summary>読み込みコールバック (<c>m_GetBlock</c>)</summary>
+            public IntPtr GetBlock;
+
+            /// <summary>コールバックへ渡す値 (<c>m_Param</c>)</summary>
+            public IntPtr Param;
         }
     }
 }

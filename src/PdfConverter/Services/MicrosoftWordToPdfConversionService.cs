@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -37,6 +38,9 @@ namespace PdfConverter.Services
         /// <summary>文書内のマクロをすべて無効化する (<c>msoAutomationSecurityForceDisable</c>)</summary>
         internal const int MsoAutomationSecurityForceDisable = 3;
 
+        /// <summary>Word の正常終了 (<c>Quit</c>) を待つ上限時間。超えたら Word プロセスを強制終了する</summary>
+        internal static readonly TimeSpan CleanupGracePeriod = TimeSpan.FromSeconds(10);
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -62,7 +66,7 @@ namespace PdfConverter.Services
             var comHolder = new WordComHolder();
             Task<string> conversionTask = StaTaskRunner.RunAsync(
                 token => ConvertOnStaThread(wordFilePath, _settings, comHolder, token),
-                comHolder.TryCleanup,
+                () => _ = comHolder.CleanupWithKillFallbackAsync(),
                 cancellationToken);
 
             return WaitWithTimeoutAsync(conversionTask, comHolder, cancellationToken);
@@ -95,7 +99,7 @@ namespace PdfConverter.Services
                     return await conversionTask.ConfigureAwait(false);
                 }
 
-                comHolder.TryCleanup();
+                await comHolder.CleanupWithKillFallbackAsync().ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
 
                 throw new TimeoutException("Microsoft Word による PDF 変換がタイムアウトしました。");
@@ -136,6 +140,7 @@ namespace PdfConverter.Services
 
                 // 以降の設定や文書オープンで例外が発生しても Word プロセスを終了できるよう、起動直後に登録する
                 comHolder.Set(null, wordApp);
+                comHolder.RegisterProcess(wordApp);
 
                 wordApp.Visible = false;
                 wordApp.DisplayAlerts = 0;
@@ -174,6 +179,25 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
+        /// 正常終了の処理を別スレッドで実行し、上限時間内に戻らなければ強制終了する
+        /// </summary>
+        /// <param name="cleanup">正常終了の処理 (Word が応答しないと戻らない場合がある)</param>
+        /// <param name="kill">強制終了の処理</param>
+        /// <param name="gracePeriod">正常終了を待つ上限時間</param>
+        /// <returns>正常終了が完了したか強制終了を試みた時点で完了するタスク</returns>
+        internal static async Task RunCleanupWithKillFallbackAsync(Action cleanup, Action kill, TimeSpan gracePeriod)
+        {
+            Task cleanupTask = Task.Run(cleanup);
+            Task completedTask = await Task.WhenAny(cleanupTask, Task.Delay(gracePeriod)).ConfigureAwait(false);
+
+            if (completedTask != cleanupTask)
+            {
+                ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Word did not quit in time. Killing the process");
+                kill();
+            }
+        }
+
+        /// <summary>
         /// 文書を開く前に Word のマクロ実行を無効化する
         /// </summary>
         /// <param name="wordApp">Word アプリケーション</param>
@@ -208,16 +232,42 @@ namespace PdfConverter.Services
                 : WdExportCreateNoBookmarks;
             bool usePdfA = settings.PdfFormat == WordToPdfPdfFormat.PdfA;
 
-            wordApp.Options.PrintComments = settings.ExportComments;
-            TrySetShowComments(wordApp, settings.ExportComments);
+            // PrintComments は利用者の Word 全体に効くグローバル設定のため、元の値を退避して書き出し後に復元する
+            bool originalPrintComments = wordApp.Options.PrintComments;
+            try
+            {
+                wordApp.Options.PrintComments = settings.ExportComments;
+                TrySetShowComments(wordApp, settings.ExportComments);
 
-            document.ExportAsFixedFormat2(
-                OutputFileName: outputPath,
-                ExportFormat: WdExportFormatPdf,
-                OpenAfterExport: false,
-                OptimizeFor: optimizeFor,
-                CreateBookmarks: createBookmarks,
-                UseISO19005_1: usePdfA);
+                document.ExportAsFixedFormat2(
+                    OutputFileName: outputPath,
+                    ExportFormat: WdExportFormatPdf,
+                    OpenAfterExport: false,
+                    OptimizeFor: optimizeFor,
+                    CreateBookmarks: createBookmarks,
+                    UseISO19005_1: usePdfA);
+            }
+            finally
+            {
+                TryRestorePrintComments(wordApp, originalPrintComments);
+            }
+        }
+
+        /// <summary>
+        /// 退避しておいたコメント印刷設定を Word に戻す (失敗しても元の例外を隠さないよう警告のみ記録する)
+        /// </summary>
+        /// <param name="wordApp">Word アプリケーション</param>
+        /// <param name="printComments">復元するコメント印刷設定</param>
+        private static void TryRestorePrintComments(dynamic wordApp, bool printComments)
+        {
+            try
+            {
+                wordApp.Options.PrintComments = printComments;
+            }
+            catch (Exception ex)
+            {
+                ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to restore Word PrintComments option", ex);
+            }
         }
 
         /// <summary>
@@ -257,6 +307,9 @@ namespace PdfConverter.Services
             /// <summary>Word アプリケーション</summary>
             private object? _wordApp;
 
+            /// <summary>Word アプリケーションのプロセス (強制終了用。COM 呼び出しなしで操作できるよう <see cref="_sync"/> とは別に保持する)</summary>
+            private Process? _wordProcess;
+
             /// <summary>COM 参照操作の排他制御用オブジェクト</summary>
             private readonly object _sync = new object();
 
@@ -279,6 +332,42 @@ namespace PdfConverter.Services
             }
 
             /// <summary>
+            /// Word アプリケーションのプロセスを特定して保持する (強制終了用)
+            /// </summary>
+            /// <param name="wordApp">Word アプリケーション</param>
+            public void RegisterProcess(dynamic wordApp)
+            {
+                try
+                {
+                    int hwnd = wordApp.Hwnd;
+                    if (GetWindowThreadProcessId(new IntPtr(hwnd), out uint processId) == 0 || processId == 0)
+                    {
+                        return;
+                    }
+
+                    var process = Process.GetProcessById((int)processId);
+
+                    // プロセス ID の再利用で別のプロセスを終了しないよう、ハンドルを先に開いて保持する
+                    _ = process.SafeHandle;
+                    Interlocked.Exchange(ref _wordProcess, process)?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to get Word process", ex);
+                }
+            }
+
+            /// <summary>
+            /// Word を正常終了させ、<see cref="MicrosoftWordToPdfConversionService.CleanupGracePeriod"/> 内に終わらなければプロセスを強制終了する<br/>
+            /// Word が応答しない場合も呼び出し元をブロックしない
+            /// </summary>
+            /// <returns>非同期操作</returns>
+            public Task CleanupWithKillFallbackAsync()
+            {
+                return RunCleanupWithKillFallbackAsync(TryCleanup, TryKillProcess, CleanupGracePeriod);
+            }
+
+            /// <summary>
             /// Word COM オブジェクトを終了して解放する
             /// </summary>
             public void TryCleanup()
@@ -287,6 +376,7 @@ namespace PdfConverter.Services
                 {
                     ReleaseComObject(ref _document, CloseDocument);
                     ReleaseComObject(ref _wordApp, QuitWordApplication);
+                    Interlocked.Exchange(ref _wordProcess, null)?.Dispose();
                 }
             }
 
@@ -294,6 +384,23 @@ namespace PdfConverter.Services
             /********************************************************************************/
             /*                             プライベートメソッド                             */
             /********************************************************************************/
+            /// <summary>
+            /// Word プロセスを子プロセスも含めて強制終了する
+            /// </summary>
+            private void TryKillProcess()
+            {
+                Process? process = Interlocked.Exchange(ref _wordProcess, null);
+                if (process == null)
+                {
+                    return;
+                }
+
+                using (process)
+                {
+                    ProcessWaitHelper.TryKillProcess(process);
+                }
+            }
+
             /// <summary>
             /// Word ファイルを保存せずに閉じる
             /// </summary>
@@ -345,6 +452,13 @@ namespace PdfConverter.Services
                     ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to release Word COM object", ex);
                 }
             }
+
+
+            /********************************************************************************/
+            /*                               Win32 API 定義                                 */
+            /********************************************************************************/
+            [DllImport("user32.dll")]
+            private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
         }
     }
 }

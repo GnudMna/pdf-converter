@@ -15,17 +15,27 @@ namespace PdfConverter.Tests.Services
     /// <summary>
     /// <see cref="PdfConversionService"/> のページ数取得・変換・保存・検証・キャンセルを検証する
     /// </summary>
-    public class PdfConversionServiceTests
+    public sealed class PdfConversionServiceTests : IDisposable
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>メモリキャッシュの上限 (64 MB) を超える PDF を作るためのコメント行のバイト数</summary>
+        private const long LargePdfPaddingBytes = 65L * 1024 * 1024;
+
         private readonly PdfConversionService _service = new PdfConversionService();
 
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// テストごとに生成したサービスを破棄する
+        /// </summary>
+        public void Dispose()
+        {
+            _service.Dispose();
+        }
 
         /// <summary>
         /// 有効な PDF から正しいページ数が取得できることを検証する
@@ -346,6 +356,72 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// ページサイズが整数でない場合 (Word 出力の A4 など) も、高さ指定の値どおりの高さで保存されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(1920)]
+        [InlineData(1000)]
+        [InlineData(1234)]
+        public async Task SavePdfPagesToImagesAsync_HeightModeFractionalPageSize_MatchesRequestedHeight(int height)
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPageSizes((595.92, 841.92));
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    ResolutionMode.Height,
+                    value: height,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.Equal(height, ReadPixelSize(Path.Combine(outputDirectory, "page_1.png")).Height);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// ページサイズが整数でない場合も、幅指定の値どおりの幅で保存されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(1080)]
+        [InlineData(1000)]
+        [InlineData(777)]
+        public async Task SavePdfPagesToImagesAsync_WidthModeFractionalPageSize_MatchesRequestedWidth(int width)
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPageSizes((595.92, 841.92));
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    ResolutionMode.Width,
+                    value: width,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.Equal(width, ReadPixelSize(Path.Combine(outputDirectory, "page_1.png")).Width);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
         /// 全ページ保存モードで全ページ分のファイルが出力されることを検証する
         /// </summary>
         [Fact]
@@ -541,6 +617,249 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 出力解像度が最大サイズより大きい場合は、縦横比を保って最大サイズに収まるよう縮小したプレビューを返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RenderPdfPagePreviewAsync_OutputLargerThanMaxSize_DownscalesToFit()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPageSizes((200, 100));
+
+            try
+            {
+                StaTestHelper.Run(async () =>
+                {
+                    // 300 DPI の出力は 833x416 px。最大 100x100 px に収めると幅 100 px・高さ 50 px になる
+                    PdfPagePreview preview = await _service.RenderPdfPagePreviewAsync(
+                        pdfPath,
+                        pageIndex: 0,
+                        ResolutionMode.Dpi,
+                        value: 300,
+                        preserveTransparency: true,
+                        maxPixelWidth: 100,
+                        maxPixelHeight: 100,
+                        TestContext.Current.CancellationToken);
+
+                    Assert.Equal(833, preview.OutputPixelWidth);
+                    Assert.Equal(416, preview.OutputPixelHeight);
+                    Assert.True(preview.IsDownscaled);
+                    Assert.InRange(preview.Image.PixelWidth, 99, 100);
+                    Assert.InRange(preview.Image.PixelHeight, 49, 50);
+                });
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 出力解像度が最大サイズに収まる場合は、拡大せず出力解像度のままプレビューを返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RenderPdfPagePreviewAsync_OutputWithinMaxSize_RendersAtOutputResolution()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf();
+
+            try
+            {
+                StaTestHelper.Run(async () =>
+                {
+                    PdfPagePreview preview = await _service.RenderPdfPagePreviewAsync(
+                        pdfPath,
+                        pageIndex: 0,
+                        ResolutionMode.Width,
+                        value: 120,
+                        preserveTransparency: true,
+                        maxPixelWidth: 1000,
+                        maxPixelHeight: 1000,
+                        TestContext.Current.CancellationToken);
+
+                    Assert.Equal(120, preview.Image.PixelWidth);
+                    Assert.Equal(120, preview.Image.PixelHeight);
+                    Assert.Equal(120, preview.OutputPixelWidth);
+                    Assert.False(preview.IsDownscaled);
+                });
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 出力解像度での描画サイズが上限を超える場合は、縮小すれば描画できても InvalidOperationException になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task RenderPdfPagePreviewAsync_PageExceedingRenderLimit_ThrowsInvalidOperationException()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPageSizes((14400, 14400));
+
+            try
+            {
+                await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => _service.RenderPdfPagePreviewAsync(pdfPath, 0, ResolutionMode.Dpi, 1200, true, 100, 100, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 最大サイズに 1 未満を指定した場合は ArgumentOutOfRangeException になることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(0, 100)]
+        [InlineData(100, 0)]
+        public async Task RenderPdfPagePreviewAsync_InvalidMaxSize_ThrowsArgumentOutOfRangeException(int maxPixelWidth, int maxPixelHeight)
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf();
+
+            try
+            {
+                await Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+                    () => _service.RenderPdfPagePreviewAsync(pdfPath, 0, ResolutionMode.Default, 0, true, maxPixelWidth, maxPixelHeight, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// プレビューの描画倍率は、出力解像度を上限に最大サイズへ収まる倍率になることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(200, 200, 4.0, 100, 100, 0.5)]
+        [InlineData(200, 100, 4.0, 100, 100, 0.5)]
+        [InlineData(200, 200, 1.0, 1000, 1000, 1.0)]
+        [InlineData(1000, 1, 1.0, 10, 10, 1.0)]
+        public void ComputePreviewScale_ReturnsScaleWithinMaxSize(double pageWidth, double pageHeight, double renderScale, int maxPixelWidth, int maxPixelHeight, double expected)
+        {
+            double scale = PdfConversionService.ComputePreviewScale(pageWidth, pageHeight, renderScale, maxPixelWidth, maxPixelHeight);
+
+            Assert.Equal(expected, scale, precision: 9);
+        }
+
+        /// <summary>
+        /// メモリキャッシュの上限を超える PDF でも、ページ数の取得とページの描画ができることを検証する
+        /// </summary>
+        [Fact]
+        public async Task ConvertPdfPageToImageAsync_FileLargerThanCacheLimit_RendersPage()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPadding(LargePdfPaddingBytes, pageCount: 3);
+
+            try
+            {
+                int pageCount = await _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken);
+
+                StaTestHelper.Run(async () =>
+                {
+                    BitmapSource bitmap = await _service.ConvertPdfPageToImageAsync(pdfPath, pageIndex: 2, cancellationToken: TestContext.Current.CancellationToken);
+
+                    Assert.Equal(200, bitmap.PixelWidth);
+                    Assert.Equal(200, bitmap.PixelHeight);
+                });
+                Assert.Equal(3, pageCount);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// メモリキャッシュの上限を超える PDF を開いたままでも、ファイルを削除できることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_FileLargerThanCacheLimit_DoesNotBlockDeletion()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdfWithPadding(LargePdfPaddingBytes);
+
+            try
+            {
+                await _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken);
+
+                Exception exception = Record.Exception(() => File.Delete(pdfPath));
+
+                Assert.Null(exception);
+            }
+            finally
+            {
+                _service.Dispose();
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// メモリキャッシュの上限を超える PDF ヘッダーのないファイルは InvalidDataException になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_LargeFileWithoutPdfHeader_ThrowsInvalidDataException()
+        {
+            string path = PdfTestAssetFactory.CreateTempInvalidPdfFileOfSize(LargePdfPaddingBytes);
+
+            try
+            {
+                await Assert.ThrowsAsync<InvalidDataException>(
+                    () => _service.GetPdfPageCountAsync(path, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(path);
+            }
+        }
+
+        /// <summary>
+        /// 開いたままの文書があっても、ファイルが更新された場合は開き直して新しい内容を返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_FileUpdatedAfterOpen_ReturnsUpdatedPageCount()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 2);
+            string updatedPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 3);
+
+            try
+            {
+                int before = await _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken);
+                DateTime lastWrite = File.GetLastWriteTimeUtc(pdfPath);
+                File.Copy(updatedPath, pdfPath, overwrite: true);
+                File.SetLastWriteTimeUtc(pdfPath, lastWrite.AddMinutes(1));
+
+                int after = await _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken);
+
+                Assert.Equal(2, before);
+                Assert.Equal(3, after);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteIfExists(updatedPath);
+            }
+        }
+
+        /// <summary>
+        /// 破棄後の呼び出しは ObjectDisposedException になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_AfterDispose_ThrowsObjectDisposedException()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf();
+
+            try
+            {
+                _service.Dispose();
+
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
         /// キャンセル済みトークンでは保存処理が OperationCanceledException で中断し、出力ファイルを作成しないことを検証する
         /// </summary>
         [Fact]
@@ -613,7 +932,47 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// 保存成功時は既存の同名ファイルを上書きすることを検証する
+        /// 保存先への反映が途中で失敗した場合、反映済みのファイルを元に戻し、一時ファイルも残さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_CommitFailsMidway_RestoresExistingFilesAndLeavesNoTemporaryFiles()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 2);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string existingPath = Path.Combine(outputDirectory, "page_1.png");
+            const string existingContent = "keep-me";
+            File.WriteAllText(existingPath, existingContent);
+
+            // 2 ページ目の出力先をディレクトリにして、1 ページ目の反映後に失敗させる
+            string blockingDirectory = Path.Combine(outputDirectory, "page_2.png");
+            Directory.CreateDirectory(blockingDirectory);
+
+            try
+            {
+                Exception exception = await Record.ExceptionAsync(() => _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    new[] { 0, 1 },
+                    outputDirectory,
+                    saveAllPages: false,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken));
+
+                Assert.NotNull(exception);
+                Assert.Equal(existingContent, File.ReadAllText(existingPath));
+                Assert.Equal(
+                    new[] { existingPath },
+                    Directory.GetFiles(outputDirectory).OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
+                Assert.Empty(Directory.GetFileSystemEntries(blockingDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 保存成功時は既存の同名ファイルを上書きし、一時ファイルを残さないことを検証する
         /// </summary>
         [Fact]
         public async Task SavePdfPagesToImagesAsync_Success_OverwritesExistingFiles()
@@ -636,6 +995,7 @@ namespace PdfConverter.Tests.Services
                 Assert.True(File.Exists(existingPath));
                 Assert.NotEqual("old-content", File.ReadAllText(existingPath));
                 Assert.True(new FileInfo(existingPath).Length > 0);
+                Assert.Equal(new[] { existingPath }, Directory.GetFiles(outputDirectory));
             }
             finally
             {

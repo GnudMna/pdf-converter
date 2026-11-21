@@ -80,6 +80,7 @@ namespace PdfConverter.Services
             }
 
             bool hasFailure = false;
+            var usedOutputNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             foreach (string inputPath in options.InputFiles)
             {
@@ -99,11 +100,11 @@ namespace PdfConverter.Services
                 {
                     if (options.ExportPdfOnly)
                     {
-                        await ExportPdfAsync(options, normalizedPath, cancellationToken);
+                        await ExportPdfAsync(options, normalizedPath, usedOutputNames, cancellationToken);
                     }
                     else
                     {
-                        await ExportImagesAsync(options, normalizedPath, cancellationToken);
+                        await ExportImagesAsync(options, normalizedPath, usedOutputNames, cancellationToken);
                     }
 
                     if (!options.Quiet)
@@ -130,15 +131,21 @@ namespace PdfConverter.Services
         /// <summary>Word 文書を PDF として出力する</summary>
         /// <param name="options">バッチオプション</param>
         /// <param name="sourcePath">入力ファイルの絶対パス</param>
+        /// <param name="usedOutputNames">この実行で既に割り当てた出力名 (同名の入力が衝突しないよう連番を付けるために使う)</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        private async Task ExportPdfAsync(BatchCliOptions options, string sourcePath, CancellationToken cancellationToken)
+        private async Task ExportPdfAsync(
+            BatchCliOptions options,
+            string sourcePath,
+            ISet<string> usedOutputNames,
+            CancellationToken cancellationToken)
         {
             if (!DocumentFileHelper.IsWordFile(sourcePath))
             {
                 throw new InvalidOperationException("PDF ファイルには --export-pdf は使用できません。");
             }
 
-            string destinationPath = ResolvePdfDestinationPath(options, sourcePath);
+            string outputName = AllocateOutputName(options, sourcePath, usedOutputNames);
+            string destinationPath = ResolvePdfDestinationPath(options, outputName);
             string? destinationDirectory = Path.GetDirectoryName(destinationPath);
             if (!string.IsNullOrEmpty(destinationDirectory))
             {
@@ -163,8 +170,13 @@ namespace PdfConverter.Services
         /// <summary>ドキュメントのページを画像として出力する</summary>
         /// <param name="options">バッチオプション</param>
         /// <param name="sourcePath">入力ファイルの絶対パス</param>
+        /// <param name="usedOutputNames">この実行で既に割り当てた出力名 (同名の入力が衝突しないよう連番を付けるために使う)</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
-        private async Task ExportImagesAsync(BatchCliOptions options, string sourcePath, CancellationToken cancellationToken)
+        private async Task ExportImagesAsync(
+            BatchCliOptions options,
+            string sourcePath,
+            ISet<string> usedOutputNames,
+            CancellationToken cancellationToken)
         {
             OutputImageFormat format = options.Format ?? _imageExportSettings.OutputImageFormat;
             ResolutionMode resolutionMode = options.ResolutionMode ?? _imageExportSettings.ResolutionMode;
@@ -181,7 +193,7 @@ namespace PdfConverter.Services
             Directory.CreateDirectory(outputRoot);
 
             string outputFolder = options.InputFiles.Count > 1
-                ? Path.Combine(outputRoot, SanitizeDirectoryName(Path.GetFileNameWithoutExtension(sourcePath)))
+                ? Path.Combine(outputRoot, AllocateOutputName(options, sourcePath, usedOutputNames))
                 : outputRoot;
             Directory.CreateDirectory(outputFolder);
 
@@ -260,9 +272,9 @@ namespace PdfConverter.Services
 
         /// <summary>PDF 出力先パスを解決する</summary>
         /// <param name="options">バッチオプション</param>
-        /// <param name="sourcePath">入力ファイルの絶対パス</param>
+        /// <param name="outputName">出力ファイル名 (拡張子なし)</param>
         /// <returns>PDF 出力先の絶対パス</returns>
-        private static string ResolvePdfDestinationPath(BatchCliOptions options, string sourcePath)
+        private static string ResolvePdfDestinationPath(BatchCliOptions options, string outputName)
         {
             string outputPath = Path.GetFullPath(options.OutputPath.Trim().Trim('"'));
             if (outputPath.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
@@ -276,8 +288,37 @@ namespace PdfConverter.Services
             }
 
             Directory.CreateDirectory(outputPath);
-            string fileName = Path.GetFileNameWithoutExtension(sourcePath) + ".pdf";
-            return Path.Combine(outputPath, fileName);
+            return Path.Combine(outputPath, outputName + ".pdf");
+        }
+
+        /// <summary>
+        /// 入力ファイルの出力名 (画像の出力サブフォルダー名、または PDF のファイル名) を割り当てる<br/>
+        /// 別フォルダーの同名ファイルなどで既に使われている場合は、<c>x_2</c>、<c>x_3</c> のように連番を付けて衝突を避ける
+        /// </summary>
+        /// <param name="options">バッチオプション</param>
+        /// <param name="sourcePath">入力ファイルの絶対パス</param>
+        /// <param name="usedOutputNames">この実行で既に割り当てた出力名 (割り当てた名前を追加する)</param>
+        /// <returns>割り当てた出力名</returns>
+        private static string AllocateOutputName(BatchCliOptions options, string sourcePath, ISet<string> usedOutputNames)
+        {
+            string baseName = SanitizeDirectoryName(Path.GetFileNameWithoutExtension(sourcePath));
+            string outputName = baseName;
+            for (int suffix = 2; !usedOutputNames.Add(outputName); suffix++)
+            {
+                outputName = $"{baseName}_{suffix}";
+            }
+
+            if (!string.Equals(outputName, baseName, StringComparison.Ordinal))
+            {
+                string message = $"同名の出力先があるため名前を変更します: {baseName} -> {outputName} ({sourcePath})";
+                ApplicationLogger.Info("Batch", message);
+                if (!options.Quiet)
+                {
+                    BatchConsoleHelper.WriteLine(message);
+                }
+            }
+
+            return outputName;
         }
 
         /// <summary>フォルダー名として安全な文字列に変換する</summary>

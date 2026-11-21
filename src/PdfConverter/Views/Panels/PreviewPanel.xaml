@@ -119,7 +119,8 @@
                     BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
                     Margin="0,14,0,0"
                     Padding="12">
-                <Grid VerticalAlignment="Stretch">
+                <Grid x:Name="PreviewImageHost"
+                      VerticalAlignment="Stretch">
                     <Image Source="{Binding PreviewImage}"
                            Stretch="Uniform"
                            HorizontalAlignment="Stretch"

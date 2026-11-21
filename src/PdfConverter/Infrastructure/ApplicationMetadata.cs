@@ -17,6 +17,12 @@ namespace PdfConverter.Infrastructure
         /// <summary>ライセンス全文ファイル名</summary>
         public const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
 
+        /// <summary>利用者向けドキュメントのフォルダー名 (インストール版に同梱)</summary>
+        public const string UserDocsDirectoryName = "docs";
+
+        /// <summary>利用者向けドキュメントの表紙のファイル名</summary>
+        public const string UserDocsIndexFileName = "index.html";
+
         /// <summary>self-contained 配布で同梱する .NET ランタイムのコンポーネント名</summary>
         public const string DotNetRuntimeComponentName = ".NET Runtime / Windows Desktop Runtime";
 
@@ -80,6 +86,14 @@ namespace PdfConverter.Infrastructure
         /// <summary>ライセンス全文ファイルが存在するかどうか</summary>
         public static bool IsThirdPartyNoticesAvailable =>
             File.Exists(ThirdPartyNoticesFilePath);
+
+        /// <summary>利用者向けドキュメントの表紙の絶対パス</summary>
+        public static string UserDocsIndexFilePath =>
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, UserDocsDirectoryName, UserDocsIndexFileName);
+
+        /// <summary>利用者向けドキュメントが存在するかどうか</summary>
+        public static bool IsUserDocsAvailable =>
+            File.Exists(UserDocsIndexFilePath);
 
 
         /********************************************************************************/

@@ -117,6 +117,59 @@ namespace PdfConverter.Tests.Views.Behaviors
         }
 
         /// <summary>
+        /// 複数ファイルのドロップ時に先頭の 1 件だけを読み込み、通知することを検証する
+        /// </summary>
+        [Fact]
+        public void TryProcessDrop_MultipleFiles_LoadsFirstAndNotifies()
+        {
+            string firstPath = CreateTempPdfPath();
+            string secondPath = CreateTempPdfPath();
+
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                var data = CreateFileDropData(firstPath, secondPath);
+
+                bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+
+                Assert.True(accepted);
+                viewModel.Verify(v => v.HandleDroppedDocument(Path.GetFullPath(firstPath)), Times.Once);
+                viewModel.Verify(v => v.HandleDroppedDocument(Path.GetFullPath(secondPath)), Times.Never);
+                viewModel.Verify(v => v.NotifyMultipleFilesDropped(2, Path.GetFullPath(firstPath)), Times.Once);
+            }
+            finally
+            {
+                File.Delete(firstPath);
+                File.Delete(secondPath);
+            }
+        }
+
+        /// <summary>
+        /// 1 件のドロップでは複数ファイルの通知をしないことを検証する
+        /// </summary>
+        [Fact]
+        public void TryProcessDrop_SingleFile_DoesNotNotify()
+        {
+            string filePath = CreateTempPdfPath();
+
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                var data = CreateFileDropData(filePath);
+
+                FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+
+                viewModel.Verify(v => v.NotifyMultipleFilesDropped(It.IsAny<int>(), It.IsAny<string>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        /// <summary>
         /// 処理中はドロップを無視することを検証する
         /// </summary>
         [Fact]
@@ -145,10 +198,10 @@ namespace PdfConverter.Tests.Views.Behaviors
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
-        private static DataObject CreateFileDropData(string filePath)
+        private static DataObject CreateFileDropData(params string[] filePaths)
         {
             var data = new DataObject();
-            data.SetData(DataFormats.FileDrop, new[] { filePath });
+            data.SetData(DataFormats.FileDrop, filePaths);
             return data;
         }
 

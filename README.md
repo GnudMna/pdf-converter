@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.5.0-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.6.0-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -75,7 +75,7 @@ Word ファイルは Microsoft Word または LibreOffice で PDF に変換し�
 - Word ファイルを変換する場合: **Microsoft Word** (デスクトップ版) または **LibreOffice** のいずれか
 - LibreOffice 使用時: 一般的なインストール先から `soffice.exe` を自動検出 (必要に応じてアプリ内でパス指定可能)
 - ビルドする場合: [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0) 以降 (Visual Studio 2026 など SDK 10 を含む環境でも可)
-- インストーラーを作成する場合: [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+- インストーラーを作成する場合: [Inno Setup 6](https://jrsoftware.org/isinfo.php)、[mdBook](https://github.com/rust-lang/mdBook/releases) 0.5.4 (利用者向けドキュメントの HTML 化。`mdbook.exe` を PATH に置く)
 
 ---
 
@@ -136,119 +136,71 @@ cd installer
 .\build-installer.ps1 -NoPause
 ```
 
+`docs/user/` は mdBook で HTML 化され (`installer/build-user-docs.ps1`)、publish 出力の `docs\` としてインストーラーに収録されます。mdBook の版は出力のファイル名と同梱素材が変わるため 0.5.4 に固定しており、異なる版ではビルドがエラーになります。
+
 生成物は `dist/` に出力されます (例: `PdfConverter-x.x.x-x64-setup.exe`)。バージョン番号は `src/PdfConverter/Properties/AssemblyInfo.cs` から自動取得され、Inno Setup へ `/DAppVersion` として渡されます。`AppVersion` 未指定で `PdfConverter.iss` を直接コンパイルするとエラーになります。
 
 | 項目 | 内容 |
 |:---|:---|
 | 前提条件 | なし (.NET ランタイムを同梱) |
-| スタートメニュー | ショートカットを自動作成 |
+| スタートメニュー | アプリとドキュメントのショートカットを自動作成 |
 | デスクトップショートカット | オプション |
 | ファイル関連付け | オプション (`.pdf` / `.doc` / `.docx`) |
 | ウィザード UI | 日本語 / 英語 |
+
+### リリース
+
+`installer/release.ps1` で、バージョン更新からインストーラー作成までを一括実行できます。`release/v{version}` ブランチ上で実行し、事前に [CHANGELOG.md](CHANGELOG.md) の `[Unreleased]` 節へ変更項目を書いておきます。
+
+```powershell
+git fetch origin develop
+git switch -c release/v0.6.0 origin/develop
+
+cd installer
+
+# バージョンを明示指定 / 現在のバージョンからインクリメント
+.\release.ps1 -Version 0.6.0 -NoPause
+.\release.ps1 -Bump Minor -NoPause
+
+# 更新内容の確認のみ (ファイル・Git は変更しない)
+.\release.ps1 -Version 0.6.0 -DryRun -NoPause
+```
+
+スクリプトは次を順に行います。
+
+1. ブランチ名と新バージョンの一致・作業ツリーがクリーンであること・更新ダウンロード用キー (`PDF_CONVERTER_KEY` または `UpdateReleaseKey.local.props`) の設定を確認
+2. `AssemblyInfo.cs` のバージョン 3 属性、`CHANGELOG.md` (`[Unreleased]` を `## [x.y.z] - 日付` へ移し比較リンクを更新)、`README.md` のバッジを更新
+3. `build-and-test.ps1` で品質チェック (Release 構成。対象プラットフォームごと)
+4. `Release: vx.y.z` で Git コミット
+5. `build-installer.ps1` でインストーラーを作成
+
+| オプション | 説明 |
+| :--- | :--- |
+| `-Version x.y.z` | 新バージョンを明示指定 (`-Bump` と排他) |
+| `-Bump Patch\|Minor\|Major` | 現在のバージョンからインクリメント |
+| `-Date yyyy-MM-dd` | リリース日 (既定: 本日) |
+| `-Platform x64\|x86\|all` | 品質チェックとインストーラーの対象 (既定: `all`) |
+| `-DryRun` | 更新予定を表示するのみ |
+| `-SkipCheck` / `-SkipInstaller` / `-NoCommit` | 品質チェック / インストーラー作成 / Git コミットを省略 |
+| `-AllowDirty` | 未コミットの変更があっても続行 |
+| `-NoPause` | 完了後のキー入力待ちを省略 |
+
+実行後、`release/v{version}` を push して PR で `develop` と `main` へマージし、Gitea で `v{version}` タグを付与して、GitHub Release へ `dist\` のインストーラーをアップロードします。
 
 ---
 
 ## 📖 使い方
 
-1. **ファイルを開く** — 次のいずれかの方法で PDF / Word を読み込む
-   - `参照` ボタンからファイルを選択
-   - ウィンドウへ **ドラッグ＆ドロップ**
-   - コマンドライン引数で起動 (例: `"PDF Converter.exe" "C:\docs\sample.pdf"`)
-2. **プレビュー確認** — ページを移動しながら出力内容をチェック
-3. **出力設定** — 画像形式・解像度・透過の有無を指定
-4. **範囲を選ぶ** — 単一ページ / 範囲指定 / 全ページから選択
-5. **保存** — 出力先フォルダを指定して変換実行 (`page_1.png` のように連番出力。ページ番号は総ページ数の桁数までゼロ埋め)
+使い方・コマンドライン (バッチ変換)・トラブルシューティングは、利用者向けドキュメント [`docs/user/`](docs/user/introduction.md) にまとめています。
 
-### コマンドライン引数
-
-#### GUI 起動
-
-起動時に PDF / Word のパスを渡すと、アプリ起動後に自動で読み込みます。複数の引数が渡された場合は、先頭から順に検証し、最初の有効なパスを使用します。
-
-```powershell
-# 絶対パスで指定
-& ".\PDF Converter.exe" "C:\docs\report.pdf"
-
-# 相対パスでも指定可能 (起動時の作業ディレクトリ基準)
-& ".\PDF Converter.exe" ".\sample.docx"
-```
-
-エクスプローラーで PDF / Word をこのアプリにドラッグする、または「プログラムから開く」に登録して使うこともできます。
-
-#### バッチ / ヘッドレスモード
-
-`--output` などのスイッチを 1 つでも指定すると、ウィンドウを表示せずに変換だけを実行して終了します。スクリプトやタスクスケジューラからの自動化に使えます。進捗やエラーは標準出力 / 標準エラーへ表示され、詳細は GUI モードと同じログファイルにも記録されます。
-
-```powershell
-# PDF の全ページを PNG 画像として出力
-& ".\PDF Converter.exe" --output "C:\out" "C:\docs\report.pdf"
-
-# ページ範囲・形式・解像度を指定 (-o=value 形式も可)
-& ".\PDF Converter.exe" -o "C:\out" -f png -p "1-3,5" --resolution-mode width -r 1920 "report.pdf"
-
-# 複数ファイルを一括変換 (各ファイルは <出力先>\<ファイル名>\page_1.png 形式)
-& ".\PDF Converter.exe" -o "C:\out" "a.pdf" "b.pdf"
-
-# Word を PDF として保存 (出力先に .pdf を指定するとそのパスへ直接保存)
-& ".\PDF Converter.exe" --export-pdf -o "C:\out\proposal.pdf" "proposal.docx"
-
-# 既存ファイルを上書き
-& ".\PDF Converter.exe" -o "C:\out" --overwrite "report.pdf"
-
-# 先頭が - のパスを渡す場合は -- で区切る
-& ".\PDF Converter.exe" -o "C:\out" -- "-report.pdf"
-
-# ヘルプを表示
-& ".\PDF Converter.exe" --help
-```
-
-**出力先の構成**
-
-| 入力 | 画像出力先 |
+| ページ | 内容 |
 |:---|:---|
-| 1 ファイル | `<出力先>\page_1.png`、`<出力先>\page_2.png`、… |
-| 複数ファイル | `<出力先>\<ファイル名>\page_1.png`、… |
+| [はじめに](docs/user/introduction.md) | できること・動作環境 |
+| [使い方](docs/user/usage.md) | ファイルの開き方・プレビュー・変換設定・保存・Word 設定・テーマ・更新 |
+| [コマンドライン](docs/user/cli.md) | 起動時のファイル指定と、バッチ変換のオプション・終了コード |
+| [トラブルシューティング](docs/user/troubleshooting.md) | ログの場所・よくあるエラー・設定の初期化・アンインストール |
 
-ページ番号は名前順に並べてもページ順になるよう、総ページ数の桁数までゼロ埋めします (例: 12 ページの PDF なら `page_01.png` ～ `page_12.png`)。
-
-| オプション | 説明 |
-|:---|:---|
-| `--output`, `-o <path>` | 画像の出力先フォルダー、または PDF 出力先 (必須) |
-| `--pages`, `-p <範囲>` | 出力ページ (例: `1-3,5`)。省略時は全ページ |
-| `--format`, `-f <形式>` | `png` / `jpeg` (`jpg` 可) / `bmp` (省略時は保存済み設定) |
-| `--resolution-mode <方式>` | `default` / `width` / `height` / `dpi` (省略時は保存済み設定) |
-| `--resolution`, `-r <数値>` | 解像度の数値 (省略時は保存済み設定) |
-| `--transparent` | 透明度を保持 (PNG のみ) |
-| `--no-transparent` | 白背景に合成 |
-| `--overwrite` | 既存ファイルを確認せず上書き |
-| `--export-pdf` | Word を PDF として保存 (画像変換は行わない) |
-| `--quiet`, `-q` | 進捗メッセージを抑制 |
-| `--help`, `-h`, `/?`, `--?` | ヘルプを表示 |
-
-オプションは `-o=value` / `--output=value` の形式でも指定できます。`--export-pdf` と `--pages` は同時に指定できません。
-
-終了コード: `0` = 成功、`1` = 変換エラー、`2` = 引数エラー
-
-### トラブルシューティング
-
-問題が発生した場合、次のログを確認できます (UTF-8 テキスト、最大 2 MB でローテーション)。
-
-| ファイル | 内容 |
-|:---|:---|
-| `%LOCALAPPDATA%\PDF Converter\logs\app.log` | 操作ログ・警告 |
-| `%LOCALAPPDATA%\PDF Converter\logs\error.log` | エラーと例外の詳細 |
-
-**よくあるエラー**
-
-| 症状 | 原因と対処 |
-|:---|:---|
-| 「描画サイズが上限を超えています」と表示される | 1 ページあたりの描画画素数は x64 版で 3 億画素、x86 版で 1 億画素までです。解像度 (幅・高さ・DPI) を下げてください |
-| パスワード付き・破損した PDF を開けない | パスワード付き PDF には対応していません。破損した PDF は修復してから読み込んでください |
-| Word 文書の変換が失敗する・終わらない | Microsoft Word または LibreOffice がインストールされているか確認してください。変換は 5 分でタイムアウトします。LibreOffice は一時フォルダーの専用プロファイルで起動するため、起動中の LibreOffice には影響しません |
-
-変換途中の一時ファイルは `%TEMP%\PdfConverter` 配下のインスタンスごとのフォルダーに作成され、終了時に削除されます。
-
-ユーザー設定 (テーマ・画像出力・Word 変換など) は Windows のユーザー構成 (`user.config`) に保存されます。起動時に破損を検出すると既定値へ回復し、バージョンアップ時は旧設定を引き継ぎます。手動で初期化したい場合は、バージョン情報ダイアログの **設定をリセット** を使えます。
+インストール版には HTML 化したドキュメントが `docs\` に同梱され、スタートメニューの **PDF Converter ドキュメント**、アプリ右上の **?** ボタン、`F1` キーから開けます。
 
 ---
 
@@ -353,8 +305,12 @@ pdf-converter/
 │  ├─ build-common.ps1             # .NET SDK 検出・復元など共通関数
 │  ├─ build-installer.ps1          # インストーラー生成
 │  ├─ build-and-test.ps1           # 復元・ビルド・テスト一括実行
+│  ├─ build-user-docs.ps1          # 利用者向けドキュメントの HTML 化 (mdBook)・検証
+│  ├─ release.ps1                  # リリース手順の一括実行 (バージョン更新・コミット・インストーラー作成)
+│  ├─ release-version.ps1          # release.ps1 のバージョン更新関数
 │  ├─ generate-third-party-notices.ps1  # THIRD-PARTY-NOTICES.txt の生成
-│  └─ licenses/                    # NuGet パッケージに含まれないライセンス全文
+│  └─ licenses/                    # NuGet パッケージに含まれないライセンス全文・ドキュメント素材の表示
+├─ docs/user/                      # 利用者向けドキュメント (mdBook の原稿)
 ├─ dist/                           # インストーラー出力先 (gitignore 対象)
 ├─ .claude/rules/                  # コーディング規約 (セクションコメント・日本語表記)
 ├─ .editorconfig                   # コードスタイル・コード解析ルール
@@ -383,7 +339,7 @@ pdf-converter/
 | Ookii.Dialogs.Wpf | 5.0.1 | BSD-3-Clause | フォルダー選択ダイアログ |
 | .NET Runtime / Windows Desktop Runtime | 10 | MIT | 実行ランタイム (self-contained で同梱) |
 
-インストール版には `THIRD-PARTY-NOTICES.txt` が同梱され、各コンポーネントのライセンス全文が記載されています。アプリ右上の **ⓘ ボタン** (バージョン情報) からも開けます。
+インストール版には `THIRD-PARTY-NOTICES.txt` が同梱され、各コンポーネントのライセンス全文が記載されています。同梱ドキュメント (mdBook の HTML) に含まれる素材 (mdBook テーマ・highlight.js・clipboard.js・Font Awesome) の表示も末尾に記載しています。アプリ右上の **ⓘ ボタン** (バージョン情報) からも開けます。
 
 バージョン情報ダイアログの **更新を確認** から、公開中の最新インストーラーを確認できます。更新を適用するとインストーラーを起動したうえでアプリを終了します。
 

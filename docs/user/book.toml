@@ -1,0 +1,22 @@
+# 利用者向けドキュメントの mdBook 設定
+# インストーラー同梱用の HTML は installer/build-user-docs.ps1 で生成する
+
+[book]
+title = "PDF Converter ドキュメント"
+language = "ja"
+src = "."
+
+[build]
+build-dir = "../../artifacts/user-docs"
+create-missing = false
+
+[output.html]
+no-section-label = true
+additional-css = ["custom.css"]
+
+# elasticlunr は空白で語を区切るため日本語ではほぼ機能しない
+[output.html.search]
+enable = false
+
+[output.html.playground]
+runnable = false

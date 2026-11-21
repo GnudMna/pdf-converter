@@ -167,6 +167,13 @@ namespace PdfConverter.Views.Behaviors
             if (DocumentFileHelper.TryGetFirstSupportedPath(data, out string? filePath))
             {
                 viewModel.HandleDroppedDocument(filePath);
+
+                int droppedCount = DocumentFileHelper.GetDroppedFileCount(data);
+                if (droppedCount > 1)
+                {
+                    viewModel.NotifyMultipleFilesDropped(droppedCount, filePath);
+                }
+
                 return true;
             }
 

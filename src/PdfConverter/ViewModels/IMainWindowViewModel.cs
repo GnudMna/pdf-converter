@@ -31,6 +31,11 @@ namespace PdfConverter.ViewModels
         /// <param name="filePath">ドキュメントファイルのパス</param>
         void HandleDroppedDocument(string filePath);
 
+        /// <summary>複数のファイルがドロップされ、1 件だけを読み込んだことを利用者へ通知する</summary>
+        /// <param name="droppedCount">ドロップされたファイルの総数</param>
+        /// <param name="loadedFilePath">読み込んだドキュメントファイルのパス</param>
+        void NotifyMultipleFilesDropped(int droppedCount, string loadedFilePath);
+
         /// <summary>ステータスメッセージと表示種類をまとめて設定する</summary>
         /// <param name="message">表示するメッセージ</param>
         /// <param name="kind">表示種類</param>

@@ -31,11 +31,15 @@ namespace PdfConverter.Tests.Infrastructure
         /// <summary>
         /// --help 指定時にバッチモードとして解析されることを検証する
         /// </summary>
-        [Fact]
-        public void TryParse_WithHelp_ReturnsShowHelp()
+        [Theory]
+        [InlineData("--help")]
+        [InlineData("-h")]
+        [InlineData("/?")]
+        [InlineData("--?")]
+        public void TryParse_WithHelp_ReturnsShowHelp(string helpSwitch)
         {
             bool isBatch = BatchCliParser.TryParse(
-                new[] { "--help" },
+                new[] { helpSwitch },
                 out BatchCliOptions options,
                 out string errorMessage);
 
@@ -78,6 +82,77 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.True(options.Quiet);
             Assert.Single(options.InputFiles);
             Assert.Equal(@"C:\docs\sample.pdf", options.InputFiles[0]);
+        }
+
+        /// <summary>
+        /// フラグ系スイッチに false を指定した場合に無効として扱うことを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_FlagsWithFalseValue_AreDisabled()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[]
+                {
+                    "-o", @"C:\out",
+                    "--overwrite=false",
+                    "--quiet=False",
+                    "-q=false",
+                    "--transparent=false",
+                    "--export-pdf=false",
+                    @"C:\docs\sample.pdf",
+                },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(errorMessage);
+            Assert.False(options.OverwriteExisting);
+            Assert.False(options.Quiet);
+            Assert.False(options.PreserveTransparency);
+            Assert.False(options.ExportPdfOnly);
+        }
+
+        /// <summary>
+        /// フラグ系スイッチに true を指定した場合に有効として扱うことを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_FlagsWithTrueValue_AreEnabled()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[]
+                {
+                    "-o", @"C:\out",
+                    "--overwrite=true",
+                    "--quiet=true",
+                    "--no-transparent=false",
+                    @"C:\docs\sample.pdf",
+                },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(errorMessage);
+            Assert.True(options.OverwriteExisting);
+            Assert.True(options.Quiet);
+            Assert.True(options.PreserveTransparency);
+        }
+
+        /// <summary>
+        /// フラグ系スイッチに真偽値以外を指定した場合にエラーを返すことを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("--overwrite=abc")]
+        [InlineData("--quiet=")]
+        public void TryParse_FlagWithInvalidValue_ReturnsError(string flag)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", flag, @"C:\docs\sample.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.Contains(flag, errorMessage);
         }
 
         /// <summary>

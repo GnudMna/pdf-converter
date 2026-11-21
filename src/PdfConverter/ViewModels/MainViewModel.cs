@@ -1,6 +1,11 @@
 using System;
+using System.IO;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using PdfConverter.Commands;
 using PdfConverter.Infrastructure;
 using PdfConverter.Models;
@@ -96,9 +101,10 @@ namespace PdfConverter.ViewModels
             SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(_coordinatorHost), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
             SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(_coordinatorHost), CanSavePdf, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
-            CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
+            CopyToClipboardCommand = new AsyncRelayCommand(OnCopyToClipboardAsync, CanCopyToClipboard, OnAsyncCommandException);
             LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
             ShowAboutCommand = new RelayCommand(() => _dialogService.ShowAbout());
+            OpenUserDocsCommand = new RelayCommand(() => _dialogService.OpenUserDocs());
 
             _userSettingsService.SettingsReset += OnUserSettingsReset;
         }
@@ -256,6 +262,9 @@ namespace PdfConverter.ViewModels
         /// <summary>バージョン情報を表示するコマンド</summary>
         public ICommand ShowAboutCommand { get; }
 
+        /// <summary>利用者向けドキュメントを開くコマンド</summary>
+        public ICommand OpenUserDocsCommand { get; }
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -276,6 +285,28 @@ namespace PdfConverter.ViewModels
 
             FilePath = filePath;
             LoadPdfFromPath(forceReload: true);
+        }
+
+        /// <inheritdoc/>
+        public void NotifyMultipleFilesDropped(int droppedCount, string loadedFilePath)
+        {
+            string message =
+                $"{droppedCount} 件のファイルがドロップされました。" + Environment.NewLine +
+                "読み込めるのは 1 ファイルのみのため、先頭の対応ファイルだけを読み込みました。" + Environment.NewLine +
+                Environment.NewLine +
+                $"読み込んだファイル: {Path.GetFileName(loadedFilePath)}";
+
+            void Show() => _dialogService.ShowMessage(message, "複数ファイルのドロップ", DialogIcon.Information);
+
+            // ドラッグ元 (エクスプローラーなど) をドロップ処理中に止めないよう、イベント完了後に表示する
+            Dispatcher? dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher == null)
+            {
+                Show();
+                return;
+            }
+
+            dispatcher.BeginInvoke(new Action(Show));
         }
 
         /// <inheritdoc/>
@@ -424,8 +455,12 @@ namespace PdfConverter.ViewModels
             SetStatus($"処理中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
         }
 
-        /// <summary>プレビュー画像をクリップボードにコピーする</summary>
-        private void OnCopyToClipboard()
+        /// <summary>
+        /// 表示中のプレビューと同じページ・設定の画像を、出力解像度でクリップボードにコピーする
+        /// </summary>
+        /// <remarks>プレビューが表示サイズに縮小されている場合は、出力解像度で描画し直してからコピーする</remarks>
+        /// <returns>非同期操作のタスク</returns>
+        private async Task OnCopyToClipboardAsync()
         {
             if (Preview.PreviewImage == null)
             {
@@ -433,9 +468,15 @@ namespace PdfConverter.ViewModels
                 return;
             }
 
+            BitmapSource? image = await _previewCoordinator.GetOutputResolutionPreviewImageAsync(_coordinatorHost);
+            if (image == null)
+            {
+                return;
+            }
+
             try
             {
-                _clipboardService.CopyImage(Preview.PreviewImage, ExportSettings.PreserveTransparency);
+                _clipboardService.CopyImage(image, ExportSettings.PreserveTransparency);
                 SetStatus("プレビュー画像をクリップボードにコピーしました。", StatusKind.Success);
             }
             catch (Exception ex)

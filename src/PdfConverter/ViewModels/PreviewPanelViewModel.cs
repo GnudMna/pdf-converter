@@ -42,6 +42,12 @@ namespace PdfConverter.ViewModels
         /// <summary>処理中かどうか</summary>
         private bool _isBusy;
 
+        /// <summary>プレビュー画像を表示する領域の幅 (デバイス px)</summary>
+        private int _previewViewportPixelWidth;
+
+        /// <summary>プレビュー画像を表示する領域の高さ (デバイス px)</summary>
+        private int _previewViewportPixelHeight;
+
         /// <summary>ページ番号 1 桁あたりの表示幅 (px)</summary>
         private const double PageNavigationCharWidth = 9;
 
@@ -205,6 +211,12 @@ namespace PdfConverter.ViewModels
             ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
             : 1;
 
+        /// <summary>プレビュー画像を表示する領域の幅 (デバイス px、未確定の場合は 0)</summary>
+        public int PreviewViewportPixelWidth => _previewViewportPixelWidth;
+
+        /// <summary>プレビュー画像を表示する領域の高さ (デバイス px、未確定の場合は 0)</summary>
+        public int PreviewViewportPixelHeight => _previewViewportPixelHeight;
+
 
         /********************************************************************************/
         /*                                   コマンド                                   */
@@ -222,6 +234,25 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// プレビュー画像を表示する領域のサイズを更新し、プレビューの描画サイズに反映させる
+        /// </summary>
+        /// <param name="pixelWidth">表示領域の幅 (デバイス px)</param>
+        /// <param name="pixelHeight">表示領域の高さ (デバイス px)</param>
+        public void UpdatePreviewViewportPixelSize(int pixelWidth, int pixelHeight)
+        {
+            pixelWidth = Math.Max(0, pixelWidth);
+            pixelHeight = Math.Max(0, pixelHeight);
+            if (pixelWidth == _previewViewportPixelWidth && pixelHeight == _previewViewportPixelHeight)
+            {
+                return;
+            }
+
+            _previewViewportPixelWidth = pixelWidth;
+            _previewViewportPixelHeight = pixelHeight;
+            _previewCoordinator.NotifyPreviewViewportChanged(_getHost());
+        }
+
         /// <summary>入力ファイルパスが変わったときに PageIndicator を更新する</summary>
         public void NotifyFilePathChanged()
         {

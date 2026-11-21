@@ -64,6 +64,10 @@ namespace PdfConverter.Tests.Helpers
             ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
             : 1;
 
+        public int PreviewViewportPixelWidth { get; set; }
+
+        public int PreviewViewportPixelHeight { get; set; }
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */

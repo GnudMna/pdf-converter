@@ -35,5 +35,11 @@ namespace PdfConverter.ViewModels.Coordinators
 
         /// <summary>現在表示中のページ番号</summary>
         int CurrentPreviewPage { get; }
+
+        /// <summary>プレビュー画像を表示する領域の幅 (デバイス px、未確定の場合は 0)</summary>
+        int PreviewViewportPixelWidth { get; }
+
+        /// <summary>プレビュー画像を表示する領域の高さ (デバイス px、未確定の場合は 0)</summary>
+        int PreviewViewportPixelHeight { get; }
     }
 }

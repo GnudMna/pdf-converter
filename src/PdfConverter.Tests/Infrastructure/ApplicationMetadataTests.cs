@@ -96,5 +96,19 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.Contains("LibreOffice", text);
             Assert.DoesNotContain(".NET", text);
         }
+
+        /// <summary>
+        /// 利用者向けドキュメントの表紙が、実行ファイルと同じフォルダーの docs\index.html を指すことを検証する
+        /// </summary>
+        /// <remarks>
+        /// インストーラー (installer/PdfConverter.iss) のスタートメニューのショートカットと同じ場所を指す
+        /// </remarks>
+        [Fact]
+        public void UserDocsIndexFilePath_PointsToDocsIndexUnderBaseDirectory()
+        {
+            string expected = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "docs", "index.html");
+
+            Assert.Equal(expected, ApplicationMetadata.UserDocsIndexFilePath);
+        }
     }
 }

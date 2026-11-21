@@ -68,14 +68,17 @@ Name: "fileassoc"; Description: "PDF / Word (.pdf, .doc, .docx) をこのアプ�
 ; .NET Framework 版 (0.4.x 以前) の残骸を削除する。.NET 版は lib\ を使わないフラット構成
 Type: filesandordirs; Name: "{app}\lib"
 Type: files; Name: "{app}\PDF Converter.exe.config"
+; 利用者向けドキュメントは mdBook の静的ファイル名にハッシュが付くため、更新時に旧版のファイルが残らないよう作り直す
+Type: filesandordirs; Name: "{app}\docs"
 
 [Files]
-; THIRD-PARTY-NOTICES.txt は build-installer.ps1 がビルド出力へ生成します
+; THIRD-PARTY-NOTICES.txt と docs\ (利用者向けドキュメント) は build-installer.ps1 がビルド出力へ生成します
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 ; スタートメニュー（%AppData%\Microsoft\Windows\Start Menu\Programs）
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "PDF のページを画像へ変換"
+Name: "{autoprograms}\{#MyAppName} ドキュメント"; Filename: "{app}\docs\index.html"; Comment: "{#MyAppName} の使い方・コマンドライン・トラブルシューティング"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Registry]

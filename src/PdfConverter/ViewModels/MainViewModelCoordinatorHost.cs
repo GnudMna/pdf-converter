@@ -83,6 +83,12 @@ namespace PdfConverter.ViewModels
         public int CurrentPreviewPage => _viewModel.Preview.CurrentPreviewPage;
 
         /// <inheritdoc/>
+        public int PreviewViewportPixelWidth => _viewModel.Preview.PreviewViewportPixelWidth;
+
+        /// <inheritdoc/>
+        public int PreviewViewportPixelHeight => _viewModel.Preview.PreviewViewportPixelHeight;
+
+        /// <inheritdoc/>
         public string? PageNumberValidationMessage
         {
             get => _viewModel.Preview.PageNumberValidationMessage;

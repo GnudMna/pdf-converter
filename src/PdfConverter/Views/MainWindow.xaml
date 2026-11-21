@@ -28,6 +28,8 @@
         <KeyBinding Key="Right"
                     Modifiers="Control"
                     Command="{Binding NextPageCommand}" />
+        <KeyBinding Key="F1"
+                    Command="{Binding OpenUserDocsCommand}" />
     </Window.InputBindings>
 
     <Grid>
