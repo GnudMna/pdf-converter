@@ -118,9 +118,9 @@ namespace PdfConverter.Views.Behaviors
                 return;
             }
 
-            if (PdfFileHelper.TryGetFirstPdfPath(e.Data, out string filePath))
+            if (DocumentFileHelper.TryGetFirstSupportedPath(e.Data, out string filePath))
             {
-                viewModel.HandleDroppedPdf(filePath);
+                viewModel.HandleDroppedDocument(filePath);
             }
 
             e.Handled = true;
@@ -144,7 +144,7 @@ namespace PdfConverter.Views.Behaviors
                 return;
             }
 
-            bool acceptable = PdfFileHelper.ContainsPdfFile(e.Data);
+            bool acceptable = DocumentFileHelper.ContainsSupportedDocument(e.Data);
             viewModel.IsDropOverlayVisible = acceptable;
             e.Effects = acceptable ? DragDropEffects.Copy : DragDropEffects.None;
             e.Handled = true;

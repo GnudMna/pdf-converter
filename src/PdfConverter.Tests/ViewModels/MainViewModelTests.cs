@@ -24,7 +24,7 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
 
-            viewModel.PageIndicator.Should().Be("PDFを選択してください");
+            viewModel.PageIndicator.Should().Be("ファイルを選択してください");
         }
 
         /// <summary>
@@ -130,7 +130,7 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, pdf, dialog, _) = MainViewModelTestFactory.Create();
             string selectedPath = CreateTempPdfPath();
-            dialog.Setup(d => d.ShowOpenPdfFileDialog()).Returns(selectedPath);
+            dialog.Setup(d => d.ShowOpenDocumentFileDialog()).Returns(selectedPath);
             pdf.Setup(p => p.GetPdfPageCountAsync(selectedPath, It.IsAny<CancellationToken>())).ReturnsAsync(1);
             pdf.Setup(p => p.ConvertPdfPageToImageAsync(
                     selectedPath,
@@ -146,7 +146,7 @@ namespace PdfConverter.Tests.ViewModels
                 StaTestHelper.Run(() => viewModel.BrowseCommand.Execute(null));
 
                 viewModel.FilePath.Should().Be(selectedPath);
-                dialog.Verify(d => d.ShowOpenPdfFileDialog(), Times.Once);
+                dialog.Verify(d => d.ShowOpenDocumentFileDialog(), Times.Once);
             }
             finally
             {
@@ -336,14 +336,14 @@ namespace PdfConverter.Tests.ViewModels
         /// ドロップされた PDF パスが FilePath に設定されることを検証する
         /// </summary>
         [Fact]
-        public void HandleDroppedPdf_SetsFilePath()
+        public void HandleDroppedDocument_SetsFilePath()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             string pdfPath = CreateTempPdfPath();
 
             try
             {
-                viewModel.HandleDroppedPdf(pdfPath);
+                viewModel.HandleDroppedDocument(pdfPath);
 
                 viewModel.FilePath.Should().Be(pdfPath);
             }
@@ -357,13 +357,13 @@ namespace PdfConverter.Tests.ViewModels
         /// 処理中はドロップされた PDF を無視することを検証する
         /// </summary>
         [Fact]
-        public void HandleDroppedPdf_WhenBusy_DoesNothing()
+        public void HandleDroppedDocument_WhenBusy_DoesNothing()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.IsBusy = true;
             viewModel.FilePath = "C:\\existing.pdf";
 
-            viewModel.HandleDroppedPdf("C:\\dropped.pdf");
+            viewModel.HandleDroppedDocument("C:\\dropped.pdf");
 
             viewModel.FilePath.Should().Be("C:\\existing.pdf");
         }

@@ -139,7 +139,7 @@
     <Style x:Key="SaveButton"
            TargetType="Button"
            BasedOn="{StaticResource PrimaryButton}">
-        <Setter Property="MinWidth" Value="130" />
+        <Setter Property="MinWidth" Value="100" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsBusy}" Value="True">
                 <Setter Property="Visibility" Value="Collapsed" />
@@ -151,7 +151,7 @@
     <Style x:Key="CopyButton"
            TargetType="Button"
            BasedOn="{StaticResource SecondaryButton}">
-        <Setter Property="MinWidth" Value="130" />
+        <Setter Property="MinWidth" Value="100" />
         <Style.Triggers>
             <DataTrigger Binding="{Binding IsBusy}" Value="True">
                 <Setter Property="Visibility" Value="Collapsed" />
@@ -167,7 +167,7 @@
         <Setter Property="BorderThickness" Value="1" />
         <Setter Property="Padding" Value="14,7" />
         <Setter Property="MinHeight" Value="34" />
-        <Setter Property="MinWidth" Value="130" />
+        <Setter Property="MinWidth" Value="100" />
         <Setter Property="FontWeight" Value="SemiBold" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="SnapsToDevicePixels" Value="True" />
@@ -409,6 +409,99 @@
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.5" />
                             <Setter Property="Cursor" Value="Arrow" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 任意設定の折り畳みセクション -->
+    <Style x:Key="OptionalSectionExpander" TargetType="Expander">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{DynamicResource FieldLabelForegroundBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Expander">
+                    <Border Background="{DynamicResource PreviewAreaBackgroundBrush}"
+                            BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
+                            BorderThickness="1"
+                            CornerRadius="10"
+                            SnapsToDevicePixels="True">
+                        <DockPanel LastChildFill="True">
+                            <ToggleButton x:Name="HeaderSite"
+                                          DockPanel.Dock="Top"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Cursor="Hand"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="HeaderBd"
+                                                Background="Transparent"
+                                                Padding="12,10"
+                                                CornerRadius="10"
+                                                SnapsToDevicePixels="True">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <Path x:Name="Arrow"
+                                                      Grid.Column="0"
+                                                      Width="10"
+                                                      Height="10"
+                                                      Margin="0,0,8,0"
+                                                      VerticalAlignment="Center"
+                                                      Stretch="Uniform"
+                                                      Fill="{DynamicResource AccentBrush}"
+                                                      Data="M4 0 L8 6 L0 6 Z"
+                                                      RenderTransformOrigin="0.5,0.5">
+                                                    <Path.RenderTransform>
+                                                        <RotateTransform Angle="-90" />
+                                                    </Path.RenderTransform>
+                                                </Path>
+                                                <ContentPresenter Grid.Column="1"
+                                                                  VerticalAlignment="Center"
+                                                                  RecognizesAccessKey="True" />
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="HeaderBd" Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}" />
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="Arrow" Property="RenderTransform">
+                                                    <Setter.Value>
+                                                        <RotateTransform Angle="0" />
+                                                    </Setter.Value>
+                                                </Setter>
+                                                <Setter TargetName="HeaderBd" Property="Background" Value="{DynamicResource SecondaryButtonBackgroundBrush}" />
+                                                <Setter TargetName="HeaderBd" Property="CornerRadius" Value="10,10,0,0" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                                <ContentPresenter ContentSource="Header"
+                                                  RecognizesAccessKey="True" />
+                            </ToggleButton>
+                            <Border x:Name="ContentSeparator"
+                                    DockPanel.Dock="Top"
+                                    Height="1"
+                                    Background="{DynamicResource PreviewAreaBorderBrush}"
+                                    Visibility="Collapsed" />
+                            <ContentPresenter x:Name="ExpandSite"
+                                              Margin="12,10,12,12"
+                                              Visibility="Collapsed" />
+                        </DockPanel>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsExpanded" Value="True">
+                            <Setter TargetName="ExpandSite" Property="Visibility" Value="Visible" />
+                            <Setter TargetName="ContentSeparator" Property="Visibility" Value="Visible" />
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

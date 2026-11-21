@@ -20,6 +20,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>PDF変換サービス</summary>
         private readonly IPdfConversionService _pdfService;
 
+        /// <summary>入力ドキュメントからPDFソースを提供するサービス</summary>
+        private readonly IDocumentPdfSourceService _documentPdfSourceService;
+
         /// <summary>ダイアログサービス</summary>
         private readonly IDialogService _dialogService;
 
@@ -31,10 +34,15 @@ namespace PdfConverter.ViewModels.Coordinators
         /// 指定したサービスを使用してPDFページの一括保存と上書き確認を担当する
         /// </summary>
         /// <param name="pdfService">PDF変換サービス</param>
+        /// <param name="documentPdfSourceService">入力ドキュメントからPDFソースを提供するサービス</param>
         /// <param name="dialogService">ダイアログサービス</param>
-        public PdfSaveCoordinator(IPdfConversionService pdfService, IDialogService dialogService)
+        public PdfSaveCoordinator(
+            IPdfConversionService pdfService,
+            IDocumentPdfSourceService documentPdfSourceService,
+            IDialogService dialogService)
         {
             _pdfService = pdfService;
+            _documentPdfSourceService = documentPdfSourceService;
             _dialogService = dialogService;
         }
 
@@ -68,6 +76,13 @@ namespace PdfConverter.ViewModels.Coordinators
 
             try
             {
+                if (DocumentFileHelper.IsWordFile(host.FilePath))
+                {
+                    host.SetStatus("WordをPDFに変換中...", StatusKind.Progress);
+                }
+
+                string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
+
                 string folderPath = _dialogService.ShowFolderBrowserDialog();
                 if (folderPath == null)
                 {
@@ -115,7 +130,7 @@ namespace PdfConverter.ViewModels.Coordinators
                 });
 
                 await _pdfService.SavePdfPagesToImagesAsync(
-                    host.FilePath,
+                    pdfPath,
                     pageIndexes,
                     folderPath,
                     host.IsAllPagesSelected,
@@ -146,6 +161,62 @@ namespace PdfConverter.ViewModels.Coordinators
             finally
             {
                 host.IsSaving = false;
+                host.IsBusy = false;
+                host.DisposeCancellation();
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task SavePdfAsync(IMainViewModelHost host)
+        {
+            if (string.IsNullOrEmpty(host.FilePath) || !DocumentFileHelper.IsWordFile(host.FilePath))
+            {
+                return;
+            }
+
+            host.PrepareCancellation();
+            CancellationToken cancellationToken = host.GetCancellationToken();
+            host.IsBusy = true;
+            host.SetStatus("PDF保存処理を開始しています...", StatusKind.Progress);
+
+            try
+            {
+                host.SetStatus("WordをPDFに変換中...", StatusKind.Progress);
+                string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
+
+                string suggestedFileName = Path.GetFileNameWithoutExtension(host.FilePath) + ".pdf";
+                string destinationPath = _dialogService.ShowSavePdfFileDialog(suggestedFileName);
+                if (destinationPath == null)
+                {
+                    host.SetStatus("PDFの保存がキャンセルされました。", StatusKind.Info);
+                    return;
+                }
+
+                if (File.Exists(destinationPath)
+                    && !_dialogService.ShowYesNo(
+                        $"以下のファイルは既に存在します。上書きしますか？\n\n{Path.GetFileName(destinationPath)}",
+                        "上書きの確認",
+                        DialogIcon.Warning,
+                        "上書きする",
+                        "キャンセル"))
+                {
+                    host.SetStatus("PDFの保存がキャンセルされました。", StatusKind.Info);
+                    return;
+                }
+
+                File.Copy(pdfPath, destinationPath, overwrite: true);
+                host.SetStatus($"PDFを保存しました: {destinationPath}", StatusKind.Success);
+            }
+            catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
+            {
+                host.SetStatus("PDFの保存はキャンセルされました。", StatusKind.Info);
+            }
+            catch (Exception ex)
+            {
+                host.SetStatus($"PDFの保存中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+            }
+            finally
+            {
                 host.IsBusy = false;
                 host.DisposeCancellation();
             }

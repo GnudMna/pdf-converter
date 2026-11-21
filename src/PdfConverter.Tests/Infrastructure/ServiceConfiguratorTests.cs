@@ -1,4 +1,6 @@
+using System;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
@@ -21,6 +23,8 @@ namespace PdfConverter.Tests.Infrastructure
             var provider = ServiceConfigurator.Configure();
 
             provider.GetService(typeof(IPdfConversionService)).Should().NotBeNull();
+            provider.GetService(typeof(IWordToPdfConversionService)).Should().NotBeNull();
+            provider.GetService(typeof(IDocumentPdfSourceService)).Should().NotBeNull();
             provider.GetService(typeof(IDialogService)).Should().NotBeNull();
             provider.GetService(typeof(IClipboardService)).Should().NotBeNull();
         }
@@ -81,6 +85,20 @@ namespace PdfConverter.Tests.Infrastructure
             var provider = ServiceConfigurator.Configure();
 
             provider.GetService(typeof(IMainWindowViewModel)).Should().NotBeNull();
+        }
+
+        /// <summary>
+        /// サービスプロバイダー破棄時に DocumentPdfSourceService が IDisposable として破棄されることを検証する
+        /// </summary>
+        [Fact]
+        public void Configure_DisposeDocumentPdfSourceService()
+        {
+            var provider = ServiceConfigurator.Configure();
+
+            var service = provider.GetRequiredService<IDocumentPdfSourceService>();
+            service.Should().BeAssignableTo<IDisposable>();
+
+            ((IDisposable)provider).Dispose();
         }
     }
 }

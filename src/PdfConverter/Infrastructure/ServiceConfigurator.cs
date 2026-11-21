@@ -23,6 +23,15 @@ namespace PdfConverter.Infrastructure
         {
             var services = new ServiceCollection();
             services.AddSingleton<IPdfConversionService, PdfConversionService>();
+            services.AddSingleton<IWordToPdfConversionSettings, WordToPdfConversionSettings>();
+            services.AddSingleton<MicrosoftWordToPdfConversionService>();
+            services.AddSingleton<LibreOfficeToPdfConversionService>();
+            services.AddSingleton<IWordToPdfConversionService>(provider =>
+                new SelectableWordToPdfConversionService(
+                    provider.GetRequiredService<MicrosoftWordToPdfConversionService>(),
+                    provider.GetRequiredService<LibreOfficeToPdfConversionService>(),
+                    provider.GetRequiredService<IWordToPdfConversionSettings>()));
+            services.AddSingleton<IDocumentPdfSourceService, DocumentPdfSourceService>();
             services.AddSingleton<IDialogService, WpfDialogService>();
             services.AddSingleton<IClipboardService, WpfClipboardService>();
             services.AddTransient<IPdfPreviewCoordinator, PdfPreviewCoordinator>();

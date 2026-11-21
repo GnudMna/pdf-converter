@@ -16,5 +16,12 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="host">メインビューモデル</param>
         /// <returns>非同期操作のタスク</returns>
         Task SaveAsync(IMainViewModelHost host);
+
+        /// <summary>
+        /// Word から変換したPDFをファイルとして保存する
+        /// </summary>
+        /// <param name="host">メインビューモデル</param>
+        /// <returns>非同期操作のタスク</returns>
+        Task SavePdfAsync(IMainViewModelHost host);
     }
 }

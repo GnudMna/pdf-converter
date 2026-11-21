@@ -211,11 +211,127 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             Directory.Delete(folder, recursive: true);
         }
 
+        /// <summary>
+        /// PDF ファイル入力時に PDF 保存処理が開始されないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfAsync_NonWordFile_DoesNothing()
+        {
+            var coordinator = CreateCoordinator(out _, out var dialog, out _);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+            };
+
+            await coordinator.SavePdfAsync(host);
+
+            dialog.Verify(d => d.ShowSavePdfFileDialog(It.IsAny<string>()), Times.Never);
+        }
+
+        /// <summary>
+        /// PDF 保存ダイアログがキャンセルされた場合にステータスが更新され、Busy が false に戻ることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfAsync_SaveDialogCancelled_SetsStatusMessage()
+        {
+            var coordinator = CreateCoordinator(out _, out var dialog, out _);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.docx",
+                PageCount = 2,
+            };
+            dialog.Setup(d => d.ShowSavePdfFileDialog("sample.pdf")).Returns((string)null);
+
+            await coordinator.SavePdfAsync(host);
+
+            host.StatusMessage.Should().Contain("キャンセル");
+            host.IsBusy.Should().BeFalse();
+        }
+
+        /// <summary>
+        /// 変換済み PDF が指定先にコピーされ、成功ステータスが設定されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfAsync_CopiesPdfToDestination_SetsSuccess()
+        {
+            string tempDir = CreateTempDirectory();
+            string sourcePdf = Path.Combine(tempDir, "source.pdf");
+            File.WriteAllText(sourcePdf, "pdf-content");
+            string destinationPdf = Path.Combine(tempDir, "output.pdf");
+
+            var coordinator = CreateCoordinator(out _, out var dialog, out var documentPdfSource);
+            documentPdfSource.Setup(d => d.GetPdfPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sourcePdf);
+            dialog.Setup(d => d.ShowSavePdfFileDialog("sample.pdf")).Returns(destinationPdf);
+
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.docx",
+                PageCount = 1,
+            };
+
+            await coordinator.SavePdfAsync(host);
+
+            File.ReadAllText(destinationPdf).Should().Be("pdf-content");
+            host.StatusKind.Should().Be(StatusKind.Success);
+            host.StatusMessage.Should().Contain("PDFを保存しました");
+            host.IsBusy.Should().BeFalse();
+            Directory.Delete(tempDir, recursive: true);
+        }
+
+        /// <summary>
+        /// 上書き確認でキャンセルされた場合にファイルが更新されないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfAsync_OverwriteDeclined_DoesNotCopy()
+        {
+            string tempDir = CreateTempDirectory();
+            string sourcePdf = Path.Combine(tempDir, "source.pdf");
+            File.WriteAllText(sourcePdf, "new-content");
+            string destinationPdf = Path.Combine(tempDir, "output.pdf");
+            File.WriteAllText(destinationPdf, "existing-content");
+
+            var coordinator = CreateCoordinator(out _, out var dialog, out var documentPdfSource);
+            documentPdfSource.Setup(d => d.GetPdfPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(sourcePdf);
+            dialog.Setup(d => d.ShowSavePdfFileDialog("sample.pdf")).Returns(destinationPdf);
+            dialog.Setup(d => d.ShowYesNo(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<DialogIcon>(),
+                    It.IsAny<string>(),
+                    It.IsAny<string>()))
+                .Returns(false);
+
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.docx",
+                PageCount = 1,
+            };
+
+            await coordinator.SavePdfAsync(host);
+
+            File.ReadAllText(destinationPdf).Should().Be("existing-content");
+            host.StatusMessage.Should().Contain("キャンセル");
+            host.IsBusy.Should().BeFalse();
+            Directory.Delete(tempDir, recursive: true);
+        }
+
         private static PdfSaveCoordinator CreateCoordinator(out Mock<IPdfConversionService> pdf, out Mock<IDialogService> dialog)
+        {
+            return CreateCoordinator(out pdf, out dialog, out _);
+        }
+
+        private static PdfSaveCoordinator CreateCoordinator(
+            out Mock<IPdfConversionService> pdf,
+            out Mock<IDialogService> dialog,
+            out Mock<IDocumentPdfSourceService> documentPdfSource)
         {
             pdf = new Mock<IPdfConversionService>();
             dialog = new Mock<IDialogService>();
-            return new PdfSaveCoordinator(pdf.Object, dialog.Object);
+            documentPdfSource = DocumentPdfSourceTestHelper.CreatePassthrough();
+            return new PdfSaveCoordinator(pdf.Object, documentPdfSource.Object, dialog.Object);
         }
 
         private static string CreateTempDirectory()
