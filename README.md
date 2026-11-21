@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.4.0-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.4.1-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -44,6 +44,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 | 🧠 | **メモリキャッシュ** | 一定サイズ以下の PDF をキャッシュし、I/O を削減 |
 | 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
 | ♿ | **アクセシビリティ** | スクリーンリーダー対応（ラベル関連付け・Live Region によるステータス読み上げ） |
+| 🔄 | **更新確認** | バージョン情報から最新インストーラーを確認・ダウンロードして適用 |
 
 ---
 
@@ -91,6 +92,11 @@ cd pdf-converter
 
 # NuGet パッケージの復元
 nuget restore src/PdfConverter.slnx
+
+# （任意）更新ダウンロード用キーを埋め込む
+# UpdateReleaseKey.local.props.example を UpdateReleaseKey.local.props にコピーして
+# PdfConverterReleaseKey を設定するか、環境変数 PDF_CONVERTER_KEY を設定する
+# （キー未設定でもビルド・起動は可能。更新の「適用」時のみ失敗する）
 
 # ビルド（Release / x64 構成 — 既定）
 msbuild src/PdfConverter.slnx /p:Configuration=Release /p:Platform=x64
@@ -355,6 +361,8 @@ pdf-converter/
 | System.Threading.Tasks.Extensions | 4.6.3 | MIT | タスク拡張 |
 
 インストール版には `THIRD-PARTY-NOTICES.txt` が同梱され、各コンポーネントのライセンス全文が記載されています。アプリ右上の **ⓘ ボタン**（バージョン情報）からも開けます。
+
+バージョン情報ダイアログの **更新を確認** から、公開中の最新インストーラーを確認できます。更新を適用するとインストーラーを起動したうえでアプリを終了します。
 
 ### 外部ソフトウェア
 

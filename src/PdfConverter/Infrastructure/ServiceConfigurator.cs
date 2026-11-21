@@ -33,6 +33,7 @@ namespace PdfConverter.Infrastructure
                     provider.GetRequiredService<LibreOfficeToPdfConversionService>(),
                     provider.GetRequiredService<IWordToPdfConversionSettings>()));
             services.AddSingleton<IDocumentPdfSourceService, DocumentPdfSourceService>();
+            services.AddSingleton<IUpdateService, UpdateService>();
             services.AddSingleton<IDialogService, WpfDialogService>();
             services.AddSingleton<IClipboardService, WpfClipboardService>();
             services.AddSingleton<IBatchExportService, BatchExportService>();

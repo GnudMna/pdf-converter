@@ -28,6 +28,7 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.NotNull(provider.GetService(typeof(IWordToPdfConversionService)));
             Assert.NotNull(provider.GetService(typeof(IDocumentPdfSourceService)));
             Assert.NotNull(provider.GetService(typeof(IDialogService)));
+            Assert.NotNull(provider.GetService(typeof(IUpdateService)));
             Assert.NotNull(provider.GetService(typeof(IClipboardService)));
             Assert.NotNull(provider.GetService(typeof(IImageExportSettings)));
             Assert.NotNull(provider.GetService(typeof(IBatchExportService)));

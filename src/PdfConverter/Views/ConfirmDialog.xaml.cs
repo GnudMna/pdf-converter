@@ -28,14 +28,45 @@ namespace PdfConverter.Views
         /// <param name="yesText">肯定ボタンのラベル</param>
         /// <param name="noText">否定ボタンのラベル</param>
         public ConfirmDialog(string message, string title, DialogIcon icon, string yesText, string noText)
+            : this(message, title, icon, yesText, noText, showNoButton: true)
+        {
+        }
+
+        /// <summary>
+        /// OK のみのメッセージダイアログとして初期化する
+        /// </summary>
+        /// <param name="message">表示するメッセージ</param>
+        /// <param name="title">ダイアログのタイトル</param>
+        /// <param name="icon">表示するアイコン</param>
+        /// <param name="okText">OK ボタンのラベル</param>
+        public ConfirmDialog(string message, string title, DialogIcon icon, string okText)
+            : this(message, title, icon, okText, noText: null, showNoButton: false)
+        {
+        }
+
+        private ConfirmDialog(
+            string message,
+            string title,
+            DialogIcon icon,
+            string yesText,
+            string noText,
+            bool showNoButton)
         {
             InitializeComponent();
             Title = title;
             TitleText.Text = title;
             MessageText.Text = GetSummaryMessage(message);
             YesButton.Content = yesText;
-            NoButton.Content = noText;
             ApplyIcon(icon);
+
+            if (showNoButton)
+            {
+                NoButton.Content = noText;
+            }
+            else
+            {
+                NoButton.Visibility = Visibility.Collapsed;
+            }
 
             string detail = GetDetailMessage(message);
             if (!string.IsNullOrEmpty(detail))

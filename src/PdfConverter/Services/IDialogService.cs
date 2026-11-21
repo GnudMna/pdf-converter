@@ -62,6 +62,19 @@ namespace PdfConverter.Services
             string noText = "いいえ");
 
         /// <summary>
+        /// OK のみのメッセージダイアログを表示する
+        /// </summary>
+        /// <param name="message">表示するメッセージ</param>
+        /// <param name="title">ダイアログのタイトル</param>
+        /// <param name="icon">表示するアイコン</param>
+        /// <param name="okText">OK ボタンのラベル</param>
+        void ShowMessage(
+            string message,
+            string title,
+            DialogIcon icon = DialogIcon.Information,
+            string okText = "OK");
+
+        /// <summary>
         /// バージョン情報とオープンソースクレジットのダイアログを表示する
         /// </summary>
         void ShowAbout();

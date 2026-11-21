@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <Import Project="UpdateReleaseKey.local.props" Condition="Exists('UpdateReleaseKey.local.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
+    <PdfConverterReleaseKey Condition="'$(PdfConverterReleaseKey)' == ''">$(PDF_CONVERTER_KEY)</PdfConverterReleaseKey>
     <ProjectGuid>{2965B4A6-6475-4822-AC0E-CC4C5F563CDC}</ProjectGuid>
     <OutputType>WinExe</OutputType>
     <RootNamespace>PdfConverter</RootNamespace>
@@ -90,6 +92,7 @@
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Xaml">
       <RequiredTargetFramework>4.0</RequiredTargetFramework>
     </Reference>
@@ -111,7 +114,16 @@
     <Compile Include="Infrastructure\ExceptionFormattingHelper.cs" />
     <Compile Include="Infrastructure\GlobalExceptionHandler.cs" />
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
+    <Compile Include="Infrastructure\UpdateReleaseKey.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
+    <Compile Include="Services\IUpdateService.cs" />
+    <Compile Include="Services\SemVerComparer.cs" />
+    <Compile Include="Services\UpdateAssetSelector.cs" />
+    <Compile Include="Services\UpdateDigestHelper.cs" />
+    <Compile Include="Services\UpdateEvaluator.cs" />
+    <Compile Include="Services\UpdateModels.cs" />
+    <Compile Include="Services\UpdateService.cs" />
+    <Compile Include="Services\VersionApiJsonParser.cs" />
     <Compile Include="Services\PageRangeParser.cs" />
     <Compile Include="Services\DocumentFileHelper.cs" />
     <Compile Include="Services\DocumentPdfSourceService.cs" />
@@ -233,6 +245,7 @@
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
     <None Include="packages.config" />
+    <None Include="UpdateReleaseKey.local.props.example" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -310,6 +323,28 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets" Condition="Exists('..\packages\Docnet.Core.2.6.0\build\net45\Docnet.Core.targets')" />
+  <Target Name="GenerateUpdateReleaseKey" BeforeTargets="BeforeCompile;CoreCompile">
+    <PropertyGroup>
+      <_UpdateReleaseKeyFile>$(IntermediateOutputPath)UpdateReleaseKey.g.cs</_UpdateReleaseKeyFile>
+      <_UpdateReleaseKeyEscaped>$([System.String]::Copy('$(PdfConverterReleaseKey)').Replace('\','\\').Replace('"','\"'))</_UpdateReleaseKeyEscaped>
+      <!-- %22 / %3b で属性・WriteLinesToFile の区切り文字問題を避ける -->
+      <_UpdateReleaseKeyValueLine>        internal const string Value = %22$(_UpdateReleaseKeyEscaped)%22%3b</_UpdateReleaseKeyValueLine>
+    </PropertyGroup>
+    <ItemGroup>
+      <_UpdateReleaseKeyLines Include="namespace PdfConverter.Infrastructure" />
+      <_UpdateReleaseKeyLines Include="{" />
+      <_UpdateReleaseKeyLines Include="    internal static partial class UpdateReleaseKey" />
+      <_UpdateReleaseKeyLines Include="    {" />
+      <_UpdateReleaseKeyLines Include="$(_UpdateReleaseKeyValueLine)" />
+      <_UpdateReleaseKeyLines Include="    }" />
+      <_UpdateReleaseKeyLines Include="}" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(_UpdateReleaseKeyFile)" Lines="@(_UpdateReleaseKeyLines)" Overwrite="true" Encoding="UTF-8" />
+    <ItemGroup>
+      <Compile Include="$(_UpdateReleaseKeyFile)" KeepDuplicates="false" />
+      <FileWrites Include="$(_UpdateReleaseKeyFile)" />
+    </ItemGroup>
+  </Target>
   <PropertyGroup>
     <_OutputLibDir>$(TargetDir)lib\</_OutputLibDir>
     <_DocnetPackageDir>$(MSBuildProjectDirectory)\..\packages\Docnet.Core.2.6.0\</_DocnetPackageDir>

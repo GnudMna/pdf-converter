@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using Microsoft.Win32;
 using Ookii.Dialogs.Wpf;
@@ -10,6 +11,25 @@ namespace PdfConverter.Services
     /// </summary>
     public class WpfDialogService : IDialogService
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
+        private readonly IUpdateService _updateService;
+
+
+        /********************************************************************************/
+        /*                                コンストラクタ                                */
+        /********************************************************************************/
+        /// <summary>
+        /// 更新サービスを受け取り初期化する
+        /// </summary>
+        /// <param name="updateService">更新サービス</param>
+        public WpfDialogService(IUpdateService updateService)
+        {
+            _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
+        }
+
+
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
@@ -62,10 +82,26 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
+        public void ShowMessage(
+            string message,
+            string title,
+            DialogIcon icon = DialogIcon.Information,
+            string okText = "OK")
+        {
+            var owner = Application.Current?.MainWindow;
+            var confirmDialog = new ConfirmDialog(message, title, icon, okText)
+            {
+                Owner = owner,
+            };
+
+            confirmDialog.ShowDialog();
+        }
+
+        /// <inheritdoc/>
         public void ShowAbout()
         {
             var owner = Application.Current?.MainWindow;
-            var aboutDialog = new AboutDialog
+            var aboutDialog = new AboutDialog(_updateService, this)
             {
                 Owner = owner,
             };

@@ -103,20 +103,36 @@
                 </StackPanel>
             </ScrollViewer>
 
-            <StackPanel Grid.Row="2"
-                        Orientation="Horizontal"
-                        HorizontalAlignment="Right">
-                <Button x:Name="OpenNoticesButton"
-                        Content="ライセンス全文を開く"
-                        MinWidth="140"
-                        Margin="0,0,10,0"
-                        Click="OpenNoticesButton_Click"
-                        Style="{StaticResource SecondaryButton}" />
-                <Button Content="閉じる"
-                        MinWidth="100"
-                        Click="CloseButton_Click"
-                        Style="{StaticResource PrimaryButton}" />
-            </StackPanel>
+            <Grid Grid.Row="2">
+                <TextBlock x:Name="UpdateStatusText"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           MaxWidth="220"
+                           TextWrapping="Wrap"
+                           FontSize="11"
+                           Foreground="{DynamicResource MutedForegroundBrush}"
+                           AutomationProperties.LiveSetting="Polite" />
+                <StackPanel Orientation="Horizontal"
+                            HorizontalAlignment="Right">
+                    <Button x:Name="CheckUpdateButton"
+                            Content="更新を確認"
+                            MinWidth="110"
+                            Margin="0,0,10,0"
+                            Click="CheckUpdateButton_Click"
+                            Style="{StaticResource SecondaryButton}"
+                            AutomationProperties.Name="更新を確認" />
+                    <Button x:Name="OpenNoticesButton"
+                            Content="ライセンス全文を開く"
+                            MinWidth="140"
+                            Margin="0,0,10,0"
+                            Click="OpenNoticesButton_Click"
+                            Style="{StaticResource SecondaryButton}" />
+                    <Button Content="閉じる"
+                            MinWidth="100"
+                            Click="CloseButton_Click"
+                            Style="{StaticResource PrimaryButton}" />
+                </StackPanel>
+            </Grid>
         </Grid>
     </Border>
 </Window>
