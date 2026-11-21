@@ -306,18 +306,68 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// パスワードで保護された PDF で、原因が分かるメッセージの InvalidDataException になることを検証する
+        /// パスワードで保護された PDF をパスワードなしで開くと、パスワード未指定を示す PdfPasswordRequiredException になることを検証する
         /// </summary>
         [Fact]
-        public void Constructor_PasswordProtectedPdf_ThrowsInvalidDataExceptionWithPasswordMessage()
+        public void Constructor_PasswordProtectedPdfWithoutPassword_ThrowsPasswordRequiredException()
         {
             // 空パスワードで照合できない /U を持つ標準セキュリティハンドラーの暗号化辞書
             string encryptObject = $"<< /Filter /Standard /V 1 /R 2 /Length 40 /O <{Dummy32BytesHex}> /U <{Dummy32BytesHex}> /P -4 >>";
             string trailerExtras = $"/ID [<{Dummy32BytesHex}> <{Dummy32BytesHex}>]";
             byte[] pdf = BuildPdf(new[] { (100, 100) }, encryptObject: encryptObject, trailerExtras: trailerExtras);
 
-            var exception = Assert.Throws<InvalidDataException>(() => new PdfiumDocument(pdf));
+            var exception = Assert.Throws<PdfPasswordRequiredException>(() => new PdfiumDocument(pdf));
+            Assert.False(exception.WasPasswordProvided);
             Assert.Contains("パスワード", exception.Message);
+        }
+
+        /// <summary>
+        /// 誤ったパスワードで開くと、パスワード指定済みを示す PdfPasswordRequiredException になることを検証する
+        /// </summary>
+        [Fact]
+        public void Constructor_WrongPassword_ThrowsPasswordRequiredExceptionWithProvidedFlag()
+        {
+            byte[] pdf = PdfTestAssetFactory.BuildPasswordProtectedPdf("correct");
+
+            var exception = Assert.Throws<PdfPasswordRequiredException>(() => new PdfiumDocument(pdf, "wrong"));
+            Assert.True(exception.WasPasswordProvided);
+        }
+
+        /// <summary>
+        /// 正しいパスワードを指定するとバイト列から PDF を開けることを検証する
+        /// </summary>
+        [Fact]
+        public void Constructor_CorrectPassword_OpensDocument()
+        {
+            byte[] pdf = PdfTestAssetFactory.BuildPasswordProtectedPdf("correct");
+
+            using (var document = new PdfiumDocument(pdf, "correct"))
+            {
+                Assert.Equal(1, document.PageCount);
+            }
+        }
+
+        /// <summary>
+        /// 正しいパスワードを指定するとファイルから PDF を開け、誤ったパスワードでは開けないことを検証する
+        /// </summary>
+        [Fact]
+        public void OpenFile_PasswordProtectedPdf_OpensOnlyWithCorrectPassword()
+        {
+            string path = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            try
+            {
+                Assert.Throws<PdfPasswordRequiredException>(() => PdfiumDocument.OpenFile(path));
+                Assert.Throws<PdfPasswordRequiredException>(() => PdfiumDocument.OpenFile(path, "wrong"));
+
+                using (PdfiumDocument document = PdfiumDocument.OpenFile(path, "correct"))
+                {
+                    Assert.Equal(1, document.PageCount);
+                }
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(path);
+            }
         }
 
         /// <summary>

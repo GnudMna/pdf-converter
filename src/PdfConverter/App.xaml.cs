@@ -110,6 +110,7 @@ namespace PdfConverter
             }
 
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            GlobalExceptionHandler.IsHeadless = true;
             int exitCode = BatchCliParser.InvalidArgumentsExitCode;
 
             try
@@ -151,6 +152,7 @@ namespace PdfConverter
 
                 PdfConverterTempDirectory.CleanupInstanceDirectory();
                 GlobalExceptionHandler.Unregister();
+                GlobalExceptionHandler.IsHeadless = false;
                 Shutdown(exitCode);
             }
 

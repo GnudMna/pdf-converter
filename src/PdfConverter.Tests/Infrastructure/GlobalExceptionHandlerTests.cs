@@ -136,7 +136,7 @@ namespace PdfConverter.Tests.Infrastructure
         [Fact]
         public void IsFatalException_UsesInnerExceptionOfAggregate()
         {
-            var aggregate = new AggregateException(new NullReferenceException("broken"));
+            var aggregate = new AggregateException(new OutOfMemoryException("broken"));
 
             Assert.True(GlobalExceptionHandler.IsFatalException(aggregate));
         }
@@ -190,11 +190,7 @@ namespace PdfConverter.Tests.Infrastructure
                 new SEHException(),
                 new BadImageFormatException(),
                 new TypeLoadException(),
-                new NullReferenceException(),
-                new InvalidCastException(),
-                new IndexOutOfRangeException(),
-                new RankException(),
-                new ArrayTypeMismatchException(),
+                new StackOverflowException(),
             };
 
         /// <summary>継続可能とみなす例外のケース</summary>
@@ -208,6 +204,11 @@ namespace PdfConverter.Tests.Infrastructure
                 new UnauthorizedAccessException(),
                 new NotSupportedException(),
                 new COMException(),
+                new NullReferenceException(),
+                new InvalidCastException(),
+                new IndexOutOfRangeException(),
+                new RankException(),
+                new ArrayTypeMismatchException(),
             };
     }
 }

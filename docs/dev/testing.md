@@ -50,6 +50,7 @@ x86 で実行すると、x86 だけの制限 (描画画素数の上限など) �
 | `SynchronousProgress<T>` | 進捗を呼び出し元のスレッドで即座に通知する `IProgress<T>` |
 | `DocumentPdfSourceTestHelper` / `ImageExportSettingsTestHelper` / `WordToPdfConversionSettingsTestHelper` | 各サービス・設定インターフェースのモック生成 |
 | `TrackingWordToPdfConversionSettings` | 保存回数を追跡できる Word 設定のテスト用実装 |
+| `UpdateSigningTestKey` | 更新インストーラーの署名検証テスト用の鍵と署名の生成 |
 
 ## テストしやすくするための設計
 

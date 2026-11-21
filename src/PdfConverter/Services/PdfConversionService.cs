@@ -52,8 +52,20 @@ namespace PdfConverter.Services
         /// <remarks>PDF 仕様および PDFium と同じく、先頭 1024 バイト以内のヘッダーを許容する</remarks>
         private const int MaxPdfHeaderOffset = 1024;
 
+        /// <summary>保存先フォルダー内に作るステージングディレクトリ名の接頭辞</summary>
+        private const string StagingDirectoryPrefix = ".pdfconverter-staging-";
+
+        /// <summary>強制終了などで残ったステージングディレクトリを削除対象とする経過時間</summary>
+        private static readonly TimeSpan StaleStagingDirectoryAge = PdfConverterTempDirectory.DefaultStaleAge;
+
         /// <summary>キャッシュの読み書きを保護するロックオブジェクト</summary>
         private readonly object _cacheLock = new object();
+
+        /// <summary>パスワードを設定したファイルのパス (<see cref="_cacheLock"/> で保護する)</summary>
+        private string? _passwordFilePath;
+
+        /// <summary>設定されたパスワード (<see cref="_cacheLock"/> で保護する)</summary>
+        private string? _password;
 
         /// <summary>現在キャッシュされているファイルのパス</summary>
         private string? _cachedFilePath;
@@ -81,6 +93,18 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <inheritdoc/>
+        public void SetPdfPassword(string filePath, string? password)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+
+            lock (_cacheLock)
+            {
+                _passwordFilePath = password == null ? null : filePath;
+                _password = password;
+            }
+        }
+
         /// <inheritdoc/>
         public async Task<BitmapSource> ConvertPdfPageToImageAsync(string filePath, int pageIndex, ResolutionMode mode = ResolutionMode.Default, double value = 0, bool preserveTransparency = true, CancellationToken cancellationToken = default)
         {
@@ -165,19 +189,20 @@ namespace PdfConverter.Services
 
             // メモリキャッシュの上限を超える PDF は、プレビューと同じくファイル全体を読み込まずに開く
             long fileSize = new FileInfo(filePath).Length;
+            string? password = GetPassword(filePath);
             Func<PdfiumDocument> openDocument;
             PdfiumDocument firstDocument;
             if (fileSize <= MaxCacheableFileSizeBytes)
             {
                 byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
                 fileSize = fileBytes.Length;
-                openDocument = () => new PdfiumDocument(fileBytes);
+                openDocument = () => new PdfiumDocument(fileBytes, password);
                 firstDocument = await Task.Run(openDocument, cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                openDocument = () => PdfiumDocument.OpenFile(filePath);
-                firstDocument = await Task.Run(() => OpenLargeFile(filePath), cancellationToken).ConfigureAwait(false);
+                openDocument = () => PdfiumDocument.OpenFile(filePath, password);
+                firstDocument = await Task.Run(() => OpenLargeFile(filePath, password), cancellationToken).ConfigureAwait(false);
             }
 
             // 幅・高さ指定ではページサイズが混在する PDF でも各ページが指定サイズになるよう、ページごとに倍率を求める
@@ -208,10 +233,21 @@ namespace PdfConverter.Services
             int completedCount = 0;
             object progressLock = new object();
 
-            // 失敗・キャンセル時に保存先へ部分出力を残さないため、一時ディレクトリへ書き出してから一括反映する
-            string stagingDirectory = PdfConverterTempDirectory.CreateTempWorkDirectory();
+            // 失敗・キャンセル時に保存先へ部分出力を残さないため、保存先フォルダー内のステージングディレクトリへ書き出してから一括反映する
+            // %TEMP% を経由せず、書き出しは 1 回で済み、反映は同一ボリューム内のリネームだけで完結する
+            string fullFolderPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(folderPath));
+            string? createdRootPath = FindTopmostMissingDirectory(fullFolderPath);
+            string stagingDirectory = Path.Combine(fullFolderPath, StagingDirectoryPrefix + Guid.NewGuid().ToString("N"));
+            bool committed = false;
             try
             {
+                // 前回の保存が強制終了されて残ったステージングディレクトリを片付ける
+                TryDeleteStaleStagingDirectories(fullFolderPath, StaleStagingDirectoryAge);
+
+                // 強制終了で残った場合に利用者の目に触れないよう、隠しフォルダーにする
+                Directory.CreateDirectory(stagingDirectory);
+                TryHideDirectory(stagingDirectory);
+
                 // ワーカー内では 1 つの文書を担当ページすべてで再利用し、ページごとの読み込みコストを削減する
                 // 大容量 PDF では文書ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
                 // 高解像度ではページごとのビットマップが大きくなるため、描画サイズに応じても並列度を抑える
@@ -260,7 +296,8 @@ namespace PdfConverter.Services
                 // 全ページの書き出し後に要求されたキャンセルでも、保存先へ反映せずに中断する
                 cancellationToken.ThrowIfCancellationRequested();
 
-                CommitStagedFiles(stagingDirectory, folderPath, pagesToSave, pageCount, format);
+                CommitStagedFiles(stagingDirectory, fullFolderPath, pagesToSave, pageCount, format);
+                committed = true;
 
                 if (progress != null)
                 {
@@ -270,6 +307,12 @@ namespace PdfConverter.Services
             finally
             {
                 PdfConverterTempDirectory.TryDeleteDirectory(stagingDirectory);
+
+                // 失敗・キャンセル時は、この保存で新規に作ったフォルダーも空であれば残さない
+                if (!committed && createdRootPath != null)
+                {
+                    TryDeleteEmptyDirectories(fullFolderPath, createdRootPath);
+                }
             }
         }
 
@@ -288,6 +331,8 @@ namespace PdfConverter.Services
                 }
 
                 _disposed = true;
+                _passwordFilePath = null;
+                _password = null;
                 cachedDocument = _cachedDocument;
                 _cachedDocument = null;
                 InvalidateCacheUnsafe();
@@ -300,6 +345,32 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
+        /// <summary>
+        /// 指定ファイルに設定されたパスワードを取得する
+        /// </summary>
+        /// <param name="filePath">PDF ファイルのパス</param>
+        /// <returns>設定されたパスワード。設定されていない場合は <c>null</c></returns>
+        /// <remarks>パスは大文字小文字を区別せずに比較する。別のファイルが指定された場合は、保持しているパスワードを破棄する</remarks>
+        private string? GetPassword(string filePath)
+        {
+            lock (_cacheLock)
+            {
+                if (_passwordFilePath == null)
+                {
+                    return null;
+                }
+
+                if (!string.Equals(_passwordFilePath, filePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _passwordFilePath = null;
+                    _password = null;
+                    return null;
+                }
+
+                return _password;
+            }
+        }
+
         /// <summary>
         /// 保存対象ページ一覧を解決する
         /// </summary>
@@ -412,7 +483,7 @@ namespace PdfConverter.Services
             lock (_cacheLock)
             {
                 if (canCache
-                    && _cachedFilePath == filePath
+                    && string.Equals(_cachedFilePath, filePath, StringComparison.OrdinalIgnoreCase)
                     && _cachedFileLastWrite == lastWrite
                     && _cachedFileBytes != null)
                 {
@@ -460,6 +531,7 @@ namespace PdfConverter.Services
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>参照を 1 つ取得済みの文書</returns>
         /// <exception cref="FileNotFoundException">ファイルが存在しない場合</exception>
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または設定したパスワードが正しくない場合</exception>
         /// <exception cref="InvalidDataException">PDF ファイルではない、または開けない場合</exception>
         /// <exception cref="ObjectDisposedException">破棄済みの場合</exception>
         private async Task<CachedDocument> AcquireDocumentAsync(string filePath, CancellationToken cancellationToken)
@@ -484,15 +556,16 @@ namespace PdfConverter.Services
                 }
             }
 
+            string? password = GetPassword(filePath);
             PdfiumDocument document;
             if (fileSize <= MaxCacheableFileSizeBytes)
             {
                 byte[] fileBytes = await GetFileBytesAsync(filePath, cancellationToken).ConfigureAwait(false);
-                document = await Task.Run(() => new PdfiumDocument(fileBytes), cancellationToken).ConfigureAwait(false);
+                document = await Task.Run(() => new PdfiumDocument(fileBytes, password), cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                document = await Task.Run(() => OpenLargeFile(filePath), cancellationToken).ConfigureAwait(false);
+                document = await Task.Run(() => OpenLargeFile(filePath, password), cancellationToken).ConfigureAwait(false);
             }
 
             var cachedDocument = new CachedDocument(document, filePath, lastWrite, fileSize);
@@ -517,9 +590,10 @@ namespace PdfConverter.Services
         /// メモリキャッシュの上限を超える PDF を、ヘッダーを検証したうえでファイル全体を読み込まずに開く
         /// </summary>
         /// <param name="filePath">PDF ファイルのパス</param>
+        /// <param name="password">PDF を開くパスワード (パスワードなしの場合は <c>null</c>)</param>
         /// <returns>開いた文書</returns>
         /// <exception cref="InvalidDataException">PDF ファイルではない、または開けない場合</exception>
-        private static PdfiumDocument OpenLargeFile(string filePath)
+        private static PdfiumDocument OpenLargeFile(string filePath, string? password)
         {
             byte[] header;
             using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
@@ -529,7 +603,7 @@ namespace PdfConverter.Services
             }
 
             ValidatePdfHeader(header);
-            return PdfiumDocument.OpenFile(filePath);
+            return PdfiumDocument.OpenFile(filePath, password);
         }
 
         /// <summary>
@@ -672,16 +746,16 @@ namespace PdfConverter.Services
         /// <summary>
         /// ステージング済みの画像ファイルを保存先フォルダーへ反映する
         /// </summary>
-        /// <param name="stagingDirectory">ステージングディレクトリの絶対パス</param>
+        /// <param name="stagingDirectory">ステージングディレクトリの絶対パス (保存先フォルダー内にあること)</param>
         /// <param name="folderPath">保存先フォルダーの絶対パス</param>
         /// <param name="pagesToSave">保存対象のページインデックス一覧</param>
         /// <param name="pageCount">PDF の総ページ数 (ファイル名のゼロ埋め桁数に使用)</param>
         /// <param name="format">出力画像形式</param>
         /// <remarks>
-        /// 時間のかかるコピーを先に済ませ、保存先の既存ファイルには手を付けない<br/>
-        /// 1. 全ファイルを保存先フォルダー内の一時ファイルへコピーする<br/>
-        /// 2. 既存ファイルを退避しながら、一時ファイルを同一ボリューム内のリネームで配置する<br/>
-        /// いずれかの段階で失敗した場合は、配置済みのファイルを削除して退避した既存ファイルを元に戻す
+        /// ステージングディレクトリは保存先フォルダー内にあるため、コピーせず同一ボリューム内のリネームだけで配置する<br/>
+        /// 既存ファイルはステージングディレクトリへ退避してから置き換える<br/>
+        /// いずれかのファイルで失敗した場合は、配置済みのファイルを削除して退避した既存ファイルを元に戻す<br/>
+        /// 退避したファイルの削除はステージングディレクトリごと呼び出し元が行う
         /// </remarks>
         /// <exception cref="FileNotFoundException">ステージング済みファイルが見つからない場合</exception>
         private static void CommitStagedFiles(
@@ -691,30 +765,22 @@ namespace PdfConverter.Services
             int pageCount,
             OutputImageFormat format)
         {
-            Directory.CreateDirectory(folderPath);
-
-            string token = Guid.NewGuid().ToString("N");
             var entries = new List<CommitEntry>(pagesToSave.Count);
             try
             {
                 foreach (int pageIndex in pagesToSave)
                 {
                     string fileName = PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format);
-                    string sourcePath = Path.Combine(stagingDirectory, fileName);
-                    if (!File.Exists(sourcePath))
+                    string stagedPath = Path.Combine(stagingDirectory, fileName);
+                    if (!File.Exists(stagedPath))
                     {
                         throw new FileNotFoundException(
                             $"ステージングされた出力ファイルが見つかりません: {fileName}",
-                            sourcePath);
+                            stagedPath);
                     }
 
-                    var entry = new CommitEntry(Path.Combine(folderPath, fileName), token);
+                    var entry = new CommitEntry(Path.Combine(folderPath, fileName), stagedPath, $"{stagedPath}.bak");
                     entries.Add(entry);
-                    entry.CopyToTemp(sourcePath);
-                }
-
-                foreach (CommitEntry entry in entries)
-                {
                     entry.Install();
                 }
             }
@@ -727,10 +793,114 @@ namespace PdfConverter.Services
 
                 throw;
             }
+        }
 
-            foreach (CommitEntry entry in entries)
+        /// <summary>
+        /// 保存先フォルダーに残っている古いステージングディレクトリを削除する (削除できなくても例外は送出しない)
+        /// </summary>
+        /// <param name="folderPath">保存先フォルダーの絶対パス</param>
+        /// <param name="maxAge">最終更新からこの時間を超えたディレクトリを削除対象とする</param>
+        /// <param name="referenceUtcNow">基準時刻 (テスト用。省略時は <see cref="DateTime.UtcNow"/>)</param>
+        /// <remarks>
+        /// 保存の途中でプロセスが強制終了されると、finally による削除が行われずに残る<br/>
+        /// 名前が <see cref="StagingDirectoryPrefix"/> と GUID (32 桁の 16 進数) に一致するものだけを対象にし、
+        /// 他の保存が使用中のものを消さないよう最近更新されたものとシンボリックリンクは残す
+        /// </remarks>
+        internal static void TryDeleteStaleStagingDirectories(string folderPath, TimeSpan maxAge, DateTime? referenceUtcNow = null)
+        {
+            try
             {
-                entry.Cleanup();
+                if (!Directory.Exists(folderPath))
+                {
+                    return;
+                }
+
+                DateTime cutoff = (referenceUtcNow ?? DateTime.UtcNow) - maxAge;
+                foreach (string directoryPath in Directory.EnumerateDirectories(folderPath, StagingDirectoryPrefix + "*"))
+                {
+                    string name = Path.GetFileName(directoryPath);
+                    if (!IsStagingDirectoryName(name)
+                        || (File.GetAttributes(directoryPath) & FileAttributes.ReparsePoint) != 0
+                        || Directory.GetLastWriteTimeUtc(directoryPath) >= cutoff)
+                    {
+                        continue;
+                    }
+
+                    PdfConverterTempDirectory.TryDeleteDirectory(directoryPath);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 後始末は最善努力とし、保存を妨げない
+            }
+        }
+
+        /// <summary>
+        /// ディレクトリ名がステージングディレクトリのものかどうかを判定する
+        /// </summary>
+        /// <param name="name">ディレクトリ名 (パスを含まない)</param>
+        /// <returns>接頭辞の後ろが 32 桁の 16 進数の場合は <c>true</c></returns>
+        private static bool IsStagingDirectoryName(string name)
+        {
+            return name.StartsWith(StagingDirectoryPrefix, StringComparison.Ordinal)
+                && Guid.TryParseExact(name.AsSpan(StagingDirectoryPrefix.Length), "N", out _);
+        }
+
+        /// <summary>
+        /// ディレクトリを隠しフォルダーにする (できなくても例外は送出しない)
+        /// </summary>
+        /// <param name="directoryPath">対象ディレクトリの絶対パス</param>
+        private static void TryHideDirectory(string directoryPath)
+        {
+            try
+            {
+                File.SetAttributes(directoryPath, File.GetAttributes(directoryPath) | FileAttributes.Hidden);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 属性を設定できないファイルシステムでも保存は続ける
+            }
+        }
+
+        /// <summary>
+        /// 指定したフォルダーまでのパスのうち、まだ存在しない最上位のディレクトリを返す
+        /// </summary>
+        /// <param name="fullFolderPath">フォルダーの絶対パス</param>
+        /// <returns>存在しない最上位のディレクトリの絶対パス。フォルダーが既に存在する場合は <c>null</c></returns>
+        private static string? FindTopmostMissingDirectory(string fullFolderPath)
+        {
+            string? topmostMissing = null;
+            for (string? current = fullFolderPath; current != null && !Directory.Exists(current); current = Path.GetDirectoryName(current))
+            {
+                topmostMissing = current;
+            }
+
+            return topmostMissing;
+        }
+
+        /// <summary>
+        /// 保存先フォルダーから作成起点のディレクトリまで、空のディレクトリを内側から順に削除する (削除できなくても例外は送出しない)
+        /// </summary>
+        /// <param name="fullFolderPath">保存先フォルダーの絶対パス</param>
+        /// <param name="createdRootPath">この保存で新規に作成したディレクトリのうち最上位のもの</param>
+        private static void TryDeleteEmptyDirectories(string fullFolderPath, string createdRootPath)
+        {
+            try
+            {
+                for (string? current = fullFolderPath; current != null && Directory.Exists(current); current = Path.GetDirectoryName(current))
+                {
+                    // 空でない場合は IOException になり、他の出力が置かれたフォルダーを消さない
+                    Directory.Delete(current);
+
+                    if (string.Equals(current, createdRootPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 後始末は最善努力とし、元の例外を優先する
             }
         }
 
@@ -832,7 +1002,7 @@ namespace PdfConverter.Services
             /// <returns>一致する場合は <c>true</c></returns>
             public bool Matches(string filePath, DateTime lastWrite, long fileSize)
             {
-                return _filePath == filePath && _lastWrite == lastWrite && _fileSize == fileSize;
+                return string.Equals(_filePath, filePath, StringComparison.OrdinalIgnoreCase) && _lastWrite == lastWrite && _fileSize == fileSize;
             }
 
             /// <summary>
@@ -899,15 +1069,15 @@ namespace PdfConverter.Services
         /// 保存先への反映対象 1 ファイル分の状態を保持し、置き換えと巻き戻しを行う
         /// </summary>
         /// <remarks>
-        /// 一時ファイル・退避ファイルは保存先と同じフォルダーに置くため、置き換えはすべて同一ボリューム内のリネームで完結する
+        /// ステージング済みファイル・退避ファイルは保存先フォルダー内のステージングディレクトリに置くため、置き換えはすべて同一ボリューム内のリネームで完結する
         /// </remarks>
         private sealed class CommitEntry
         {
             /// <summary>反映先ファイルの絶対パス</summary>
             private readonly string _destinationPath;
 
-            /// <summary>反映先フォルダー内に作成した一時ファイルの絶対パス</summary>
-            private readonly string _tempPath;
+            /// <summary>ステージング済みファイルの絶対パス</summary>
+            private readonly string _stagedPath;
 
             /// <summary>既存の反映先ファイルの退避先の絶対パス</summary>
             private readonly string _backupPath;
@@ -915,32 +1085,24 @@ namespace PdfConverter.Services
             /// <summary>既存の反映先ファイルを退避済みの場合は <c>true</c></summary>
             private bool _backedUp;
 
-            /// <summary>一時ファイルを反映先へ配置済みの場合は <c>true</c></summary>
+            /// <summary>ステージング済みファイルを反映先へ配置済みの場合は <c>true</c></summary>
             private bool _installed;
 
             /// <summary>
-            /// 反映先と一時ファイル・退避ファイルのパスを指定してインスタンスを生成する
+            /// 反映先とステージング済みファイル・退避ファイルのパスを指定してインスタンスを生成する
             /// </summary>
             /// <param name="destinationPath">反映先ファイルの絶対パス</param>
-            /// <param name="token">一時ファイル・退避ファイルの名前に付ける一意な識別子</param>
-            public CommitEntry(string destinationPath, string token)
+            /// <param name="stagedPath">ステージング済みファイルの絶対パス</param>
+            /// <param name="backupPath">既存の反映先ファイルの退避先の絶対パス</param>
+            public CommitEntry(string destinationPath, string stagedPath, string backupPath)
             {
                 _destinationPath = destinationPath;
-                _tempPath = $"{destinationPath}.{token}.tmp";
-                _backupPath = $"{destinationPath}.{token}.bak";
+                _stagedPath = stagedPath;
+                _backupPath = backupPath;
             }
 
             /// <summary>
-            /// ステージング済みファイルを反映先フォルダー内の一時ファイルへコピーする
-            /// </summary>
-            /// <param name="sourcePath">ステージング済みファイルの絶対パス</param>
-            public void CopyToTemp(string sourcePath)
-            {
-                File.Copy(sourcePath, _tempPath, overwrite: false);
-            }
-
-            /// <summary>
-            /// 既存の反映先ファイルを退避したうえで、一時ファイルを反映先へ配置する
+            /// 既存の反映先ファイルを退避したうえで、ステージング済みファイルを反映先へ配置する
             /// </summary>
             public void Install()
             {
@@ -950,7 +1112,7 @@ namespace PdfConverter.Services
                     _backedUp = true;
                 }
 
-                File.Move(_tempPath, _destinationPath);
+                File.Move(_stagedPath, _destinationPath);
                 _installed = true;
             }
 
@@ -973,16 +1135,6 @@ namespace PdfConverter.Services
                         File.Move(_backupPath, _destinationPath);
                     }
                 });
-                TryRun(() => File.Delete(_tempPath));
-            }
-
-            /// <summary>
-            /// 反映の完了後に一時ファイル・退避ファイルを削除する (削除できなくても例外は送出しない)
-            /// </summary>
-            public void Cleanup()
-            {
-                TryRun(() => File.Delete(_tempPath));
-                TryRun(() => File.Delete(_backupPath));
             }
 
             /// <summary>

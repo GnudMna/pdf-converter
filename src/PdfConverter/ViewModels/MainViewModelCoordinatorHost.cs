@@ -157,6 +157,10 @@ namespace PdfConverter.ViewModels
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <inheritdoc/>
+        public string? RequestPdfPassword(string filePath, bool previousPasswordWasIncorrect) =>
+            _viewModel.RequestPdfPassword(filePath, previousPasswordWasIncorrect);
+
+        /// <inheritdoc/>
         public void PrepareCancellation() => _viewModel.PrepareCoordinatorCancellation();
 
         /// <inheritdoc/>

@@ -33,6 +33,7 @@
 | デスクトップショートカット | 任意 |
 | ファイルの関連付け | 任意。`.pdf` / `.doc` / `.docx` の「プログラムから開く」に登録する (`Software\Classes` の `OpenWithProgids`) |
 | ウィザードの言語 | 日本語 / 英語 |
+| 使用許諾 | ウィザードで `LICENSE` を表示し、インストール先に `LICENSE.txt` として置く |
 
 `AppId` は 0.6.0 以前と異なる。旧 `AppId` (`LegacyAppId`) で入っている版は、`[Code]` の `PrepareToInstall` でアンインストールしてから入れ直し、インストール先とタスクの選択を引き継ぐ。旧版の利用者が移行し終えたと判断できたら、`LegacyAppId` と移行処理は削除してよい。
 
@@ -52,9 +53,29 @@ mdBook の版を上げるときは、出力に含まれる素材 (テーマ・hi
 
 NuGet パッケージに含まれないライセンス全文は `installer/licenses/` に置く。PDFium のネイティブ DLL のライセンス (`PDFium.txt`) は PDFiumCore の版と一致している必要があり、不一致はエラーにする ([開発の進め方](contributing.md#依存パッケージの更新) を参照)。
 
+## 更新の署名
+
+アプリの更新は、インストーラーごとの署名 (`<インストーラー名>.sig`) を検証できたときだけ適用される。仕組みは [アーキテクチャ](architecture.md#更新-updateservice) を参照する。署名は PowerShell 7 以降 (`pwsh`) の .NET API で作る。
+
+| ファイル | 役割 |
+| :--- | :--- |
+| `installer/new-update-signing-key.ps1` | キーペア (ECDSA P-256) を作る。秘密鍵を PEM で書き出し、アプリに埋め込む公開鍵を表示する |
+| `installer/sign-update.ps1` | `dist/` の `PdfConverter-<版>-*-setup.exe` に署名し、隣へ `.sig` を出力する |
+| `installer/update-signing.ps1` | 上の 2 つとリリース用スクリプトが使う共通関数。署名対象の組み立ては `UpdateSignatureVerifier.BuildMessage` と一致させる |
+
+初回の準備は次のとおり。
+
+1. `./installer/new-update-signing-key.ps1 -OutputPath <秘密鍵の保存先>` で鍵を作る
+2. 表示された公開鍵を `src/PdfConverter/Infrastructure/UpdateSigningKey.cs` の `PublicKey` に設定してコミットする (公開鍵は秘密ではない)
+3. 環境変数 `PDF_CONVERTER_UPDATE_SIGNING_KEY` に秘密鍵のパスを設定する
+
+秘密鍵は Git に含めず、リリース作業をする端末の外へバックアップする。鍵を替えると、古い公開鍵を持つ版は新しい鍵の署名を検証できない。鍵を替える版だけは古い鍵で署名して配り、その次の版から新しい鍵で署名する。
+
+`build-installer.ps1` は、環境変数が設定されていれば、インストーラーを作った後に `sign-update.ps1` を呼ぶ。未設定なら警告を出して署名を省く。署名は埋め込み済みの公開鍵と対応する秘密鍵でなければエラーにする。
+
 ## リリース
 
-`installer/release.ps1` が、バージョン更新からインストーラー作成までを一括で行う。事前に `CHANGELOG.md` の `[Unreleased]` に変更項目がそろっていることを確かめ、更新ダウンロード用キー ([開発環境とビルド](setup.md#更新ダウンロード用キー)) を設定しておく。
+`installer/release.ps1` が、バージョン更新からインストーラー作成までを一括で行う。事前に `CHANGELOG.md` の `[Unreleased]` に変更項目がそろっていることを確かめ、更新ダウンロード用キー ([開発環境とビルド](setup.md#更新ダウンロード用キー)) と更新の署名用キー ([更新の署名](#更新の署名)) を設定しておく。
 
 ```powershell
 git fetch origin develop
@@ -67,11 +88,11 @@ git switch -c release/v0.7.0 origin/develop
 
 スクリプトは次を順に行う。
 
-1. ブランチ名 (`release/v<版>`) と新バージョンの一致・作業ツリーがクリーンであること・更新ダウンロード用キーの設定を確認する
+1. ブランチ名 (`release/v<版>`) と新バージョンの一致・作業ツリーがクリーンであること・更新ダウンロード用キーと更新の署名用キーの設定を確認する
 2. `AssemblyInfo.cs` のバージョン 3 属性、`CHANGELOG.md` (`[Unreleased]` を `## [x.y.z] - 日付` へ移し、比較リンクを更新)、`README.md` のバージョンバッジを更新する
 3. `build-and-test.ps1` で品質チェックを行う (Release 構成。対象プラットフォームごと)
 4. `Release: vx.y.z` でコミットする
-5. `build-installer.ps1` でインストーラーを作る
+5. `build-installer.ps1` でインストーラーを作り、署名 (`.sig`) を付ける
 
 | オプション | 説明 |
 | :--- | :--- |
@@ -88,6 +109,7 @@ git switch -c release/v0.7.0 origin/develop
 
 1. `release/v<版>` を push し、PR で `develop` と `main` へマージする
 2. Gitea で `v<版>` タグを付ける
-3. GitHub Release を作り、`dist\` のインストーラーをアップロードする (アプリの更新確認は GitHub Release を参照する)
+3. GitHub Release を作り、`dist\` のインストーラーと署名 (`.sig`) をアップロードする (アプリの更新確認は GitHub Release を参照する)
+4. 更新サーバー (gh-release-bridge) が `.sig` を配信できるようにする。アセットを許可リストで絞っている場合は、`.sig` を通す設定をこのリポジトリの外で行う。配信されないと、アプリは更新の適用に失敗する
 
 `README.md` のバージョンバッジは `release.ps1` が書き換えるため、バッジの形式 (`Version-x.y.z-blue`) を変えない。

@@ -75,6 +75,14 @@ namespace PdfConverter.Services
             string okText = "OK");
 
         /// <summary>
+        /// パスワード入力ダイアログを表示する
+        /// </summary>
+        /// <param name="message">表示するメッセージ</param>
+        /// <param name="title">ダイアログのタイトル</param>
+        /// <returns>入力されたパスワード<br/>キャンセル時は <c>null</c></returns>
+        string? ShowPasswordDialog(string message, string title);
+
+        /// <summary>
         /// バージョン情報とオープンソースクレジットのダイアログを表示する
         /// </summary>
         void ShowAbout();

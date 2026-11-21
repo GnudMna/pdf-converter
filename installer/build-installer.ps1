@@ -9,6 +9,9 @@
 # src\PdfConverter\bin\<Platform>\publish の内容をインストーラーへ格納します。
 # 利用者向けドキュメント (docs/user) は mdBook で HTML 化し、publish 出力の docs\ に複製します。
 #
+# 環境変数 PDF_CONVERTER_UPDATE_SIGNING_KEY に署名用の秘密鍵 (PEM) のパスを設定している場合は、
+# 作成したインストーラーごとに更新用の署名 (<ファイル名>.sig) も出力します (sign-update.ps1。PowerShell 7 以降が必要)。
+#
 # インストーラーは管理者権限を要求しないユーザー単位インストールです。
 # インストール先: %LOCALAPPDATA%\Programs\PDF Converter
 #
@@ -158,6 +161,31 @@ function Build-Installer {
     }
 }
 
+# 作成したインストーラーに更新用の署名 (.sig) を付ける。署名用の秘密鍵が無ければ警告だけ出して省く
+function Invoke-UpdateSigning {
+    param(
+        [string] $AppVersion
+    )
+
+    if ([string]::IsNullOrWhiteSpace($env:PDF_CONVERTER_UPDATE_SIGNING_KEY)) {
+        Write-Warning '環境変数 PDF_CONVERTER_UPDATE_SIGNING_KEY が未設定のため、署名 (.sig) を作成しません。署名の無いインストーラーは、公開しても更新を適用できません。'
+        return
+    }
+
+    # 署名は PowerShell 7 以降の .NET API を使うため、実行中のシェルに依らず pwsh で行う
+    $pwsh = Get-Command pwsh -ErrorAction SilentlyContinue
+    if (-not $pwsh) {
+        throw '署名には PowerShell 7 以降 (pwsh) が必要です。'
+    }
+
+    Write-Host 'インストーラーに署名しています...'
+    $global:LASTEXITCODE = 0
+    & $pwsh.Source -NoProfile -File (Join-Path $PSScriptRoot 'sign-update.ps1') -Version $AppVersion -NoPause
+    if ($LASTEXITCODE -ne 0) {
+        throw "署名に失敗しました (終了コード: $LASTEXITCODE)"
+    }
+}
+
 $shouldPauseOnExit = -not $NoPause -and (Test-DoubleClickLaunch)
 $exitCode = 0
 
@@ -188,9 +216,12 @@ try {
         Build-Installer -TargetPlatform $plat -AppVersion $appVersion -UserDocsDir $userDocsDir
     }
 
+    # dist\ にある同じ版のインストーラーすべてが対象 (今回作らなかったプラットフォームの分も含む)
+    Invoke-UpdateSigning -AppVersion $appVersion
+
     Write-Host ''
     Write-Host '完了。出力先:'
-    Get-ChildItem -LiteralPath $distDir -Filter "PdfConverter-$appVersion-*-setup.exe" | ForEach-Object {
+    Get-ChildItem -LiteralPath $distDir -Filter "PdfConverter-$appVersion-*-setup.exe*" | ForEach-Object {
         Write-Host "  $($_.FullName)"
     }
 }

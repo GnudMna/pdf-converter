@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Windows.Media.Imaging;
 using PdfConverter.Models;
@@ -68,10 +69,22 @@ namespace PdfConverter.Tests.Helpers
 
         public int PreviewViewportPixelHeight { get; set; }
 
+        /// <summary>パスワードの入力を求められたときの応答 (キャンセル扱いにする場合は <c>null</c> を返す)</summary>
+        public Func<string> PasswordResponse { get; set; }
+
+        /// <summary>パスワードの入力を求められた履歴 (直前のパスワードが正しくなかったかどうかを含む)</summary>
+        public List<bool> PasswordRequests { get; } = new List<bool>();
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        public string RequestPdfPassword(string filePath, bool previousPasswordWasIncorrect)
+        {
+            PasswordRequests.Add(previousPasswordWasIncorrect);
+            return PasswordResponse?.Invoke();
+        }
+
         public void PrepareCancellation()
         {
             _cancellationTokenSource?.Cancel();

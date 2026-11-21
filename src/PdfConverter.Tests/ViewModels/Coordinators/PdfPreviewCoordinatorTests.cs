@@ -623,6 +623,113 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
 
+        /// <summary>
+        /// パスワードが必要な PDF では入力を求め、入力されたパスワードを設定して読み込み直すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task LoadFromPath_PasswordRequired_PromptsAndRetriesWithPassword()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            string path = CreateTempPdfPath();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+                PasswordResponse = () => "secret",
+            };
+            pdf.SetupSequence(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: false))
+                .ReturnsAsync(3);
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+                await WaitForAsyncOperations();
+
+                Assert.Equal(new[] { false }, host.PasswordRequests);
+                pdf.Verify(p => p.SetPdfPassword(path, "secret"), Times.Once);
+                Assert.Equal(3, host.PageCount);
+                Assert.False(host.IsBusy);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        /// <summary>
+        /// 入力されたパスワードが正しくない場合は、正しくなかった旨を伝えて再度入力を求めることを検証する
+        /// </summary>
+        [Fact]
+        public async Task LoadFromPath_PasswordIncorrect_PromptsAgainAsIncorrect()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            string path = CreateTempPdfPath();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+                PasswordResponse = () => "secret",
+            };
+            pdf.SetupSequence(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: false))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: true))
+                .ReturnsAsync(2);
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+                await WaitForAsyncOperations();
+
+                Assert.Equal(new[] { false, true }, host.PasswordRequests);
+                Assert.Equal(2, host.PageCount);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        /// <summary>
+        /// パスワードの入力がキャンセルされた場合は、読み込みを中止して状態をリセットし、エラーを表示することを検証する
+        /// </summary>
+        [Fact]
+        public async Task LoadFromPath_PasswordPromptCanceled_ResetsStateAndShowsError()
+        {
+            var coordinator = CreateCoordinator(out var pdf);
+            string path = CreateTempPdfPath();
+            var host = new TestMainViewModelHost
+            {
+                FilePath = path,
+                PageNumber = "1",
+                ResolutionValue = "1080",
+                PasswordResponse = () => null,
+            };
+            pdf.Setup(p => p.GetPdfPageCountAsync(path, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: false));
+
+            try
+            {
+                coordinator.LoadFromPath(host, forceReload: true);
+                await WaitForAsyncOperations();
+
+                Assert.Single(host.PasswordRequests);
+                pdf.Verify(p => p.SetPdfPassword(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+                Assert.Equal(0, host.PageCount);
+                Assert.Null(host.LoadedFilePath);
+                Assert.Equal(StatusKind.Error, host.StatusKind);
+                Assert.Contains("パスワード", host.StatusMessage);
+                Assert.False(host.IsBusy);
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/

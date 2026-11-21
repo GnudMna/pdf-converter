@@ -38,6 +38,9 @@ namespace PdfConverter.Infrastructure
         /// <summary>解像度の数値 (<c>null</c> の場合は保存済み設定を使用)</summary>
         public string? ResolutionValue { get; set; }
 
+        /// <summary>パスワードで保護された PDF を開くパスワード (<c>null</c> の場合は指定なし。すべての入力ファイルに使う)</summary>
+        public string? Password { get; set; }
+
         /// <summary>透明度を保持するかどうか (<c>null</c> の場合は保存済み設定を使用)</summary>
         public bool? PreserveTransparency { get; set; }
 

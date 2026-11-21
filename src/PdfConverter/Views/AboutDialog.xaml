@@ -32,16 +32,22 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0"
-                        Orientation="Horizontal"
-                        Margin="0,0,0,18">
-                <Border Width="48"
+            <Grid Grid.Row="0"
+                  Margin="0,0,0,18">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Width="48"
                         Height="48"
                         CornerRadius="12"
                         Background="{DynamicResource PreviewAreaBackgroundBrush}"
                         BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
                         BorderThickness="1"
                         Margin="0,0,14,0"
+                        VerticalAlignment="Top"
                         Focusable="False"
                         IsHitTestVisible="False">
                     <Image Source="/Assets/app-icon.png"
@@ -52,7 +58,8 @@
                            Stretch="Uniform"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                 </Border>
-                <StackPanel VerticalAlignment="Center">
+                <StackPanel Grid.Column="1"
+                            VerticalAlignment="Center">
                     <TextBlock x:Name="ProductNameText"
                                FontSize="20"
                                FontWeight="SemiBold"
@@ -68,8 +75,17 @@
                                TextWrapping="Wrap"
                                FontSize="12"
                                Foreground="{DynamicResource ControlForegroundBrush}" />
+                    <Button x:Name="OpenLicenseButton"
+                            Content="使用許諾を開く"
+                            Margin="0,8,0,0"
+                            HorizontalAlignment="Left"
+                            Click="OpenLicenseButton_Click"
+                            Style="{StaticResource CompactToolbarButton}"
+                            ToolTip="本アプリの使用許諾 (LICENSE.txt) を開きます。"
+                            AutomationProperties.Name="使用許諾を開く"
+                            AutomationProperties.HelpText="本アプリの使用許諾 (LICENSE.txt) を開きます。" />
                 </StackPanel>
-            </StackPanel>
+            </Grid>
 
             <ScrollViewer Grid.Row="1"
                           VerticalScrollBarVisibility="Auto"
@@ -145,11 +161,14 @@
                                 Style="{StaticResource SecondaryButton}"
                                 AutomationProperties.Name="更新を確認" />
                         <Button x:Name="OpenNoticesButton"
-                                Content="ライセンス全文を開く"
+                                Content="OSS ライセンスを開く"
                                 MinWidth="140"
                                 Margin="0,0,10,0"
                                 Click="OpenNoticesButton_Click"
-                                Style="{StaticResource SecondaryButton}" />
+                                Style="{StaticResource SecondaryButton}"
+                                ToolTip="同梱しているオープンソース ソフトウェアのライセンス全文 (THIRD-PARTY-NOTICES.txt) を開きます。"
+                                AutomationProperties.Name="OSS ライセンスを開く"
+                                AutomationProperties.HelpText="同梱しているオープンソース ソフトウェアのライセンス全文 (THIRD-PARTY-NOTICES.txt) を開きます。" />
                         <Button Content="閉じる"
                                 MinWidth="100"
                                 Click="CloseButton_Click"

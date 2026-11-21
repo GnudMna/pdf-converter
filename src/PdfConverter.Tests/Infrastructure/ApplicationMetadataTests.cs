@@ -110,5 +110,19 @@ namespace PdfConverter.Tests.Infrastructure
 
             Assert.Equal(expected, ApplicationMetadata.UserDocsIndexFilePath);
         }
+
+        /// <summary>
+        /// 本アプリの使用許諾が、実行ファイルと同じフォルダーの LICENSE.txt を指すことを検証する
+        /// </summary>
+        /// <remarks>
+        /// インストーラー (installer/PdfConverter.iss) がリポジトリの LICENSE を置く場所と同じ
+        /// </remarks>
+        [Fact]
+        public void LicenseFilePath_PointsToLicenseUnderBaseDirectory()
+        {
+            string expected = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "LICENSE.txt");
+
+            Assert.Equal(expected, ApplicationMetadata.LicenseFilePath);
+        }
     }
 }

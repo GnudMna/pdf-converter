@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Configuration;
 using PdfConverter.Infrastructure;
 using PdfConverter.Tests.Helpers;
@@ -15,6 +16,7 @@ namespace PdfConverter.Tests.Infrastructure
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        private readonly Func<bool> _originalMigrateLegacySettings;
         private readonly Action _originalProbeSettings;
         private readonly Func<ConfigurationErrorsException, bool> _originalTryDelete;
         private readonly Action _originalRecreate;
@@ -27,15 +29,18 @@ namespace PdfConverter.Tests.Infrastructure
         /********************************************************************************/
         public UserSettingsInitializerTests()
         {
+            _originalMigrateLegacySettings = UserSettingsInitializer.MigrateLegacySettings;
             _originalProbeSettings = UserSettingsInitializer.ProbeSettings;
             _originalTryDelete = UserSettingsInitializer.TryDeleteCorruptedConfigFile;
             _originalRecreate = UserSettingsInitializer.RecreateSettingsInstance;
             _originalIsUpgradeRequired = UserSettingsInitializer.IsUpgradeRequired;
             _originalPerformUpgrade = UserSettingsInitializer.PerformUpgrade;
+            UserSettingsInitializer.MigrateLegacySettings = () => false;
         }
 
         public void Dispose()
         {
+            UserSettingsInitializer.MigrateLegacySettings = _originalMigrateLegacySettings;
             UserSettingsInitializer.ProbeSettings = _originalProbeSettings;
             UserSettingsInitializer.TryDeleteCorruptedConfigFile = _originalTryDelete;
             UserSettingsInitializer.RecreateSettingsInstance = _originalRecreate;
@@ -120,6 +125,26 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.False(result.RecoveredFromCorruption);
             Assert.True(result.Upgraded);
             Assert.Equal(1, upgradeCount);
+        }
+
+        /// <summary>
+        /// 旧フォルダーからの引き継ぎを、破損回復とバージョン移行より先に行うことを検証する
+        /// </summary>
+        [Fact]
+        public void Initialize_LegacySettings_MigratesBeforeProbing()
+        {
+            var calls = new List<string>();
+            UserSettingsInitializer.MigrateLegacySettings = () =>
+            {
+                calls.Add("migrate");
+                return true;
+            };
+            UserSettingsInitializer.ProbeSettings = () => calls.Add("probe");
+            UserSettingsInitializer.IsUpgradeRequired = () => false;
+
+            UserSettingsInitializer.Initialize();
+
+            Assert.Equal(new[] { "migrate", "probe" }, calls);
         }
 
         /// <summary>

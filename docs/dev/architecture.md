@@ -23,7 +23,7 @@ View (XAML)  ──バインディング・コマンド──▶  MainViewModel
 エントリーポイントは `App.OnStartup` (`App.xaml.cs`)。
 
 1. `GlobalExceptionHandler.Register` で未処理例外の捕捉を始める
-2. `UserSettingsInitializer.Initialize` でユーザー設定を読み込む。`user.config` が壊れていれば削除して既定値に戻し、バージョンアップ後の初回起動なら前の版の設定を引き継ぐ
+2. `UserSettingsInitializer.Initialize` でユーザー設定を読み込む。会社名を個人名からブランド名へ変える前の旧フォルダー (`%LOCALAPPDATA%\Yuto_Hirata\`) に設定があり、新しいフォルダーが未作成なら `LegacySettingsMigrator` が複製し、旧フォルダーを削除する。そのうえで `user.config` が壊れていれば削除して既定値に戻し、バージョンアップ後の初回起動なら前の版の設定を引き継ぐ
 3. `PdfConverterTempDirectory.CleanupStaleEntries` で、24 時間より古い他インスタンスの一時ファイルを削除する
 4. `BatchCliParser.TryParse` で起動引数を調べる。`-` で始まる引数や `/?` が 1 つでもあればバッチ変換として扱う
    - **バッチ変換:** `ServiceConfigurator.Configure` で DI コンテナを組み、`BatchCancellationScope` (Ctrl+C をキャンセルに変換) の下で `IBatchExportService.RunAsync` を同期的に待つ。終了時は Word の後片付けを待ち、一時ファイルを削除して、終了コードを付けて `Shutdown` する
@@ -71,7 +71,7 @@ View (XAML)  ──バインディング・コマンド──▶  MainViewModel
 
 | Coordinator | 担当 |
 | :--- | :--- |
-| `PdfPreviewCoordinator` | ファイルの読み込み (Word は PDF へ変換)・ページ数の取得・プレビューの描画・ページ移動 |
+| `PdfPreviewCoordinator` | ファイルの読み込み (Word は PDF へ変換)・パスワードの入力要求・ページ数の取得・プレビューの描画・ページ移動 |
 | `PdfSaveCoordinator` | 保存ページの決定・上書き確認・画像の一括保存・PDF として保存 |
 
 Coordinator は `MainViewModel` を直接参照せず、必要な状態だけを持つホストインターフェース (`IPreviewCoordinatorHost` / `ISaveCoordinatorHost`。まとめたものが `IMainViewModelHost`) を受け取る。実装は `MainViewModelCoordinatorHost` が `MainViewModel` へ委譲する。キャンセル・進捗・ステータスの制御は `ICoordinatorSession` で行う。
@@ -87,8 +87,9 @@ Coordinator は `MainViewModel` を直接参照せず、必要な状態だけを
 - 64 MB 以下の PDF はファイル全体をメモリにキャッシュする。それより大きい PDF は、PDFium が要求した範囲だけをファイルから読む
 - プレビューとページ数の取得では、直近に開いた文書を開いたまま再利用する
 - 保存はページ単位で並列化する (最大 4。PDF のサイズが大きいほど並列度を下げる)。PDFium の呼び出しは直列のため、並列で短縮されるのはビットマップ生成・エンコード・書き込みである。同時に描画する画素数の合計にも上限を設け、メモリ不足を防ぐ
-- 保存は全ページをステージングディレクトリへ書き出してから、保存先へまとめて反映する。反映は保存先フォルダー内の一時ファイルへのコピーと同一ボリューム内のリネームで行い、途中で失敗した場合は配置済みのファイルを消して既存のファイルを元に戻す
+- 保存は全ページを保存先フォルダー内のステージングディレクトリ (`.pdfconverter-staging-<識別子>`) へ書き出してから、保存先へまとめて反映する。`%TEMP%` を経由しないため書き込みは 1 回で済み、反映は同一ボリューム内のリネームだけで行う。既存の同名ファイルはステージングディレクトリへ退避し、途中で失敗した場合は配置済みのファイルを消して既存のファイルを元に戻す。ステージングディレクトリは隠しフォルダーとして作り、成功・失敗・キャンセルのいずれでも削除する。プロセスの強制終了で残ったものは `%TEMP%` 側の `CleanupStaleEntries` からは見えないため、次回の保存時に同じ保存先で、GUID 形式の名前かつ 24 時間以上更新のないものを削除する
 - 内部の `await` はすべて `ConfigureAwait(false)` にし、PDF の解析やファイル書き込みを UI スレッドで実行しない
+- パスワード付き PDF は、パスワードが無い・誤っている場合に `PdfPasswordRequiredException` (`WasPasswordProvided` で未入力か誤りかを区別) を投げる。パスワードは `SetPdfPassword` で 1 ファイル分だけ保持し、パスの比較は大文字小文字を区別せず、別のファイルを指定した時点で破棄する。画面では `PdfPreviewCoordinator` がページ数の取得で例外を受けて `IDialogService.ShowPasswordDialog` で入力を求め、再試行する (キャンセルで読み込みを中止)。バッチ変換では `--password` の値を全入力ファイルに設定し、不足・不一致は `--password` の案内を付けて報告する
 
 ### Word → PDF 変換
 
@@ -112,7 +113,9 @@ Coordinator は `MainViewModel` を直接参照せず、必要な状態だけを
 GitHub Release を中継する gh-release-bridge (`UpdateService.DefaultBridgeBaseUrl`) を使う。
 
 1. **確認:** `/<owner>/<repo>/version` を照会し、`UpdateEvaluator` が現在の版 (`ApplicationMetadata.Version`) と比較する。実行中のプラットフォーム (x64 / x86) に合うインストーラーを `UpdateAssetSelector` が選ぶ
-2. **適用:** 埋め込みキー ([開発環境とビルド](setup.md#更新ダウンロード用キー)) を Bearer トークンにしてインストーラーをダウンロードし、サイズと SHA-256 を検証してから起動する。起動できたらアプリを終了する
+2. **適用:** 埋め込みキー ([開発環境とビルド](setup.md#更新ダウンロード用キー)) を Bearer トークンにしてインストーラーとその署名 (`<インストーラー名>.sig`) をダウンロードし、サイズ・SHA-256・署名を検証してから起動する。起動できたらアプリを終了する
+
+サイズと SHA-256 は更新サーバー (gh-release-bridge) が返す値のため、サーバーが侵害されるとインストーラーと一緒に差し替えられる。そこで、リリース時に手元の秘密鍵で作る ECDSA P-256 署名を、アプリに埋め込んだ公開鍵 (`UpdateSigningKey.PublicKey`) で `UpdateSignatureVerifier` が検証する。署名対象は版 (タグ)・アセット名・サイズ・SHA-256 をまとめた文字列で、古い署名済みインストーラーを新しい版として配られる巻き戻しも防ぐ。署名や公開鍵が無い場合は起動せず、ダウンロードしたファイルを削除する。署名の作り方は [インストーラーとリリース](release.md#更新の署名) を参照する
 
 ### ユーザー設定
 
@@ -123,7 +126,8 @@ GitHub Release を中継する gh-release-bridge (`UpdateService.DefaultBridgeBa
 ### ログと例外
 
 - `ApplicationLogger` がログを書く。`app.log` (操作の記録・警告) と `error.log` (エラーの詳細) に分け、2 MB を超えたら切り替えて 5 世代まで残す
-- `GlobalExceptionHandler` が UI スレッド・バックグラウンドの未処理例外を捕捉し、ログに記録して利用者に通知する
+- `GlobalExceptionHandler` が UI スレッド・バックグラウンドの未処理例外を捕捉し、ログに記録して利用者に通知する。終了させるのは、メモリ不足・ネイティブ障害・型の読み込み失敗など続行が危険な例外 (`IsFatalException`) だけで、`NullReferenceException` などの単発のバグはエラーを表示して操作を続けさせる
+- バッチ変換中は `GlobalExceptionHandler.IsHeadless` が真になり、UI スレッドが完了待ちで塞がっていてもダイアログを出さず、標準エラーへ書き出す
 - 利用者向けのエラーメッセージは `ExceptionFormattingHelper.GetUserMessage` で整形する
 
 ## ファイルの置き場所
@@ -131,7 +135,7 @@ GitHub Release を中継する gh-release-bridge (`UpdateService.DefaultBridgeBa
 | 用途 | 場所 | 管理するクラス |
 | :--- | :--- | :--- |
 | ログ | `%LOCALAPPDATA%\PDF Converter\logs\` | `ApplicationLogger` |
-| ユーザー設定 | `%LOCALAPPDATA%\Yuto_Hirata\<実行ファイル名と識別子>\<版>\user.config` | `Settings` (.NET の既定。会社名は `AssemblyInfo.cs` の `AssemblyCompany`) |
+| ユーザー設定 | `%LOCALAPPDATA%\PdfConverter\<実行ファイル名と識別子>\<版>\user.config` | `Settings` (.NET の既定。フォルダー名は `AssemblyInfo.cs` の `AssemblyCompany`。公開者名は `AssemblyMetadata("Publisher")` で別に持つ) / `LegacySettingsMigrator` |
 | 一時ファイル | `%TEMP%\PdfConverter\instance-<識別子>\` | `PdfConverterTempDirectory` |
 | 更新のダウンロード | `%TEMP%\PdfConverter\updates\<版>\` | `UpdateService` |
 

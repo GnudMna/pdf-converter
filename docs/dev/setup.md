@@ -68,3 +68,5 @@ Release ビルドでは PDB を出力しない。配布用の出力は `installe
 - 環境変数 `PDF_CONVERTER_KEY` を設定する
 
 ビルド時に `GenerateUpdateReleaseKey` ターゲットが `obj/` 配下へ `UpdateReleaseKey.g.cs` を生成し、値を埋め込む。キーがなくてもビルド・起動・更新の確認はでき、更新の **適用** だけが失敗する。配布するビルドにはキーが必須のため、`installer/release.ps1` は未設定ならエラーにする。
+
+ダウンロードしたインストーラーは、リリース時に作る署名を埋め込み済みの公開鍵で検証できたときだけ起動する。公開鍵は Git に含めて構わず (`UpdateSigningKey.cs`)、空のままだと更新の適用は失敗する。署名用の鍵の作り方は [インストーラーとリリース](release.md#更新の署名) を参照する。

@@ -1020,6 +1020,7 @@ namespace PdfConverter.Tests.Services
                     new[] { existingPath },
                     Directory.GetFiles(outputDirectory).OrderBy(path => path, StringComparer.OrdinalIgnoreCase));
                 Assert.Empty(Directory.GetFileSystemEntries(blockingDirectory));
+                Assert.Equal(new[] { blockingDirectory }, Directory.GetDirectories(outputDirectory));
             }
             finally
             {
@@ -1053,11 +1054,157 @@ namespace PdfConverter.Tests.Services
                 Assert.NotEqual("old-content", File.ReadAllText(existingPath));
                 Assert.True(new FileInfo(existingPath).Length > 0);
                 Assert.Equal(new[] { existingPath }, Directory.GetFiles(outputDirectory));
+                Assert.Empty(Directory.GetDirectories(outputDirectory));
             }
             finally
             {
                 PdfTestAssetFactory.DeleteIfExists(pdfPath);
                 PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 存在しない保存先でも保存でき、ステージングディレクトリを残さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_MissingOutputDirectory_CreatesItAndLeavesNoStagingDirectory()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 2);
+            string baseDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string outputDirectory = Path.Combine(baseDirectory, "nested", "output");
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.Equal(2, Directory.GetFiles(outputDirectory, "page_*.png").Length);
+                Assert.Empty(Directory.GetDirectories(outputDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(baseDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 保存中のステージングディレクトリは隠しフォルダーであることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_WhileSaving_StagingDirectoryIsHidden()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 1);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            int reportCount = 0;
+            var progress = new SynchronousProgress<SaveProgressReport>(_ =>
+            {
+                reportCount++;
+                string[] stagingDirectories = Directory.GetDirectories(outputDirectory, ".pdfconverter-staging-*");
+                Assert.Single(stagingDirectories);
+                Assert.True(new DirectoryInfo(stagingDirectories[0]).Attributes.HasFlag(FileAttributes.Hidden));
+            });
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    format: OutputImageFormat.Png,
+                    progress: progress,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.True(reportCount > 0);
+                Assert.Empty(Directory.GetDirectories(outputDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 強制終了で残った古いステージングディレクトリだけを、次の保存時に削除することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_StaleStagingDirectory_DeletesOnlyOldStagingDirectories()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 1);
+            string outputDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string staleDirectory = Path.Combine(outputDirectory, ".pdfconverter-staging-" + Guid.NewGuid().ToString("N"));
+            string recentDirectory = Path.Combine(outputDirectory, ".pdfconverter-staging-" + Guid.NewGuid().ToString("N"));
+            string otherNameDirectory = Path.Combine(outputDirectory, ".pdfconverter-staging-keep");
+            foreach (string directory in new[] { staleDirectory, recentDirectory, otherNameDirectory })
+            {
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory, "page_1.png"), "x");
+            }
+
+            Directory.SetLastWriteTimeUtc(staleDirectory, DateTime.UtcNow.AddDays(-2));
+            Directory.SetLastWriteTimeUtc(otherNameDirectory, DateTime.UtcNow.AddDays(-2));
+
+            try
+            {
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDirectory,
+                    saveAllPages: true,
+                    format: OutputImageFormat.Png,
+                    cancellationToken: TestContext.Current.CancellationToken);
+
+                Assert.False(Directory.Exists(staleDirectory));
+                Assert.True(Directory.Exists(recentDirectory));
+                Assert.True(Directory.Exists(otherNameDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+        /// <summary>
+        /// 存在しない保存先への保存が途中でキャンセルされた場合、この保存で作成したフォルダーを残さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SavePdfPagesToImagesAsync_CancelledMidwayWithMissingOutputDirectory_RemovesCreatedDirectories()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPdf(pageCount: 8);
+            string baseDirectory = PdfTestAssetFactory.CreateTempOutputDirectory();
+            string outputDirectory = Path.Combine(baseDirectory, "nested", "output");
+
+            try
+            {
+                using (var cts = new CancellationTokenSource())
+                {
+                    var progress = new SynchronousProgress<SaveProgressReport>(_ => cts.Cancel());
+
+                    await Assert.ThrowsAnyAsync<OperationCanceledException>(() => _service.SavePdfPagesToImagesAsync(
+                        pdfPath,
+                        pageIndexes: null,
+                        outputDirectory,
+                        saveAllPages: true,
+                        format: OutputImageFormat.Png,
+                        progress: progress,
+                        cancellationToken: cts.Token));
+                }
+
+                Assert.True(Directory.Exists(baseDirectory));
+                Assert.Empty(Directory.GetFileSystemEntries(baseDirectory));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(baseDirectory);
             }
         }
 
@@ -1102,6 +1249,147 @@ namespace PdfConverter.Tests.Services
             {
                 PdfTestAssetFactory.DeleteIfExists(pdfPath);
                 PdfTestAssetFactory.DeleteDirectoryIfExists(outputDirectory);
+            }
+        }
+
+
+        /// <summary>
+        /// パスワードで保護された PDF のページ数取得は、パスワード未設定なら PdfPasswordRequiredException になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_PasswordProtectedWithoutPassword_ThrowsPasswordRequiredException()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            try
+            {
+                var exception = await Assert.ThrowsAsync<PdfPasswordRequiredException>(
+                    () => _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken));
+                Assert.False(exception.WasPasswordProvided);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 誤ったパスワードを設定すると、パスワード指定済みを示す PdfPasswordRequiredException になることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_WrongPassword_ThrowsPasswordRequiredExceptionWithProvidedFlag()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            try
+            {
+                _service.SetPdfPassword(pdfPath, "wrong");
+
+                var exception = await Assert.ThrowsAsync<PdfPasswordRequiredException>(
+                    () => _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken));
+                Assert.True(exception.WasPasswordProvided);
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 正しいパスワードを設定すると、ページ数取得・プレビュー・保存ができることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SetPdfPassword_CorrectPassword_OpensPdfForCountPreviewAndSave()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            string outputDir = PdfTestAssetFactory.CreateTempOutputDirectory();
+            try
+            {
+                await Assert.ThrowsAsync<PdfPasswordRequiredException>(
+                    () => _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken));
+
+                _service.SetPdfPassword(pdfPath, "correct");
+
+                Assert.Equal(1, await _service.GetPdfPageCountAsync(pdfPath, TestContext.Current.CancellationToken));
+
+                BitmapSource bitmap = await _service.ConvertPdfPageToImageAsync(pdfPath, pageIndex: 0, cancellationToken: TestContext.Current.CancellationToken);
+                Assert.True(bitmap.PixelWidth > 0);
+
+                await _service.SavePdfPagesToImagesAsync(
+                    pdfPath,
+                    pageIndexes: null,
+                    outputDir,
+                    saveAllPages: true,
+                    cancellationToken: TestContext.Current.CancellationToken);
+                Assert.Single(Directory.GetFiles(outputDir));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(outputDir);
+            }
+        }
+
+        /// <summary>
+        /// 設定したパスワードは別のファイルには使われないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task SetPdfPassword_OtherFile_DoesNotApplyPassword()
+        {
+            string protectedPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            string otherPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            try
+            {
+                _service.SetPdfPassword(protectedPath, "correct");
+
+                await Assert.ThrowsAsync<PdfPasswordRequiredException>(
+                    () => _service.GetPdfPageCountAsync(otherPath, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(protectedPath);
+                PdfTestAssetFactory.DeleteIfExists(otherPath);
+            }
+        }
+
+        /// <summary>
+        /// 大文字小文字だけ異なるパスでもパスワードが使われることを検証する
+        /// </summary>
+        [Fact]
+        public async Task SetPdfPassword_PathWithDifferentCase_AppliesPassword()
+        {
+            string pdfPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            try
+            {
+                _service.SetPdfPassword(pdfPath, "correct");
+
+                Assert.Equal(1, await _service.GetPdfPageCountAsync(pdfPath.ToUpperInvariant(), TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 別のファイルを開いた時点で、保持していたパスワードが破棄されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPageCountAsync_OtherFileOpened_DiscardsPassword()
+        {
+            string protectedPath = PdfTestAssetFactory.CreateTempPasswordProtectedPdf("correct");
+            string otherPath = PdfTestAssetFactory.CreateTempPdf();
+            try
+            {
+                _service.SetPdfPassword(protectedPath, "correct");
+
+                await _service.GetPdfPageCountAsync(otherPath, TestContext.Current.CancellationToken);
+
+                await Assert.ThrowsAsync<PdfPasswordRequiredException>(
+                    () => _service.GetPdfPageCountAsync(protectedPath, TestContext.Current.CancellationToken));
+            }
+            finally
+            {
+                PdfTestAssetFactory.DeleteIfExists(protectedPath);
+                PdfTestAssetFactory.DeleteIfExists(otherPath);
             }
         }
 

@@ -52,7 +52,8 @@ namespace PdfConverter.Views
             VersionText.Text = $"バージョン {ApplicationMetadata.Version}";
             CopyrightText.Text = ApplicationMetadata.Copyright;
             LicenseText.Text =
-                $"本アプリは {ApplicationMetadata.ApplicationLicenseName} の下で公開されています。";
+                $"本アプリの著作権は著作者が保有しています ({ApplicationMetadata.ApplicationLicenseName})。利用には著作者の許可が必要です。";
+            OpenLicenseButton.IsEnabled = ApplicationMetadata.IsLicenseAvailable;
             BundledComponentsText.Text = ApplicationMetadata.BundledComponentsText;
             ExternalDependenciesText.Text = ApplicationMetadata.ExternalDependenciesText;
 
@@ -190,9 +191,18 @@ namespace PdfConverter.Views
             }
         }
 
+        private void OpenLicenseButton_Click(object sender, RoutedEventArgs e)
+        {
+            OpenWithShell(ApplicationMetadata.LicenseFilePath);
+        }
+
         private void OpenNoticesButton_Click(object sender, RoutedEventArgs e)
         {
-            string path = ApplicationMetadata.ThirdPartyNoticesFilePath;
+            OpenWithShell(ApplicationMetadata.ThirdPartyNoticesFilePath);
+        }
+
+        private static void OpenWithShell(string path)
+        {
             Process.Start(new ProcessStartInfo
             {
                 FileName = path,

@@ -112,6 +112,8 @@ namespace PdfConverter.Infrastructure
   --resolution, -r <数値>   解像度の数値 (省略時は保存済み設定)
   --transparent             透明度を保持 (PNG のみ有効)
   --no-transparent          白背景に合成して出力
+  --password <文字列>       パスワード付き PDF を開くパスワード (全入力ファイルに使用)
+                            値は加工せず、次の引数を常にパスワードとして扱う
   --overwrite               既存ファイルを確認せず上書き
   --export-pdf              Word を PDF として保存 (画像変換は行わない)
   --quiet, -q               進捗メッセージを抑制
@@ -194,7 +196,9 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
             if (TrySplitSwitchValue(arg, out string? inlineName, out string? inlineValue))
             {
                 switchName = inlineName;
-                value = inlineValue;
+
+                // パスワードは前後の空白や " も値の一部なので、加工せずそのまま渡す
+                value = switchName == "password" ? inlineValue : TrimOptionValue(inlineValue);
             }
 
             switch (switchName)
@@ -285,6 +289,14 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
 
                     options.Format = format;
                     return true;
+                case "password":
+                    if (!TryReadPasswordValue(args, ref index, value, out string? password, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.Password = password;
+                    return true;
                 case "resolution-mode":
                     if (!TryReadOptionValue(args, ref index, value, out string? modeValue, out errorMessage))
                     {
@@ -353,8 +365,16 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
             }
 
             switchName = NormalizeSwitchName(arg.Substring(0, separatorIndex));
-            value = arg.Substring(separatorIndex + 1).Trim().Trim('"');
+            value = arg.Substring(separatorIndex + 1);
             return true;
+        }
+
+        /// <summary>オプションの値の前後の空白と二重引用符を取り除く</summary>
+        /// <param name="value">値</param>
+        /// <returns>加工後の値</returns>
+        private static string TrimOptionValue(string value)
+        {
+            return value.Trim().Trim('"');
         }
 
         /// <summary>フラグ系スイッチの値を読み取る (<c>--overwrite=false</c> 形式の値を反映する)</summary>
@@ -405,7 +425,7 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
 
             if (!string.IsNullOrWhiteSpace(inlineValue))
             {
-                value = inlineValue.Trim().Trim('"');
+                value = TrimOptionValue(inlineValue);
                 return true;
             }
 
@@ -416,7 +436,47 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
             }
 
             index++;
-            value = args[index].Trim().Trim('"');
+            value = TrimOptionValue(args[index]);
+            return true;
+        }
+
+        /// <summary>パスワードの値を読み取る (前後の空白・二重引用符を取り除かず、<c>-</c> や <c>/</c> で始まる値も受け付ける)</summary>
+        /// <remarks>別引数で指定した場合は、次の引数をスイッチかどうかにかかわらず値として扱う</remarks>
+        /// <param name="args">起動引数</param>
+        /// <param name="index">現在のインデックス</param>
+        /// <param name="inlineValue">同一引数内の値</param>
+        /// <param name="value">読み取った値</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 読み取り成功</returns>
+        private static bool TryReadPasswordValue(
+            string[] args,
+            ref int index,
+            string? inlineValue,
+            [NotNullWhen(true)] out string? value,
+            [NotNullWhen(false)] out string? errorMessage)
+        {
+            errorMessage = null;
+            value = inlineValue;
+            string optionArg = args[index];
+
+            if (value == null)
+            {
+                if (index + 1 >= args.Length)
+                {
+                    errorMessage = $"オプション {optionArg} には値が必要です。";
+                    return false;
+                }
+
+                index++;
+                value = args[index];
+            }
+
+            if (value.Length == 0)
+            {
+                errorMessage = $"オプション {optionArg} には値が必要です。";
+                return false;
+            }
+
             return true;
         }
 

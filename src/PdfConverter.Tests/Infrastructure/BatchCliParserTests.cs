@@ -122,6 +122,107 @@ namespace PdfConverter.Tests.Infrastructure
         }
 
         /// <summary>
+        /// --password の値を、別引数と --password=value のどちらの形式でも読み取ることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_PasswordOption_ParsesValue()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password", "secret", "a.pdf" },
+                out BatchCliOptions separated,
+                out string separatedError);
+            bool isBatchInline = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password=-a=b", "a.pdf" },
+                out BatchCliOptions inline,
+                out string inlineError);
+
+            Assert.True(isBatch);
+            Assert.Null(separatedError);
+            Assert.Equal("secret", separated.Password);
+            Assert.True(isBatchInline);
+            Assert.Null(inlineError);
+            Assert.Equal("-a=b", inline.Password);
+        }
+
+        /// <summary>
+        /// --password の値の前後の空白と二重引用符を取り除かないことを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(" secret ")]
+        [InlineData("\"secret\"")]
+        [InlineData("  ")]
+        public void TryParse_PasswordWithSpacesOrQuotes_KeepsValue(string password)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password", password, "a.pdf" },
+                out BatchCliOptions separated,
+                out string separatedError);
+            bool isBatchInline = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password=" + password, "a.pdf" },
+                out BatchCliOptions inline,
+                out string inlineError);
+
+            Assert.True(isBatch);
+            Assert.Null(separatedError);
+            Assert.Equal(password, separated.Password);
+            Assert.True(isBatchInline);
+            Assert.Null(inlineError);
+            Assert.Equal(password, inline.Password);
+        }
+
+        /// <summary>
+        /// --password の次の引数が - や / で始まっていても、パスワードとして読み取ることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("-abc")]
+        [InlineData("/secret")]
+        public void TryParse_PasswordStartingWithSwitchChar_ParsesAsValue(string password)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "--password", password, "-o", @"C:\out", "a.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(errorMessage);
+            Assert.Equal(password, options.Password);
+            Assert.Equal(@"C:\out", options.OutputPath);
+            Assert.Single(options.InputFiles);
+        }
+
+        /// <summary>
+        /// --password に空の値を指定した場合はエラーになることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_PasswordEmptyValue_ReturnsError()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password=", "a.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.Contains("--password", errorMessage);
+        }
+
+        /// <summary>
+        /// --password に値がない場合はエラーになることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_PasswordWithoutValue_ReturnsError()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "a.pdf", "--password" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.Contains("--password", errorMessage);
+        }
+
+        /// <summary>
         /// フラグ系スイッチに false を指定した場合に無効として扱うことを検証する
         /// </summary>
         [Fact]

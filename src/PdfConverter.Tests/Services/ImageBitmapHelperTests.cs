@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
@@ -39,11 +41,11 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
-        /// JPEG のみ透明度非対応、PNG/BMP は透明度対応であることを検証する
+        /// PNG のみ透明度対応、BMP/JPEG は透明度非対応であることを検証する
         /// </summary>
         [Theory]
         [InlineData(OutputImageFormat.Png, true)]
-        [InlineData(OutputImageFormat.Bmp, true)]
+        [InlineData(OutputImageFormat.Bmp, false)]
         [InlineData(OutputImageFormat.Jpeg, false)]
         public void SupportsTransparency_ReturnsExpectedValue(OutputImageFormat format, bool expected)
         {
@@ -81,6 +83,38 @@ namespace PdfConverter.Tests.Services
                 Assert.NotSame(source, result);
                 Assert.True(result.IsFrozen);
                 Assert.Equal(source.PixelWidth, result.PixelWidth);
+            });
+        }
+
+        /// <summary>
+        /// 96 DPI 以外の画像でも、白背景への合成後に画像全体が元の画素位置のまま描かれることを検証する
+        /// </summary>
+        /// <param name="dpi">元画像の DPI</param>
+        [Theory]
+        [InlineData(41.6)]
+        [InlineData(192.0)]
+        public void ApplyTransparency_WhenFlattenedWithNon96Dpi_CoversWholeBitmap(double dpi)
+        {
+            StaTestHelper.Run(() =>
+            {
+                const int size = 40;
+                byte[] pixels = new byte[size * size * 4];
+                for (int i = 0; i < pixels.Length; i += 4)
+                {
+                    // 不透明な青 (BGRA)
+                    pixels[i] = 255;
+                    pixels[i + 3] = 255;
+                }
+
+                var source = BitmapSource.Create(size, size, dpi, dpi, PixelFormats.Bgra32, null, pixels, size * 4);
+
+                var result = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency: false);
+
+                byte[] corner = new byte[4];
+                result.CopyPixels(new System.Windows.Int32Rect(size - 1, size - 1, 1, 1), corner, 4, 0);
+                Assert.Equal(size, result.PixelWidth);
+                Assert.Equal(dpi, result.DpiX, 3);
+                Assert.Equal(new byte[] { 255, 0, 0, 255 }, corner);
             });
         }
 

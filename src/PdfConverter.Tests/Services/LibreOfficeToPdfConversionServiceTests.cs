@@ -15,11 +15,19 @@ namespace PdfConverter.Tests.Services
     /// <summary>
     /// <see cref="LibreOfficeToPdfConversionService"/> の検証・引数組み立て・偽プロセス連携を検証する
     /// </summary>
-    public class LibreOfficeToPdfConversionServiceTests
+    public sealed class LibreOfficeToPdfConversionServiceTests : IDisposable
     {
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// 変換で生成された PDF・作業ディレクトリ・変換専用プロファイルを置くインスタンスディレクトリを削除する
+        /// </summary>
+        public void Dispose()
+        {
+            PdfConverterTempDirectory.CleanupInstanceDirectory();
+        }
+
         /// <summary>
         /// 起動引数の先頭で変換専用プロファイルを指定し、headless 変換に必要なオプションが続くことを検証する
         /// </summary>
@@ -113,8 +121,8 @@ namespace PdfConverter.Tests.Services
             finally
             {
                 File.Delete(wordPath);
-                File.Delete(successSoffice);
-                File.Delete(failingSoffice);
+                FakeSofficeHelper.DeleteWrapper(successSoffice);
+                FakeSofficeHelper.DeleteWrapper(failingSoffice);
                 File.Delete(recordPath);
             }
         }
@@ -144,7 +152,7 @@ namespace PdfConverter.Tests.Services
             finally
             {
                 File.Delete(wordPath);
-                File.Delete(fakeSoffice);
+                FakeSofficeHelper.DeleteWrapper(fakeSoffice);
                 File.Delete(recordPath);
             }
         }
@@ -209,7 +217,7 @@ namespace PdfConverter.Tests.Services
             finally
             {
                 File.Delete(wordPath);
-                File.Delete(fakeSoffice);
+                FakeSofficeHelper.DeleteWrapper(fakeSoffice);
             }
         }
 
@@ -234,7 +242,7 @@ namespace PdfConverter.Tests.Services
             finally
             {
                 File.Delete(wordPath);
-                File.Delete(fakeSoffice);
+                FakeSofficeHelper.DeleteWrapper(fakeSoffice);
             }
         }
 
@@ -263,7 +271,7 @@ namespace PdfConverter.Tests.Services
             finally
             {
                 File.Delete(wordPath);
-                File.Delete(fakeSoffice);
+                FakeSofficeHelper.DeleteWrapper(fakeSoffice);
             }
         }
 

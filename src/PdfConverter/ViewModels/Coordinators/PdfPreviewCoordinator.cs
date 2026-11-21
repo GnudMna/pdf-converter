@@ -390,7 +390,7 @@ namespace PdfConverter.ViewModels.Coordinators
                         return;
                     }
 
-                    int pageCount = await _pdfService.GetPdfPageCountAsync(pdfPath, cancellationToken);
+                    int pageCount = await GetPageCountWithPasswordAsync(host, pdfPath, operationGeneration, cancellationToken);
                     cancellationToken.ThrowIfCancellationRequested();
 
                     if (!IsCurrentPreviewOperation(operationGeneration))
@@ -439,6 +439,42 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.IsBusy = false;
                     host.IsProgressBarVisible = false;
                     host.DisposeCancellation();
+                }
+            }
+        }
+
+        /// <summary>
+        /// PDF のページ数を取得する (パスワードが必要な場合は入力を求め、正しいパスワードが入力されるか、キャンセルされるまで繰り返す)
+        /// </summary>
+        /// <param name="host">メインビューモデル</param>
+        /// <param name="pdfPath">PDF ファイルの絶対パス</param>
+        /// <param name="operationGeneration">操作世代番号</param>
+        /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
+        /// <returns>PDF のページ数</returns>
+        /// <exception cref="PdfPasswordRequiredException">パスワードの入力がキャンセルされた場合、または新しい操作が始まっていた場合</exception>
+        private async Task<int> GetPageCountWithPasswordAsync(
+            IPreviewCoordinatorHost host,
+            string pdfPath,
+            long operationGeneration,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                try
+                {
+                    return await _pdfService.GetPdfPageCountAsync(pdfPath, cancellationToken);
+                }
+                catch (PdfPasswordRequiredException ex) when (IsCurrentPreviewOperation(operationGeneration))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    string? password = host.RequestPdfPassword(pdfPath, ex.WasPasswordProvided);
+                    if (password == null)
+                    {
+                        throw;
+                    }
+
+                    _pdfService.SetPdfPassword(pdfPath, password);
                 }
             }
         }

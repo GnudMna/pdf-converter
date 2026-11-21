@@ -151,12 +151,6 @@ namespace PdfConverter.Services
 
             string outputName = AllocateOutputName(options, sourcePath, usedOutputNames);
             string destinationPath = ResolvePdfDestinationPath(options, outputName);
-            string? destinationDirectory = Path.GetDirectoryName(destinationPath);
-            if (!string.IsNullOrEmpty(destinationDirectory))
-            {
-                Directory.CreateDirectory(destinationDirectory);
-            }
-
             if (File.Exists(destinationPath) && !options.OverwriteExisting)
             {
                 throw new IOException($"出力先ファイルが既に存在します: {destinationPath} (--overwrite で上書きできます)");
@@ -168,6 +162,14 @@ namespace PdfConverter.Services
             }
 
             string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(sourcePath, cancellationToken);
+
+            // 検証と変換が成功してからフォルダーを作り、失敗時に空フォルダーを残さない
+            string? destinationDirectory = Path.GetDirectoryName(destinationPath);
+            if (!string.IsNullOrEmpty(destinationDirectory))
+            {
+                Directory.CreateDirectory(destinationDirectory);
+            }
+
             File.Copy(pdfPath, destinationPath, overwrite: options.OverwriteExisting);
             ApplicationLogger.Info("Batch", $"PDF export completed: {destinationPath}");
         }
@@ -195,12 +197,11 @@ namespace PdfConverter.Services
             }
 
             string outputRoot = Path.GetFullPath(options.OutputPath.Trim().Trim('"'));
-            Directory.CreateDirectory(outputRoot);
 
+            // 出力フォルダーは作らない。検証が通った後に SavePdfPagesToImagesAsync が作成し、失敗時の後始末も担う
             string outputFolder = options.InputFiles.Count > 1
                 ? Path.Combine(outputRoot, AllocateOutputName(options, sourcePath, usedOutputNames))
                 : outputRoot;
-            Directory.CreateDirectory(outputFolder);
 
             if (!options.Quiet)
             {
@@ -208,7 +209,12 @@ namespace PdfConverter.Services
             }
 
             string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(sourcePath, cancellationToken);
-            int pageCount = await _pdfConversionService.GetPdfPageCountAsync(pdfPath, cancellationToken);
+            if (options.Password != null)
+            {
+                _pdfConversionService.SetPdfPassword(pdfPath, options.Password);
+            }
+
+            int pageCount = await GetPageCountAsync(pdfPath, options.Password != null, cancellationToken);
 
             bool saveAllPages = string.IsNullOrWhiteSpace(options.PageRange);
             IReadOnlyList<int>? pageIndexes = null;
@@ -239,6 +245,27 @@ namespace PdfConverter.Services
             ApplicationLogger.Info(
                 "Batch",
                 $"Image export completed: source={sourcePath}, folder={outputFolder}, pages={pageCount}, format={format}");
+        }
+
+        /// <summary>PDF のページ数を取得する (パスワードの不足・不一致は <c>--password</c> の案内を付けて報告する)</summary>
+        /// <param name="pdfPath">PDF ファイルの絶対パス</param>
+        /// <param name="hasPassword"><c>--password</c> が指定されているかどうか</param>
+        /// <param name="cancellationToken">キャンセルトークン</param>
+        /// <returns>PDF のページ数</returns>
+        /// <exception cref="InvalidDataException">パスワードが必要、または指定したパスワードが正しくない場合</exception>
+        private async Task<int> GetPageCountAsync(string pdfPath, bool hasPassword, CancellationToken cancellationToken)
+        {
+            try
+            {
+                return await _pdfConversionService.GetPdfPageCountAsync(pdfPath, cancellationToken);
+            }
+            catch (PdfPasswordRequiredException ex)
+            {
+                string message = hasPassword
+                    ? "--password に指定したパスワードが正しくありません。"
+                    : "パスワードで保護された PDF です。--password でパスワードを指定してください。";
+                throw new InvalidDataException(message, ex);
+            }
         }
 
         /// <summary>出力先に既存ファイルがある場合の上書き可否を確認する</summary>
@@ -292,7 +319,6 @@ namespace PdfConverter.Services
                 return outputPath;
             }
 
-            Directory.CreateDirectory(outputPath);
             return Path.Combine(outputPath, outputName + ".pdf");
         }
 

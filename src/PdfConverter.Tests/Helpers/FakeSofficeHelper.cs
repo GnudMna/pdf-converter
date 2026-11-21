@@ -45,12 +45,7 @@ namespace PdfConverter.Tests.Helpers
         /// <returns>実行可能なラッパーファイルの絶対パス</returns>
         public static string CreateSuccessfulVerboseWrapper()
         {
-            string scriptPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.ps1");
-            string cmdPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.cmd");
-            string script = GetVerboseSuccessfulScriptContent();
-            File.WriteAllText(scriptPath, script);
-            File.WriteAllText(cmdPath, $"@powershell -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" %*{Environment.NewLine}");
-            return cmdPath;
+            return WriteWrapperFiles(GetVerboseSuccessfulScriptContent());
         }
 
         /// <summary>
@@ -61,8 +56,6 @@ namespace PdfConverter.Tests.Helpers
         /// <returns>実行可能なラッパーファイルの絶対パス</returns>
         public static string CreateProfileRecordingWrapper(string recordPath, bool success)
         {
-            string scriptPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.ps1");
-            string cmdPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.cmd");
             // PowerShell の -File 起動では -env:値 が -env と 値 の 2 つに分割されて渡されるため、結合して記録する
             string recordLines = $@"
 $profileArg = $null
@@ -76,9 +69,17 @@ Add-Content -LiteralPath '{recordPath}' -Value $profileArg
             string script = success
                 ? GetSuccessfulScriptContent().Replace(SuccessfulScriptParamLine, SuccessfulScriptParamLine + recordLines)
                 : $"{SuccessfulScriptParamLine}{recordLines}exit {FailureExitCode}";
-            File.WriteAllText(scriptPath, script);
-            File.WriteAllText(cmdPath, $"@powershell -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" %*{Environment.NewLine}");
-            return cmdPath;
+            return WriteWrapperFiles(script);
+        }
+
+        /// <summary>
+        /// 偽 <c>soffice.exe</c> ラッパー (<c>.cmd</c>) と、それが呼び出す <c>.ps1</c> スクリプトを削除する
+        /// </summary>
+        /// <param name="wrapperPath">作成時に返されたラッパーファイルの絶対パス</param>
+        public static void DeleteWrapper(string wrapperPath)
+        {
+            File.Delete(Path.ChangeExtension(wrapperPath, ".ps1"));
+            File.Delete(wrapperPath);
         }
 
 
@@ -93,11 +94,22 @@ Add-Content -LiteralPath '{recordPath}' -Value $profileArg
         /// <returns>実行可能なラッパーファイルの絶対パス</returns>
         private static string CreateWrapper(bool success)
         {
-            string scriptPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.ps1");
-            string cmdPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.cmd");
             string script = success
                 ? GetSuccessfulScriptContent()
                 : $"exit {FailureExitCode}";
+            return WriteWrapperFiles(script);
+        }
+
+        /// <summary>
+        /// PowerShell スクリプトと、それを呼び出す <c>.cmd</c> ラッパーを同じ名前で一時ディレクトリに書き出す
+        /// </summary>
+        /// <param name="script">PowerShell スクリプト本文</param>
+        /// <returns>実行可能なラッパーファイルの絶対パス</returns>
+        private static string WriteWrapperFiles(string script)
+        {
+            string baseName = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}");
+            string scriptPath = baseName + ".ps1";
+            string cmdPath = baseName + ".cmd";
             File.WriteAllText(scriptPath, script);
             File.WriteAllText(cmdPath, $"@powershell -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" %*{Environment.NewLine}");
             return cmdPath;

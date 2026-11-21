@@ -10,10 +10,11 @@ using System.Windows;
 [assembly: AssemblyTitle("PDF Converter")]
 [assembly: AssemblyDescription("PDF のページを高品質な画像 (PNG / JPEG / BMP) へ変換する Windows アプリ")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Yuto Hirata")]
+[assembly: AssemblyCompany("PdfConverter")]
 [assembly: AssemblyProduct("PDF Converter")]
 [assembly: AssemblyCopyright("Copyright © 2026 Yuto Hirata")]
 [assembly: AssemblyTrademark("")]
+[assembly: AssemblyMetadata("Publisher", "Yuto Hirata")]
 [assembly: AssemblyCulture("")]
 
 // ComVisible を false に設定すると、このアセンブリ内の型は COM コンポーネントから
@@ -48,7 +49,7 @@ using System.Windows;
 //      ビルド番号
 //      リビジョン
 //
-[assembly: AssemblyVersion("0.6.2.0")]
-[assembly: AssemblyFileVersion("0.6.2.0")]
-[assembly: AssemblyInformationalVersion("0.6.2")]
+[assembly: AssemblyVersion("0.7.0.0")]
+[assembly: AssemblyFileVersion("0.7.0.0")]
+[assembly: AssemblyInformationalVersion("0.7.0")]
 [assembly: InternalsVisibleTo("PdfConverter.Tests")]

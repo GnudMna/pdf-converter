@@ -213,7 +213,8 @@ namespace PdfConverter.ViewModels.Coordinators
                     return;
                 }
 
-                File.Copy(pdfPath, destinationPath, overwrite: true);
+                // 大きな PDF やネットワークドライブへの保存で UI スレッドを塞がないよう、コピーはスレッドプールで行う
+                await Task.Run(() => File.Copy(pdfPath, destinationPath, overwrite: true), cancellationToken);
                 host.SetStatus($"PDF を保存しました: {destinationPath}", StatusKind.Success);
                 ApplicationLogger.Info("Save", $"PDF export completed: {destinationPath}");
             }

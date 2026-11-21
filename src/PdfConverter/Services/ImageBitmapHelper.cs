@@ -13,6 +13,13 @@ namespace PdfConverter.Services
     public static class ImageBitmapHelper
     {
         /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
+        /// <summary>WPF の描画座標 (DPI に依存しない単位) が 1 インチあたりに持つ数</summary>
+        private const double NativeDpi = 96.0;
+
+
+        /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
@@ -84,11 +91,14 @@ namespace PdfConverter.Services
         /// <summary>
         /// 指定形式が透明度をサポートするかどうかを返す
         /// </summary>
+        /// <remarks>
+        /// BMP はアルファ付きで書き出すと透明部分が (0,0,0,0) となり、黒く表示されるため非対応とする。
+        /// </remarks>
         /// <param name="format">出力形式</param>
         /// <returns>true: 透明度をサポートする / false: 透明度をサポートしない</returns>
         public static bool SupportsTransparency(OutputImageFormat format)
         {
-            return format != OutputImageFormat.Jpeg;
+            return format == OutputImageFormat.Png;
         }
 
 
@@ -100,18 +110,20 @@ namespace PdfConverter.Services
         /// </summary>
         /// <param name="source">透明チャンネルを持つ画像</param>
         /// <returns>白背景に合成されたビットマップ</returns>
+        /// <remarks>描画の座標は DPI に依存しない単位 (1/96 インチ) のため、ビットマップ全体を覆うよう DPI に応じて換算する</remarks>
         private static RenderTargetBitmap FlattenOntoWhiteBackground(BitmapSource source)
         {
             var width = source.PixelWidth;
             var height = source.PixelHeight;
             var dpiX = source.DpiX;
             var dpiY = source.DpiY;
+            var area = new Rect(0, 0, width * NativeDpi / dpiX, height * NativeDpi / dpiY);
 
             var visual = new DrawingVisual();
             using (var dc = visual.RenderOpen())
             {
-                dc.DrawRectangle(Brushes.White, null, new Rect(0, 0, width, height));
-                dc.DrawImage(source, new Rect(0, 0, width, height));
+                dc.DrawRectangle(Brushes.White, null, area);
+                dc.DrawImage(source, area);
             }
 
             var bitmap = new RenderTargetBitmap(width, height, dpiX, dpiY, PixelFormats.Pbgra32);

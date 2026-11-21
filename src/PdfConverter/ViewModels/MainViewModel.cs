@@ -390,6 +390,19 @@ namespace PdfConverter.ViewModels
         /// <summary>アクション可能なコマンドの実行可能状態を更新する (Coordinator ホスト専用)</summary>
         internal void RaiseCoordinatorActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
 
+        /// <summary>パスワードで保護された PDF のパスワードを入力させる (Coordinator ホスト専用)</summary>
+        /// <param name="filePath">開こうとしているドキュメントのパス</param>
+        /// <param name="previousPasswordWasIncorrect">直前に指定したパスワードが正しくなかったかどうか</param>
+        /// <returns>入力されたパスワード。キャンセルされた場合は <c>null</c></returns>
+        internal string? RequestPdfPassword(string filePath, bool previousPasswordWasIncorrect)
+        {
+            string fileName = Path.GetFileName(filePath);
+            string message = previousPasswordWasIncorrect
+                ? $"パスワードが正しくありません。もう一度入力してください。\n{fileName}"
+                : $"{fileName} はパスワードで保護されています。パスワードを入力してください。";
+            return _dialogService.ShowPasswordDialog(message, "パスワードの入力");
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */

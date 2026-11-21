@@ -16,11 +16,24 @@ namespace PdfConverter.Services
         /*                                 抽象メソッド                                 */
         /********************************************************************************/
         /// <summary>
+        /// パスワードで保護された PDF を開くためのパスワードを設定する
+        /// </summary>
+        /// <remarks>
+        /// 設定は 1 ファイル分だけ保持し、別のファイルに設定すると置き換える<br/>
+        /// 以降、<paramref name="filePath"/> の PDF を開くときにこのパスワードを使う<br/>
+        /// パスワードが必要な PDF を開こうとしたとき、またはパスワードが正しくないときは <see cref="PdfPasswordRequiredException"/> を送出する
+        /// </remarks>
+        /// <param name="filePath">PDF ファイルの絶対パス</param>
+        /// <param name="password">パスワード (設定を解除する場合は <c>null</c>)</param>
+        void SetPdfPassword(string filePath, string? password);
+
+        /// <summary>
         /// PDF ファイルの総ページ数を非同期で取得する
         /// </summary>
         /// <param name="filePath">PDF ファイルの絶対パス</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>PDF の総ページ数</returns>
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または設定したパスワードが正しくない場合</exception>
         Task<int> GetPdfPageCountAsync(string filePath, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -58,7 +71,7 @@ namespace PdfConverter.Services
         /// </summary>
         /// <remarks>
         /// CPU コア数に応じた並列処理で保存し、進捗を <paramref name="progress"/> で報告する<br/>
-        /// 画像は一時ディレクトリへ書き出したうえで、全ページ完了後に保存先へ反映する<br/>
+        /// 画像は保存先フォルダー内のステージングディレクトリへ書き出したうえで、全ページ完了後にリネームで保存先へ反映する<br/>
         /// キャンセルまたは失敗時は保存先を変更せず、部分出力を残さない
         /// </remarks>
         /// <param name="filePath">PDF ファイルの絶対パス</param>

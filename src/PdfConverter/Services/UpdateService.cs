@@ -4,6 +4,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using PdfConverter.Infrastructure;
@@ -39,6 +40,7 @@ namespace PdfConverter.Services
         private readonly Func<string> _currentVersionProvider;
         private readonly Func<string> _platformProvider;
         private readonly Func<string> _releaseKeyProvider;
+        private readonly Func<string> _signingPublicKeyProvider;
         private readonly string _bridgeBaseUrl;
         private readonly Func<string, string, bool> _processStarter;
         private bool _disposed;
@@ -57,6 +59,7 @@ namespace PdfConverter.Services
                 () => ApplicationMetadata.Version,
                 UpdateAssetSelector.GetCurrentPlatform,
                 () => UpdateReleaseKey.Value,
+                () => UpdateSigningKey.PublicKey,
                 DefaultBridgeBaseUrl,
                 StartSetupProcess)
         {
@@ -71,6 +74,7 @@ namespace PdfConverter.Services
             Func<string> currentVersionProvider,
             Func<string> platformProvider,
             Func<string> releaseKeyProvider,
+            Func<string> signingPublicKeyProvider,
             string bridgeBaseUrl,
             Func<string, string, bool> processStarter)
         {
@@ -82,6 +86,8 @@ namespace PdfConverter.Services
                 ?? throw new ArgumentNullException(nameof(platformProvider));
             _releaseKeyProvider = releaseKeyProvider
                 ?? throw new ArgumentNullException(nameof(releaseKeyProvider));
+            _signingPublicKeyProvider = signingPublicKeyProvider
+                ?? throw new ArgumentNullException(nameof(signingPublicKeyProvider));
             _bridgeBaseUrl = (bridgeBaseUrl ?? DefaultBridgeBaseUrl).TrimEnd('/');
             _processStarter = processStarter ?? throw new ArgumentNullException(nameof(processStarter));
         }
@@ -143,6 +149,14 @@ namespace PdfConverter.Services
             {
                 return UpdateApplyResult.Failed(
                     "リリースキーが埋め込まれていません。UpdateReleaseKey.local.props または環境変数 PDF_CONVERTER_KEY を設定してビルドしてください。");
+            }
+
+            // 署名を検証できないインストーラーは起動しないため、ダウンロードの前に確認する
+            string signingPublicKey = _signingPublicKeyProvider();
+            if (string.IsNullOrEmpty(signingPublicKey))
+            {
+                return UpdateApplyResult.Failed(
+                    "更新の署名検証用公開鍵が埋め込まれていません。UpdateSigningKey.cs の PublicKey を設定してビルドしてください。");
             }
 
             if (!UpdateDigestHelper.TryValidateDeclaredSize(update.Size, out string? sizeError))
@@ -218,6 +232,31 @@ namespace PdfConverter.Services
                     return UpdateApplyResult.Failed("ダウンロードファイルのハッシュが一致しません。");
                 }
 
+                // ハッシュは更新サーバーが返す値のため、サーバーとは独立に作った署名で真正性を確かめる
+                (string? signatureText, string? downloadError) = await DownloadSignatureAsync(
+                        $"{downloadUrl}.sig",
+                        releaseKey,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (signatureText == null)
+                {
+                    TryDelete(destinationPath);
+                    return UpdateApplyResult.Failed(downloadError ?? "署名ファイルを取得できませんでした。");
+                }
+
+                if (!UpdateSignatureVerifier.TryVerify(
+                        signingPublicKey,
+                        update.Tag,
+                        update.AssetName,
+                        actualSize,
+                        actualHash,
+                        signatureText,
+                        out string? signatureError))
+                {
+                    TryDelete(destinationPath);
+                    return UpdateApplyResult.Failed(signatureError);
+                }
+
                 if (!_processStarter(destinationPath, workDir))
                 {
                     return UpdateApplyResult.Failed("インストーラーの起動に失敗しました。");
@@ -277,6 +316,50 @@ namespace PdfConverter.Services
 
             Process? process = Process.Start(startInfo);
             return process != null;
+        }
+
+        private async Task<(string? Text, string? ErrorMessage)> DownloadSignatureAsync(
+            string url,
+            string releaseKey,
+            CancellationToken cancellationToken)
+        {
+            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", releaseKey);
+
+                using (HttpResponseMessage response = await _httpClient
+                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                    .ConfigureAwait(false))
+                {
+                    if (!response.IsSuccessStatusCode)
+                    {
+                        return (null, $"署名ファイルのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
+                    }
+
+                    // 上限より 1 バイト多く読み、超過を検出する
+                    var buffer = new byte[UpdateSignatureVerifier.MaxSignatureFileBytes + 1];
+                    int total = 0;
+                    using (Stream source = await response.Content
+                        .ReadAsStreamAsync(cancellationToken)
+                        .ConfigureAwait(false))
+                    {
+                        int read;
+                        while (total < buffer.Length
+                            && (read = await source.ReadAsync(buffer.AsMemory(total), cancellationToken)
+                                .ConfigureAwait(false)) > 0)
+                        {
+                            total += read;
+                        }
+                    }
+
+                    if (total > UpdateSignatureVerifier.MaxSignatureFileBytes)
+                    {
+                        return (null, "署名ファイルのサイズが上限を超えています。");
+                    }
+
+                    return (Encoding.ASCII.GetString(buffer, 0, total), null);
+                }
+            }
         }
 
         private static async Task DownloadToFileAsync(

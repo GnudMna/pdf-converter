@@ -6,13 +6,16 @@ using PdfConverter.Properties;
 namespace PdfConverter.Infrastructure
 {
     /// <summary>
-    /// ユーザー設定の破損回復とバージョン移行を起動時に行う
+    /// ユーザー設定の旧フォルダーからの引き継ぎ・破損回復・バージョン移行を起動時に行う
     /// </summary>
     public static class UserSettingsInitializer
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
         /********************************************************************************/
+        /// <summary>旧会社名のフォルダーから設定を引き継ぐ (テスト時に差し替え可能)</summary>
+        internal static Func<bool> MigrateLegacySettings { get; set; } = LegacySettingsMigrator.TryMigrate;
+
         /// <summary>設定の読み込みを試行する (テスト時に差し替え可能)</summary>
         internal static Action ProbeSettings { get; set; } = ProbeSettingsCore;
 
@@ -34,11 +37,12 @@ namespace PdfConverter.Infrastructure
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// 設定の破損回復とバージョン移行を行う
+        /// 設定の旧フォルダーからの引き継ぎ・破損回復・バージョン移行を行う
         /// </summary>
         /// <returns>初期化結果</returns>
         public static UserSettingsBootstrapResult Initialize()
         {
+            MigrateLegacySettings();
             bool recovered = TryRecoverFromCorruption();
             bool upgraded = TryUpgradeIfNeeded();
             return new UserSettingsBootstrapResult(recovered, upgraded);

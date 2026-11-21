@@ -7,6 +7,8 @@
 #   - Git
 #   - build-and-test.ps1 / build-installer.ps1 と同じ環境 (.NET SDK 10 以降・Inno Setup 6・mdBook)
 #   - 更新ダウンロード用キー (環境変数 PDF_CONVERTER_KEY または src\PdfConverter\UpdateReleaseKey.local.props)
+#   - 更新の署名用の秘密鍵 (環境変数 PDF_CONVERTER_UPDATE_SIGNING_KEY に PEM のパス。new-update-signing-key.ps1 で作成)
+#   - PowerShell 7 以降 (pwsh)。インストーラー作成まで行うときは署名のために必要
 #
 # 前提:
 #   - release/v{version} ブランチ上で実行する (ブランチ名と新バージョンが一致しないとエラー)
@@ -60,6 +62,7 @@ $ErrorActionPreference = 'Stop'
 
 . (Join-Path $PSScriptRoot 'build-common.ps1')
 . (Join-Path $PSScriptRoot 'release-version.ps1')
+. (Join-Path $PSScriptRoot 'update-signing.ps1')
 
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 
@@ -124,9 +127,10 @@ try {
         Assert-GitWorkingTreeClean -RepoRoot $repoRoot
     }
 
-    # キー無しでビルドすると配布物が更新を適用できないため、ファイルを変える前に確認する
+    # キー・署名無しで作ると配布物が更新を適用できないため、ファイルを変える前に確認する
     if (-not $SkipInstaller) {
         Assert-UpdateReleaseKeyConfigured -RepoRoot $repoRoot
+        Assert-UpdateSigningKeyConfigured -RepoRoot $repoRoot
     }
 
     Write-Host 'バージョン関連ファイルを更新しています...'
@@ -182,6 +186,7 @@ try {
     Write-Host "  - Gitea 上で v$newVersion タグを付与する"
     Write-Host '  - GitHub Release へインストーラーをアップロードする'
     Write-Host "      dist\PdfConverter-$newVersion-<platform>-setup.exe"
+    Write-Host "      dist\PdfConverter-$newVersion-<platform>-setup.exe.sig (署名。これが無いと更新を適用できない)"
 }
 catch {
     Write-Host ''

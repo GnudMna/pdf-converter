@@ -14,8 +14,11 @@ namespace PdfConverter.Infrastructure
         /********************************************************************************/
         /*                                  定数                                        */
         /********************************************************************************/
-        /// <summary>ライセンス全文ファイル名</summary>
+        /// <summary>同梱 OSS のライセンス全文ファイル名</summary>
         public const string ThirdPartyNoticesFileName = "THIRD-PARTY-NOTICES.txt";
+
+        /// <summary>本アプリの使用許諾ファイル名 (インストール版に同梱)</summary>
+        public const string LicenseFileName = "LICENSE.txt";
 
         /// <summary>利用者向けドキュメントのフォルダー名 (インストール版に同梱)</summary>
         public const string UserDocsDirectoryName = "docs";
@@ -59,12 +62,14 @@ namespace PdfConverter.Infrastructure
         public static string Copyright =>
             GetAssemblyAttribute<AssemblyCopyrightAttribute>()?.Copyright ?? string.Empty;
 
-        /// <summary>公開者名</summary>
+        /// <summary>公開者名 (AssemblyCompany は設定フォルダー名になるため、別の属性で持つ)</summary>
         public static string Publisher =>
-            GetAssemblyAttribute<AssemblyCompanyAttribute>()?.Company ?? string.Empty;
+            typeof(ApplicationMetadata).Assembly
+                .GetCustomAttributes<AssemblyMetadataAttribute>()
+                .FirstOrDefault(attribute => attribute.Key == "Publisher")?.Value ?? string.Empty;
 
         /// <summary>アプリ本体のライセンス名</summary>
-        public static string ApplicationLicenseName => "MIT License";
+        public static string ApplicationLicenseName => "All Rights Reserved";
 
         /// <summary>同梱 OSS 一覧</summary>
         public static IReadOnlyList<ThirdPartyComponent> BundledComponents => BundledComponentsList;
@@ -86,6 +91,14 @@ namespace PdfConverter.Infrastructure
         /// <summary>ライセンス全文ファイルが存在するかどうか</summary>
         public static bool IsThirdPartyNoticesAvailable =>
             File.Exists(ThirdPartyNoticesFilePath);
+
+        /// <summary>本アプリの使用許諾ファイルの絶対パス</summary>
+        public static string LicenseFilePath =>
+            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, LicenseFileName);
+
+        /// <summary>本アプリの使用許諾ファイルが存在するかどうか</summary>
+        public static bool IsLicenseAvailable =>
+            File.Exists(LicenseFilePath);
 
         /// <summary>利用者向けドキュメントの表紙の絶対パス</summary>
         public static string UserDocsIndexFilePath =>

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using PDFiumCore;
@@ -28,8 +29,8 @@ namespace PdfConverter.Services
         /// <summary>PDFium のエラーコード: 未対応のセキュリティハンドラー</summary>
         private const ulong PdfiumErrorSecurity = 5;
 
-        /// <summary>BGRA32 の 1 ピクセルあたりのバイト数</summary>
-        private const int BytesPerPixel = 4;
+        /// <summary>PDFium のビットマップ形式: BGRA 32 ビット (<c>FPDFBitmap_BGRA</c>)</summary>
+        private const int PdfiumBitmapFormatBgra = 4;
 
         /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
         internal const double NativeDpi = 72.0;
@@ -38,7 +39,7 @@ namespace PdfConverter.Services
         internal const long MaxRenderPixelsX64 = 300_000_000;
 
         /// <summary>32 ビットプロセスで描画できる 1 ページあたりの最大画素数 (BGRA32 で約 400 MB)</summary>
-        /// <remarks>アドレス空間が狭く、描画中はビットマップの複製が複数同時に存在するため 64 ビットより低く抑える</remarks>
+        /// <remarks>アドレス空間が狭く、連続した大きな領域を確保しにくいため 64 ビットより低く抑える</remarks>
         internal const long MaxRenderPixelsX86 = 100_000_000;
 
         /// <summary>PDFium の描画フラグ: 注釈を描画する (<c>FPDF_ANNOT</c>)</summary>
@@ -92,9 +93,11 @@ namespace PdfConverter.Services
         /// PDF のバイト列から文書を開く
         /// </summary>
         /// <param name="fileBytes">PDF ファイルのバイト配列</param>
+        /// <param name="password">PDF を開くパスワード (パスワードなしの場合は <c>null</c>)</param>
         /// <exception cref="ArgumentException"><paramref name="fileBytes"/> が空の場合</exception>
-        /// <exception cref="InvalidDataException">PDF を開けない場合 (破損・パスワード保護など)</exception>
-        public PdfiumDocument(byte[] fileBytes)
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または <paramref name="password"/> が正しくない場合</exception>
+        /// <exception cref="InvalidDataException">PDF を開けない場合 (破損など)</exception>
+        public PdfiumDocument(byte[] fileBytes, string? password = null)
         {
             if (fileBytes == null || fileBytes.Length == 0)
             {
@@ -104,7 +107,7 @@ namespace PdfConverter.Services
             _bufferHandle = GCHandle.Alloc(fileBytes, GCHandleType.Pinned);
             try
             {
-                PageCount = LoadDocument(() => fpdfview.FPDF_LoadMemDocument(_bufferHandle.AddrOfPinnedObject(), fileBytes.Length, null));
+                PageCount = LoadDocument(() => fpdfview.FPDF_LoadMemDocument(_bufferHandle.AddrOfPinnedObject(), fileBytes.Length, password), password);
             }
             catch
             {
@@ -117,8 +120,10 @@ namespace PdfConverter.Services
         /// 開いたファイルストリームから、PDFium が必要とした範囲だけを読み込む文書を開く
         /// </summary>
         /// <param name="fileStream">読み取り可能かつシーク可能なファイルストリーム (文書の破棄時に閉じる)</param>
-        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損・パスワード保護など)</exception>
-        private PdfiumDocument(FileStream fileStream)
+        /// <param name="password">PDF を開くパスワード (パスワードなしの場合は <c>null</c>)</param>
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または <paramref name="password"/> が正しくない場合</exception>
+        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損など)</exception>
+        private PdfiumDocument(FileStream fileStream, string? password)
         {
             long length = fileStream.Length;
             if (length == 0)
@@ -137,7 +142,7 @@ namespace PdfConverter.Services
             _fileAccess = CreateFileAccess((uint)length, _getBlockCallback);
             try
             {
-                PageCount = LoadDocument(() => fpdfview.FPDF_LoadCustomDocument(_fileAccess, null));
+                PageCount = LoadDocument(() => fpdfview.FPDF_LoadCustomDocument(_fileAccess, password), password);
             }
             catch
             {
@@ -170,10 +175,12 @@ namespace PdfConverter.Services
         /// 開いている間にファイルが書き換えられた場合の描画結果は保証しない
         /// </remarks>
         /// <param name="filePath">PDF ファイルのパス</param>
+        /// <param name="password">PDF を開くパスワード (パスワードなしの場合は <c>null</c>)</param>
         /// <returns>開いた文書</returns>
-        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損・パスワード保護など)</exception>
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または <paramref name="password"/> が正しくない場合</exception>
+        /// <exception cref="InvalidDataException">PDF を開けない場合 (空・4 GB 以上・破損など)</exception>
         /// <exception cref="IOException">ファイルを開けない場合</exception>
-        public static PdfiumDocument OpenFile(string filePath)
+        public static PdfiumDocument OpenFile(string filePath, string? password = null)
         {
             var fileStream = new FileStream(
                 filePath,
@@ -184,7 +191,7 @@ namespace PdfConverter.Services
                 FileOptions.RandomAccess);
             try
             {
-                return new PdfiumDocument(fileStream);
+                return new PdfiumDocument(fileStream, password);
             }
             catch
             {
@@ -273,9 +280,9 @@ namespace PdfConverter.Services
         {
             ValidatePageIndex(pageIndex);
 
-            int width;
-            int height;
-            byte[] pixels;
+            // 1 ポイント = 1 ピクセル (scale 1.0) が 72 DPI なので、倍率を掛けた値を DPI メタデータとして設定する
+            double dpi = NativeDpi * scale;
+            WriteableBitmap result;
             lock (PdfiumLock)
             {
                 FpdfDocumentT document = GetDocument();
@@ -292,12 +299,13 @@ namespace PdfConverter.Services
 
                 try
                 {
-                    (width, height) = ValidateRenderSize(
+                    (int width, int height) = ValidateRenderSize(
                         pageIndex,
                         fpdfview.FPDF_GetPageWidth(page) * scale,
                         fpdfview.FPDF_GetPageHeight(page) * scale,
                         MaxRenderPixels);
-                    pixels = RenderPageToBuffer(page, _formHandle, width, height, scale);
+                    result = CreateBitmap(width, height, dpi);
+                    RenderPageToBitmap(page, _formHandle, result, scale);
                 }
                 finally
                 {
@@ -310,19 +318,8 @@ namespace PdfConverter.Services
                 }
             }
 
-            // 1 ポイント = 1 ピクセル (scale 1.0) が 72 DPI なので、倍率を掛けた値を DPI メタデータとして設定する
-            double dpi = NativeDpi * scale;
-            var source = BitmapSource.Create(
-                width,
-                height,
-                dpi,
-                dpi,
-                PixelFormats.Bgra32,
-                null,
-                pixels,
-                width * BytesPerPixel);
-            source.Freeze();
-            return source;
+            result.Freeze();
+            return result;
         }
 
         /// <summary>
@@ -380,9 +377,11 @@ namespace PdfConverter.Services
         /// 文書を読み込み、フォーム環境を初期化する
         /// </summary>
         /// <param name="load">ロック内で PDFium の読み込み関数を呼び出し、文書ハンドルを返す関数</param>
+        /// <param name="password">読み込みに使ったパスワード (パスワードなしの場合は <c>null</c>)</param>
         /// <returns>ページ数</returns>
+        /// <exception cref="PdfPasswordRequiredException">パスワードが必要、または <paramref name="password"/> が正しくない場合</exception>
         /// <exception cref="InvalidDataException">PDF を開けない場合</exception>
-        private int LoadDocument(Func<FpdfDocumentT?> load)
+        private int LoadDocument(Func<FpdfDocumentT?> load, string? password)
         {
             lock (PdfiumLock)
             {
@@ -391,7 +390,7 @@ namespace PdfConverter.Services
                 FpdfDocumentT? document = load();
                 if (document == null || document.__Instance == IntPtr.Zero)
                 {
-                    throw CreateLoadException(fpdfview.FPDF_GetLastError());
+                    throw CreateLoadException(fpdfview.FPDF_GetLastError(), password != null);
                 }
 
                 _document = document;
@@ -510,13 +509,14 @@ namespace PdfConverter.Services
         /// 文書の読み込み失敗を表す例外を生成する
         /// </summary>
         /// <param name="errorCode"><c>FPDF_GetLastError</c> のエラーコード</param>
+        /// <param name="wasPasswordProvided">パスワードを指定して開こうとしたかどうか</param>
         /// <returns>例外</returns>
-        private static InvalidDataException CreateLoadException(ulong errorCode)
+        private static Exception CreateLoadException(ulong errorCode, bool wasPasswordProvided)
         {
             switch (errorCode)
             {
                 case PdfiumErrorPassword:
-                    return new InvalidDataException("パスワードで保護された PDF は開けません。");
+                    return new PdfPasswordRequiredException(wasPasswordProvided);
                 case PdfiumErrorSecurity:
                     return new InvalidDataException("この PDF のセキュリティ方式には対応していません。");
                 default:
@@ -559,64 +559,91 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 読み込み済みページを BGRA32 のバイト配列へ描画する (呼び出し側で <see cref="PdfiumLock"/> を保持すること)
+        /// 描画先の BGRA32 ビットマップを確保する
         /// </summary>
-        /// <param name="page">ページハンドル</param>
-        /// <param name="formHandle">フォーム環境のハンドル (<c>null</c> の場合はフォームフィールドを描画しない)</param>
-        /// <param name="width">描画幅 (ピクセル)</param>
-        /// <param name="height">描画高さ (ピクセル)</param>
-        /// <param name="scale">描画倍率</param>
-        /// <returns>stride = width * 4 のピクセルデータ</returns>
+        /// <param name="width">幅 (ピクセル)</param>
+        /// <param name="height">高さ (ピクセル)</param>
+        /// <param name="dpi">DPI メタデータ</param>
+        /// <returns>未凍結のビットマップ</returns>
         /// <exception cref="InsufficientMemoryException">描画用ビットマップを確保できない場合</exception>
-        private static byte[] RenderPageToBuffer(FpdfPageT page, FpdfFormHandleT? formHandle, int width, int height, double scale)
+        private static WriteableBitmap CreateBitmap(int width, int height, double dpi)
         {
-            // アルファ付きで作成したビットマップは透明 (全 0) で初期化される
-            FpdfBitmapT? bitmap = fpdfview.FPDFBitmapCreate(width, height, 1);
-            if (bitmap == null || bitmap.__Instance == IntPtr.Zero)
-            {
-                throw new InsufficientMemoryException($"描画用ビットマップを確保できませんでした ({width}x{height})。");
-            }
-
             try
             {
-                using (var matrix = new FS_MATRIX_())
-                using (var clipping = new FS_RECTF_())
+                return new WriteableBitmap(width, height, dpi, dpi, PixelFormats.Bgra32, null);
+            }
+            catch (OutOfMemoryException ex)
+            {
+                throw new InsufficientMemoryException($"描画用ビットマップを確保できませんでした ({width}x{height})。", ex);
+            }
+        }
+
+        /// <summary>
+        /// 読み込み済みページを <paramref name="target"/> のバックバッファーへ直接描画する (呼び出し側で <see cref="PdfiumLock"/> を保持すること)
+        /// </summary>
+        /// <remarks>
+        /// PDFium の描画先にバックバッファーを渡すため、ピクセルデータの複製は発生しない<br/>
+        /// 描画後に全体を更新領域として通知する
+        /// </remarks>
+        /// <param name="page">ページハンドル</param>
+        /// <param name="formHandle">フォーム環境のハンドル (<c>null</c> の場合はフォームフィールドを描画しない)</param>
+        /// <param name="target">描画先 (BGRA32、未凍結で、呼び出しスレッドが作成したもの)</param>
+        /// <param name="scale">描画倍率</param>
+        /// <exception cref="InsufficientMemoryException">PDFium の描画用ビットマップを作成できない場合</exception>
+        private static void RenderPageToBitmap(FpdfPageT page, FpdfFormHandleT? formHandle, WriteableBitmap target, double scale)
+        {
+            int width = target.PixelWidth;
+            int height = target.PixelHeight;
+
+            target.Lock();
+            try
+            {
+                // 外部バッファーを包むだけなので、バックバッファーの寿命は PDFium のビットマップより長い
+                FpdfBitmapT? bitmap = fpdfview.FPDFBitmapCreateEx(width, height, PdfiumBitmapFormatBgra, target.BackBuffer, target.BackBufferStride);
+                if (bitmap == null || bitmap.__Instance == IntPtr.Zero)
                 {
-                    matrix.A = (float)scale;
-                    matrix.B = 0;
-                    matrix.C = 0;
-                    matrix.D = (float)scale;
-                    matrix.E = 0;
-                    matrix.F = 0;
-
-                    clipping.Left = 0;
-                    clipping.Top = 0;
-                    clipping.Right = width;
-                    clipping.Bottom = height;
-
-                    fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, RenderFlagAnnotations);
+                    throw new InsufficientMemoryException($"描画用ビットマップを確保できませんでした ({width}x{height})。");
                 }
 
-                // フォームフィールド (ウィジェット注釈) は通常の描画対象外のため、ページ描画後に重ねて描画する
-                if (formHandle != null)
+                try
                 {
-                    fpdf_formfill.FPDF_FFLDraw(formHandle, bitmap, page, 0, 0, width, height, 0, RenderFlagAnnotations);
+                    // 外部バッファーは初期化されないため、透明 (全 0) で塗りつぶす
+                    fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, 0);
+
+                    using (var matrix = new FS_MATRIX_())
+                    using (var clipping = new FS_RECTF_())
+                    {
+                        matrix.A = (float)scale;
+                        matrix.B = 0;
+                        matrix.C = 0;
+                        matrix.D = (float)scale;
+                        matrix.E = 0;
+                        matrix.F = 0;
+
+                        clipping.Left = 0;
+                        clipping.Top = 0;
+                        clipping.Right = width;
+                        clipping.Bottom = height;
+
+                        fpdfview.FPDF_RenderPageBitmapWithMatrix(bitmap, page, matrix, clipping, RenderFlagAnnotations);
+                    }
+
+                    // フォームフィールド (ウィジェット注釈) は通常の描画対象外のため、ページ描画後に重ねて描画する
+                    if (formHandle != null)
+                    {
+                        fpdf_formfill.FPDF_FFLDraw(formHandle, bitmap, page, 0, 0, width, height, 0, RenderFlagAnnotations);
+                    }
+                }
+                finally
+                {
+                    fpdfview.FPDFBitmapDestroy(bitmap);
                 }
 
-                int stride = fpdfview.FPDFBitmapGetStride(bitmap);
-                IntPtr buffer = fpdfview.FPDFBitmapGetBuffer(bitmap);
-                int rowLength = width * BytesPerPixel;
-                var pixels = new byte[rowLength * height];
-                for (int y = 0; y < height; y++)
-                {
-                    Marshal.Copy(IntPtr.Add(buffer, y * stride), pixels, y * rowLength, rowLength);
-                }
-
-                return pixels;
+                target.AddDirtyRect(new Int32Rect(0, 0, width, height));
             }
             finally
             {
-                fpdfview.FPDFBitmapDestroy(bitmap);
+                target.Unlock();
             }
         }
 

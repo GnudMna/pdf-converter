@@ -105,6 +105,18 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
+        public string? ShowPasswordDialog(string message, string title)
+        {
+            var owner = Application.Current?.MainWindow;
+            var passwordDialog = new PasswordDialog(message, title)
+            {
+                Owner = owner,
+            };
+
+            return passwordDialog.ShowDialog() == true ? passwordDialog.Password : null;
+        }
+
+        /// <inheritdoc/>
         public void ShowAbout()
         {
             var owner = Application.Current?.MainWindow;

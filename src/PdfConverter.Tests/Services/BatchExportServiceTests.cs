@@ -15,11 +15,30 @@ namespace PdfConverter.Tests.Services
     /// <summary>
     /// <see cref="BatchExportService"/> のバッチ変換処理を検証する
     /// </summary>
-    public class BatchExportServiceTests
+    public sealed class BatchExportServiceTests : IDisposable
     {
+        /********************************************************************************/
+        /*                                 ローカル変数                                 */
+        /********************************************************************************/
+        /// <summary>テスト中に作成した一時ファイル・ディレクトリのパス</summary>
+        private readonly List<string> _tempPaths = new List<string>();
+
+
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// テスト中に作成した一時ファイル・ディレクトリを削除する
+        /// </summary>
+        public void Dispose()
+        {
+            foreach (string path in _tempPaths)
+            {
+                PdfTestAssetFactory.DeleteIfExists(path);
+                PdfTestAssetFactory.DeleteDirectoryIfExists(path);
+            }
+        }
+
         /// <summary>
         /// ヘルプ表示時は成功終了コードを返すことを検証する
         /// </summary>
@@ -470,6 +489,187 @@ namespace PdfConverter.Tests.Services
         }
 
 
+        /// <summary>
+        /// パスワードを指定した場合は、PDF を開く前に PDF 変換サービスへ設定することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_PasswordOption_SetsPasswordOnPdfConversionService()
+        {
+            string outputDir = CreateTempDirectory();
+            string pdfPath = CreateTempPdfPath();
+            var pdfService = new Mock<IPdfConversionService>();
+            pdfService
+                .Setup(s => s.GetPdfPageCountAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(pdfPath);
+
+            var service = CreateService(pdfService.Object, documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+                Password = "secret",
+            };
+            options.InputFiles.Add(pdfPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
+            pdfService.Verify(s => s.SetPdfPassword(pdfPath, "secret"), Times.Once);
+        }
+
+        /// <summary>
+        /// パスワード付き PDF にパスワードが指定されていない場合は、保存せずに失敗終了コードを返すことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_PasswordRequiredWithoutOption_ReturnsFailureWithoutSaving()
+        {
+            string outputDir = CreateTempDirectory();
+            string pdfPath = CreateTempPdfPath();
+            var pdfService = new Mock<IPdfConversionService>();
+            pdfService
+                .Setup(s => s.GetPdfPageCountAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: false));
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(pdfPath);
+
+            var service = CreateService(pdfService.Object, documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+            };
+            options.InputFiles.Add(pdfPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            pdfService.Verify(s => s.SetPdfPassword(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            pdfService.Verify(
+                s => s.SavePdfPagesToImagesAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<IEnumerable<int>>(),
+                    It.IsAny<string>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<ResolutionMode>(),
+                    It.IsAny<double>(),
+                    It.IsAny<OutputImageFormat>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<IProgress<SaveProgressReport>>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// ページ範囲が不正で複数ファイルの変換が失敗しても、出力先に空フォルダーを残さないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_InvalidPageRangeWithMultipleFiles_DoesNotCreateOutputFolders()
+        {
+            string outputDir = Path.Combine(CreateTempDirectory(), "out");
+            string firstPdfPath = CreateTempPdfPath();
+            string secondPdfPath = CreateTempPdfPath();
+            var pdfService = new Mock<IPdfConversionService>();
+            pdfService
+                .Setup(s => s.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(1);
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string path, CancellationToken _) => path);
+
+            var service = CreateService(pdfService.Object, documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+                PageRange = "5",
+                Quiet = true,
+            };
+            options.InputFiles.Add(firstPdfPath);
+            options.InputFiles.Add(secondPdfPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            Assert.False(Directory.Exists(outputDir));
+        }
+
+        /// <summary>
+        /// パスワード未指定でパスワード付き PDF の変換が失敗しても、出力先フォルダーを作らないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_PasswordRequiredWithoutOption_DoesNotCreateOutputFolder()
+        {
+            string outputDir = Path.Combine(CreateTempDirectory(), "out");
+            string pdfPath = CreateTempPdfPath();
+            var pdfService = new Mock<IPdfConversionService>();
+            pdfService
+                .Setup(s => s.GetPdfPageCountAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new PdfPasswordRequiredException(wasPasswordProvided: false));
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(pdfPath, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(pdfPath);
+
+            var service = CreateService(pdfService.Object, documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                Format = OutputImageFormat.Png,
+                ResolutionMode = ResolutionMode.Default,
+                Quiet = true,
+            };
+            options.InputFiles.Add(pdfPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            Assert.False(Directory.Exists(outputDir));
+        }
+
+        /// <summary>
+        /// PDF 出力の変換が失敗しても、出力先フォルダーを作らないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_ExportPdfConversionFails_DoesNotCreateOutputFolder()
+        {
+            string outputDir = Path.Combine(CreateTempDirectory(), "out");
+            string wordPath = CreateTempWordPath();
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("変換失敗"));
+
+            var service = CreateService(documentPdfSourceService: documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                ExportPdfOnly = true,
+                Quiet = true,
+            };
+            options.InputFiles.Add(wordPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            Assert.False(Directory.Exists(outputDir));
+        }
+
+
         /********************************************************************************/
         /*                             プライベートメソッド                             */
         /********************************************************************************/
@@ -484,21 +684,23 @@ namespace PdfConverter.Tests.Services
                 imageExportSettings ?? ImageExportSettingsTestHelper.Create().Object);
         }
 
-        private static string CreateTempDirectory()
+        private string CreateTempDirectory()
         {
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-batch-{Guid.NewGuid():N}");
             Directory.CreateDirectory(path);
+            _tempPaths.Add(path);
             return path;
         }
 
-        private static string CreateTempPdfPath()
+        private string CreateTempPdfPath()
         {
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-batch-{Guid.NewGuid():N}.pdf");
             File.WriteAllBytes(path, new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D });
+            _tempPaths.Add(path);
             return path;
         }
 
-        private static string CreateNamedTempFile(string subFolder, string fileName)
+        private string CreateNamedTempFile(string subFolder, string fileName)
         {
             string directory = Path.Combine(CreateTempDirectory(), subFolder);
             Directory.CreateDirectory(directory);
@@ -507,10 +709,11 @@ namespace PdfConverter.Tests.Services
             return path;
         }
 
-        private static string CreateTempWordPath()
+        private string CreateTempWordPath()
         {
             string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-batch-{Guid.NewGuid():N}.docx");
             File.WriteAllText(path, "word");
+            _tempPaths.Add(path);
             return path;
         }
 

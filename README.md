@@ -6,13 +6,13 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.6.2-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.7.0-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
 [![UI](https://img.shields.io/badge/UI-WPF%20(MVVM)-2C68C4?logo=windowsxp&logoColor=white)](#)
 [![Engine](https://img.shields.io/badge/Engine-PDFium%20(PDFiumCore)-FF5722)](#)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-F59E0B)](LICENSE)
 
 </div>
 
@@ -114,7 +114,7 @@ dotnet build src/PdfConverter.slnx -c Release -p:Platform=x64
 
 ## 📜 ライセンス
 
-本プロジェクトは [MIT License](LICENSE) の下で公開している。
+本ソフトウェアの著作権は著作者が保有する (All Rights Reserved)。利用には著作者の事前の許可が必要で、許可のない複製・改変・再配布・商用利用を禁止する。条件は [LICENSE](LICENSE) を参照する。
 
 ### オープンソースソフトウェア
 

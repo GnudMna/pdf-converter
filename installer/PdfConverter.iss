@@ -85,6 +85,8 @@ Type: files; Name: "{autoprograms}\{#MyAppName} ドキュメント.lnk"
 [Files]
 ; THIRD-PARTY-NOTICES.txt と docs\ (利用者向けドキュメント) は build-installer.ps1 がビルド出力へ生成します
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; 本アプリの使用許諾 (ウィザードでも LicenseFile として表示する)。メモ帳で開けるよう拡張子を付ける
+Source: "..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
 
 [Icons]
 ; スタートメニューの「PDF Converter」フォルダー (%AppData%\Microsoft\Windows\Start Menu\Programs\PDF Converter)

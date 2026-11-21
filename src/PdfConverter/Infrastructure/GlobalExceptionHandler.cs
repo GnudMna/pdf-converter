@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Windows;
@@ -33,6 +34,12 @@ namespace PdfConverter.Infrastructure
             get => ApplicationLogger.LogDirectory;
             set => ApplicationLogger.LogDirectory = value;
         }
+
+        /// <summary>
+        /// ダイアログを出せない実行形態 (バッチモード) かどうか<br/>
+        /// true の間は MessageBox を出さず、標準エラーへ書き出す
+        /// </summary>
+        internal static bool IsHeadless { get; set; }
 
         /// <summary>致命的例外後の終了処理 (テスト時に差し替え可能)</summary>
         internal static Action ShutdownAfterFatalException { get; set; } = ShutdownApplicationAfterFatalException;
@@ -115,6 +122,8 @@ namespace PdfConverter.Infrastructure
                 return false;
             }
 
+            // NullReferenceException・InvalidCastException・IndexOutOfRangeException などは、
+            // 単一の操作のバグで起きることが多く、プロセス状態の破壊とは限らないため致命扱いにしない
             Exception root = Unwrap(exception);
             return root is OutOfMemoryException
                 || root is InsufficientMemoryException
@@ -123,12 +132,7 @@ namespace PdfConverter.Infrastructure
                 || root is BadImageFormatException
                 || root is TypeLoadException
                 || root is AppDomainUnloadedException
-                || root is StackOverflowException
-                || root is NullReferenceException
-                || root is InvalidCastException
-                || root is IndexOutOfRangeException
-                || root is RankException
-                || root is ArrayTypeMismatchException;
+                || root is StackOverflowException;
         }
 
         /// <summary>現在のアプリケーションの Dispatcher を取得する</summary>
@@ -210,6 +214,13 @@ namespace PdfConverter.Infrastructure
         /// <param name="kind">例外の種類</param>
         private static void NotifyUser(Exception exception, string source, ExceptionReportKind kind)
         {
+            if (IsHeadless)
+            {
+                // バッチモードでは UI スレッドが変換の完了待ちで塞がっているため、Dispatcher を介さず直接書き出す
+                WriteHeadlessError(exception);
+                return;
+            }
+
             var dispatcher = CurrentDispatcher;
             if (dispatcher != null && !dispatcher.CheckAccess())
             {
@@ -218,6 +229,20 @@ namespace PdfConverter.Infrastructure
             }
 
             NotifyUserCore(exception, source, kind);
+        }
+
+        /// <summary>バッチモードで例外の内容を標準エラーへ書き出す</summary>
+        /// <param name="exception">書き出す例外</param>
+        private static void WriteHeadlessError(Exception exception)
+        {
+            try
+            {
+                BatchConsoleHelper.WriteErrorLine(ExceptionFormattingHelper.GetUserMessage(exception));
+            }
+            catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+            {
+                // コンソールへ書けなくてもログには残っているため、通知の失敗は無視する
+            }
         }
 
         /// <summary>UI スレッド上でユーザーへ通知する</summary>
