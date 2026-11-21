@@ -4,9 +4,9 @@
 
 # PDF Converter
 
-**PDF のページを高品質な画像へ変換する、シンプルな Windows アプリ**
+**PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.3.0-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.3.1-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -71,7 +71,8 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 - [.NET Framework 4.8.1](https://dotnet.microsoft.com/download/dotnet-framework/net481)
 - Word ファイルを変換する場合: **Microsoft Word**（デスクトップ版）または **LibreOffice** のいずれか
 - LibreOffice 使用時: 一般的なインストール先から `soffice.exe` を自動検出（必要に応じてアプリ内でパス指定可能）
-- ビルドする場合: Visual Studio 2022 など（NuGet パッケージの復元が必要）
+- ビルドする場合: Visual Studio 2019 以降など（NuGet パッケージの復元が必要）
+- インストーラーを作成する場合: [Inno Setup 6](https://jrsoftware.org/isinfo.php)
 
 ---
 
@@ -106,7 +107,47 @@ msbuild src/PdfConverter/PdfConverter.csproj /t:BuildAllPlatforms /p:Configurati
 | `x64` | `src/PdfConverter/bin/x64/Release/` |
 | `x86` | `src/PdfConverter/bin/x86/Release/` |
 
-PDFium のネイティブ DLL（`pdfium.dll`）は、ビルド時にプラットフォームに合わせて `lib\` フォルダへ自動配置されます。
+ビルド後の出力フォルダ構成は次のとおりです。`PDF Converter.exe` はルートに配置され、依存するマネージド DLL と PDFium のネイティブ DLL（`pdfium.dll`）は `lib\` サブフォルダへ自動配置されます。起動時に `SetDllDirectory` で `lib\` を検索パスに追加するため、配布時もこの構成を維持してください。
+
+```text
+PDF Converter.exe
+lib/
+├─ Docnet.Core.dll
+├─ pdfium.dll
+└─ …（その他の依存 DLL）
+```
+
+---
+
+## 📦 インストーラー
+
+[Inno Setup 6](https://jrsoftware.org/isinfo.php) を使ったセットアップ EXE を `installer/` から作成できます。管理者権限を要求しない**ユーザー単位インストール**で、`%LOCALAPPDATA%\Programs\PDF Converter` に配置されます。
+
+```powershell
+cd installer
+
+# x64 版（既定）— アプリの Release ビルドからインストーラーを生成
+.\build-installer.ps1
+
+# x86 と x64 の両方
+.\build-installer.ps1 -Platform all
+
+# アプリはビルド済みの場合
+.\build-installer.ps1 -SkipBuild
+
+# CI / ターミナル向け（完了後のキー入力待ちを省略）
+.\build-installer.ps1 -NoPause
+```
+
+生成物は `dist/` に出力されます（例: `PdfConverter-0.3.0-x64-setup.exe`）。バージョン番号は `src/PdfConverter/Properties/AssemblyInfo.cs` から自動取得されます。
+
+| 項目 | 内容 |
+|:---|:---|
+| 前提条件チェック | .NET Framework 4.8.1 の有無を確認 |
+| スタートメニュー | ショートカットを自動作成 |
+| デスクトップショートカット | オプション |
+| ファイル関連付け | オプション（`.pdf` / `.doc` / `.docx`） |
+| ウィザード UI | 日本語 / 英語 |
 
 ---
 
@@ -166,7 +207,7 @@ pdf-converter/
 │  ├─ PdfConverter/                # アプリ本体 (WPF / MVVM)
 │  │  ├─ Commands/                 # コマンド実装
 │  │  ├─ Converters/               # 値変換
-│  │  ├─ Infrastructure/           # 例外処理・DI 構成
+│  │  ├─ Infrastructure/           # 例外処理・DI 構成・起動補助
 │  │  ├─ Models/                   # ドメインモデル / 列挙型
 │  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携
 │  │  ├─ Themes/                   # ライト / ダークテーマ
@@ -181,7 +222,6 @@ pdf-converter/
 │  │  ├─ Views/                    # 画面 (XAML)
 │  │  │  ├─ Panels/                # メイン画面を構成する各パネル
 │  │  │  ├─ Behaviors/             # UI ビヘイビア（D&D など）
-│  │  │  ├─ BusyOverlay.xaml       # 処理中オーバーレイ
 │  │  │  ├─ DropOverlay.xaml       # ドロップ受付オーバーレイ
 │  │  │  └─ ConfirmDialog.xaml     # 確認ダイアログ
 │  │  └─ Assets/                   # アイコンなどのリソース
@@ -196,6 +236,10 @@ pdf-converter/
 │     ├─ Views/
 │     │  └─ Behaviors/
 │     └─ Helpers/                  # テスト補助
+├─ installer/                      # Inno Setup スクリプトとビルド用 PowerShell
+│  ├─ PdfConverter.iss
+│  └─ build-installer.ps1
+├─ dist/                           # インストーラー出力先（gitignore 対象）
 ├─ LICENSE
 └─ README.md
 ```

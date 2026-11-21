@@ -135,6 +135,35 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+        /// <summary>
+        /// 大量の標準出力 / 標準エラー出力でもデッドロックせず PDF を生成できることを検証する
+        /// </summary>
+        [Fact]
+        public async Task ConvertToPdfAsync_WithVerboseFakeSoffice_ReturnsGeneratedPdfPath()
+        {
+            string fakeSoffice = FakeSofficeHelper.CreateSuccessfulVerboseWrapper();
+            var settings = CreateSettings(fakeSoffice);
+            var service = new LibreOfficeToPdfConversionService(settings.Object);
+            string wordPath = CreateTempWordFile();
+
+            try
+            {
+                using (var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30)))
+                {
+                    string pdfPath = await service.ConvertToPdfAsync(wordPath, cts.Token);
+
+                    Assert.False(string.IsNullOrWhiteSpace(pdfPath));
+                    Assert.True(File.Exists(pdfPath));
+                    Assert.Contains("%PDF", File.ReadAllText(pdfPath));
+                }
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(fakeSoffice);
+            }
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */

@@ -123,6 +123,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Infrastructure\ApplicationStartupHelper.cs" />
     <Compile Include="Infrastructure\GlobalExceptionHandler.cs" />
     <Compile Include="Infrastructure\ServiceConfigurator.cs" />
     <Compile Include="Services\CancellationExceptionHelper.cs" />
@@ -272,10 +273,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <Page Include="Views\BusyOverlay.xaml">
-      <Generator>MSBuild:Compile</Generator>
-      <SubType>Designer</SubType>
-    </Page>
     <Page Include="Views\DropOverlay.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -310,9 +307,6 @@
     </Page>
     <Compile Include="Views\ConfirmDialog.xaml.cs">
       <DependentUpon>ConfirmDialog.xaml</DependentUpon>
-    </Compile>
-    <Compile Include="Views\BusyOverlay.xaml.cs">
-      <DependentUpon>BusyOverlay.xaml</DependentUpon>
     </Compile>
     <Compile Include="Views\DropOverlay.xaml.cs">
       <DependentUpon>DropOverlay.xaml</DependentUpon>

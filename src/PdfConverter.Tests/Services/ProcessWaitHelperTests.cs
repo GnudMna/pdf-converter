@@ -71,5 +71,38 @@ namespace PdfConverter.Tests.Services
                 Assert.True(process.HasExited);
             }
         }
+
+        /// <summary>
+        /// 大量の標準出力 / 標準エラー出力でもデッドロックせず終了することを検証する
+        /// </summary>
+        [Fact]
+        public void WaitForExitWithCapturedOutput_VerboseProcess_CapturesOutputWithoutDeadlock()
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = "cmd.exe",
+                Arguments = "/c (for /l %i in (1,1,500) do @echo stdout line %i) & (for /l %i in (1,1,500) do @echo stderr line %i 1>&2)",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+
+            using (var process = new Process { StartInfo = startInfo })
+            {
+                process.Start();
+
+                CapturedProcessOutput captured = ProcessWaitHelper.WaitForExitWithCapturedOutput(
+                    process,
+                    TimeSpan.FromSeconds(30),
+                    CancellationToken.None,
+                    "timeout");
+
+                Assert.True(process.HasExited);
+                Assert.Equal(0, process.ExitCode);
+                Assert.Contains("stdout line 1", captured.StandardOutput);
+                Assert.Contains("stderr line 1", captured.StandardError);
+            }
+        }
     }
 }

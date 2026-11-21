@@ -36,6 +36,20 @@ namespace PdfConverter.Tests.Helpers
             return CreateWrapper(success: false);
         }
 
+        /// <summary>
+        /// 大量の標準出力 / 標準エラーを書き出してから成功する偽 <c>soffice.exe</c> ラッパーを作成する
+        /// </summary>
+        /// <returns>実行可能なラッパーファイルの絶対パス</returns>
+        public static string CreateSuccessfulVerboseWrapper()
+        {
+            string scriptPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.ps1");
+            string cmdPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-fake-soffice-{Guid.NewGuid():N}.cmd");
+            string script = GetVerboseSuccessfulScriptContent();
+            File.WriteAllText(scriptPath, script);
+            File.WriteAllText(cmdPath, $"@powershell -NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" %*{Environment.NewLine}");
+            return cmdPath;
+        }
+
 
         /********************************************************************************/
         /*                             プライベートメソッド                             */
@@ -62,6 +76,34 @@ namespace PdfConverter.Tests.Helpers
         {
             return @"
 param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+$outDir = $null
+$inputPath = $null
+for ($i = 0; $i -lt $Args.Count; $i++) {
+    $token = $Args[$i].Trim('""')
+    if ($token -eq '--outdir' -and ($i + 1) -lt $Args.Count) {
+        $outDir = $Args[$i + 1].Trim('""')
+        $i++
+    }
+    elseif (-not $token.StartsWith('-')) {
+        $inputPath = $token
+    }
+}
+if (-not $outDir -or -not $inputPath) { exit 1 }
+$name = [IO.Path]::GetFileNameWithoutExtension($inputPath)
+[IO.File]::WriteAllText((Join-Path $outDir ""$name.pdf""), '%PDF-1.4 fake')
+exit 0
+";
+        }
+
+        /// <summary>大量出力を伴う成功時の PowerShell スクリプト本文を返す</summary>
+        private static string GetVerboseSuccessfulScriptContent()
+        {
+            return @"
+param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Args)
+for ($i = 0; $i -lt 500; $i++) {
+    [Console]::Out.WriteLine(""stdout line $i"")
+    [Console]::Error.WriteLine(""stderr line $i"")
+}
 $outDir = $null
 $inputPath = $null
 for ($i = 0; $i -lt $Args.Count; $i++) {

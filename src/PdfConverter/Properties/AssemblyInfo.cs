@@ -10,9 +10,9 @@ using System.Windows;
 [assembly: AssemblyTitle("PDF Converter")]
 [assembly: AssemblyDescription("PDF のページを高品質な画像 (PNG / JPEG / BMP) へ変換する Windows アプリ")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("y_hirata")]
+[assembly: AssemblyCompany("Yuto Hirata")]
 [assembly: AssemblyProduct("PDF Converter")]
-[assembly: AssemblyCopyright("Copyright © 2026 y_hirata")]
+[assembly: AssemblyCopyright("Copyright © 2026 Yuto Hirata")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -48,7 +48,7 @@ using System.Windows;
 //      ビルド番号
 //      リビジョン
 //
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
-[assembly: AssemblyInformationalVersion("0.3.0")]
+[assembly: AssemblyVersion("0.3.1.0")]
+[assembly: AssemblyFileVersion("0.3.1.0")]
+[assembly: AssemblyInformationalVersion("0.3.1")]
 [assembly: InternalsVisibleTo("PdfConverter.Tests")]

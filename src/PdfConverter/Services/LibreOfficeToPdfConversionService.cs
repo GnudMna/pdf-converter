@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -76,7 +75,7 @@ namespace PdfConverter.Services
                 using (var process = new Process { StartInfo = startInfo })
                 {
                     process.Start();
-                    ProcessWaitHelper.WaitForExit(
+                    CapturedProcessOutput capturedOutput = ProcessWaitHelper.WaitForExitWithCapturedOutput(
                         process,
                         WordToPdfConversionTimeouts.Conversion,
                         cancellationToken,
@@ -84,9 +83,8 @@ namespace PdfConverter.Services
 
                     if (process.ExitCode != 0)
                     {
-                        string error = ReadAvailableStream(process.StandardError);
                         throw new InvalidOperationException(
-                            $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{error}");
+                            $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{capturedOutput.StandardError}");
                     }
                 }
 
@@ -140,28 +138,6 @@ namespace PdfConverter.Services
         internal static string QuoteArgument(string value)
         {
             return "\"" + value.Replace("\"", "\\\"") + "\"";
-        }
-
-        /// <summary>
-        /// 利用可能な標準出力 / エラー文字列を読み取る
-        /// </summary>
-        /// <param name="reader">読み取り元</param>
-        /// <returns>読み取った文字列</returns>
-        private static string ReadAvailableStream(StreamReader reader)
-        {
-            if (reader == null)
-            {
-                return string.Empty;
-            }
-
-            try
-            {
-                return reader.ReadToEnd().Trim();
-            }
-            catch
-            {
-                return string.Empty;
-            }
         }
 
         /// <summary>

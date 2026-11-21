@@ -6,7 +6,6 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
-using PdfConverter.Services;
 using PdfConverter.Themes;
 using PdfConverter.ViewModels;
 using PdfConverter.Views;
@@ -45,9 +44,8 @@ namespace PdfConverter
 
             GlobalExceptionHandler.Register();
 
-            var exeDir = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)
-                         ?? AppDomain.CurrentDomain.BaseDirectory;
-            SetDllDirectory(Path.Combine(exeDir, "lib"));
+            SetDllDirectory(ApplicationStartupHelper.GetNativeDllSearchPath(
+                System.Reflection.Assembly.GetExecutingAssembly().Location));
 
             base.OnStartup(e);
 
@@ -57,7 +55,7 @@ namespace PdfConverter
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
 
-            if (DocumentFileHelper.TryGetFirstSupportedPathFromArgs(e.Args, out string initialFilePath)
+            if (ApplicationStartupHelper.TryGetInitialDocumentPath(e.Args, out string initialFilePath)
                 && mainWindow.DataContext is IMainWindowViewModel viewModel)
             {
                 mainWindow.Dispatcher.BeginInvoke(
