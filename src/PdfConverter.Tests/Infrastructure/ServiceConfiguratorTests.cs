@@ -30,6 +30,7 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.NotNull(provider.GetService(typeof(IDialogService)));
             Assert.NotNull(provider.GetService(typeof(IClipboardService)));
             Assert.NotNull(provider.GetService(typeof(IImageExportSettings)));
+            Assert.NotNull(provider.GetService(typeof(IBatchExportService)));
         }
 
         /// <summary>

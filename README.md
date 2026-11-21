@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.3.2-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.4.0-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -39,6 +39,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 | 📄 | **Word 対応** | `.doc` / `.docx` を Word または LibreOffice 経由で PDF 化し、画像へ変換 |
 | 🖱️ | **ドラッグ＆ドロップ** | PDF / Word をウィンドウへドロップするだけで読み込み |
 | 🚀 | **コマンドライン起動** | 起動時引数で PDF / Word を指定し、開いた状態で起動 |
+| ⚙️ | **バッチ / ヘッドレス** | `--output` などのオプションで GUI なしの一括変換に対応 |
 | 🌗 | **テーマ切替** | ライト / ダーク / システム設定に追従 |
 | 🧠 | **メモリキャッシュ** | 一定サイズ以下の PDF をキャッシュし、I/O を削減 |
 | 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
@@ -80,6 +81,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 ## 🏗️ ビルド & 実行
 
 基本は `src/PdfConverter.slnx` を使用します（`src/PdfConverter.sln` は旧ツールチェーン向けの互換用です）。  
+テストプロジェクトは `PdfConverter.slnx` にのみ含まれます。`installer/` のビルドスクリプトは MSBuild 17.10 未満の環境では自動的に `PdfConverter.sln` へフォールバックします（テスト実行には MSBuild 17.10 以降が必要です）。  
 以下のコマンドは、`msbuild`/`nuget` が利用できる **Visual Studio Developer PowerShell** での実行を想定しています。
 
 ```powershell
@@ -169,6 +171,8 @@ cd installer
 
 ### コマンドライン引数
 
+#### GUI 起動
+
 起動時に PDF / Word のパスを渡すと、アプリ起動後に自動で読み込みます。複数の引数が渡された場合は、先頭から順に検証し、最初の有効なパスを使用します。
 
 ```powershell
@@ -180,6 +184,56 @@ cd installer
 ```
 
 エクスプローラーで PDF / Word をこのアプリにドラッグする、または「プログラムから開く」に登録して使うこともできます。
+
+#### バッチ / ヘッドレスモード
+
+`--output` などのスイッチを 1 つでも指定すると、ウィンドウを表示せずに変換だけを実行して終了します。スクリプトやタスクスケジューラからの自動化に使えます。進捗やエラーは標準出力 / 標準エラーへ表示され、詳細は GUI モードと同じログファイルにも記録されます。
+
+```powershell
+# PDF の全ページを PNG 画像として出力
+& ".\PDF Converter.exe" --output "C:\out" "C:\docs\report.pdf"
+
+# ページ範囲・形式・解像度を指定（-o=value 形式も可）
+& ".\PDF Converter.exe" -o "C:\out" -f png -p "1-3,5" --resolution-mode width -r 1920 "report.pdf"
+
+# 複数ファイルを一括変換（各ファイルは <出力先>\<ファイル名>\page_1.png 形式）
+& ".\PDF Converter.exe" -o "C:\out" "a.pdf" "b.pdf"
+
+# Word を PDF として保存（出力先に .pdf を指定するとそのパスへ直接保存）
+& ".\PDF Converter.exe" --export-pdf -o "C:\out\proposal.pdf" "proposal.docx"
+
+# 既存ファイルを上書き
+& ".\PDF Converter.exe" -o "C:\out" --overwrite "report.pdf"
+
+# 先頭が - のパスを渡す場合は -- で区切る
+& ".\PDF Converter.exe" -o "C:\out" -- "-report.pdf"
+
+# ヘルプを表示
+& ".\PDF Converter.exe" --help
+```
+
+**出力先の構成**
+
+| 入力 | 画像出力先 |
+|:---|:---|
+| 1 ファイル | `<出力先>\page_1.png`、`<出力先>\page_2.png`、… |
+| 複数ファイル | `<出力先>\<ファイル名>\page_1.png`、… |
+
+| オプション | 説明 |
+|:---|:---|
+| `--output`, `-o <path>` | 画像の出力先フォルダー、または PDF 出力先（必須） |
+| `--pages`, `-p <範囲>` | 出力ページ（例: `1-3,5`）。省略時は全ページ |
+| `--format`, `-f <形式>` | `png` / `jpeg`（`jpg` 可）/ `bmp`（省略時は保存済み設定） |
+| `--resolution-mode <方式>` | `default` / `width` / `height` / `dpi` |
+| `--resolution`, `-r <数値>` | 解像度の数値 |
+| `--transparent` | 透明度を保持（PNG のみ） |
+| `--no-transparent` | 白背景に合成 |
+| `--overwrite` | 既存ファイルを確認せず上書き |
+| `--export-pdf` | Word を PDF として保存（画像変換は行わない） |
+| `--quiet`, `-q` | 進捗メッセージを抑制 |
+| `--help`, `-h`, `/?`, `--?` | ヘルプを表示 |
+
+終了コード: `0` = 成功、`1` = 変換エラー、`2` = 引数エラー
 
 ### トラブルシューティング
 
@@ -233,9 +287,14 @@ pdf-converter/
 │  ├─ PdfConverter/                # アプリ本体 (WPF / MVVM)
 │  │  ├─ Commands/                 # コマンド実装
 │  │  ├─ Converters/               # 値変換
-│  │  ├─ Infrastructure/           # ログ・例外処理・DI 構成・起動補助
+│  │  ├─ Infrastructure/           # ログ・例外処理・DI 構成・起動補助・CLI 解析
+│  │  │  ├─ BatchCliParser.cs      # バッチ / ヘッドレスモードの引数解析
+│  │  │  ├─ BatchCliOptions.cs   # バッチモードのオプション
+│  │  │  └─ BatchConsoleHelper.cs # バッチモードのコンソール出力
 │  │  ├─ Models/                   # ドメインモデル / 列挙型
-│  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携
+│  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携・バッチ変換
+│  │  │  ├─ BatchExportService.cs # バッチ / ヘッドレスモードの変換実行
+│  │  │  └─ IBatchExportService.cs
 │  │  ├─ Themes/                   # ライト / ダークテーマ
 │  │  ├─ ViewModels/               # ViewModel 群
 │  │  │  ├─ Coordinators/          # プレビュー・保存フローの調停

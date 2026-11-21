@@ -1,6 +1,6 @@
 using System;
-using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
@@ -50,6 +50,11 @@ namespace PdfConverter
             SetDllDirectory(ApplicationStartupHelper.GetNativeDllSearchPath(
                 System.Reflection.Assembly.GetExecutingAssembly().Location));
 
+            if (TryRunBatchMode(e.Args))
+            {
+                return;
+            }
+
             base.OnStartup(e);
 
             ThemeManager.Initialize();
@@ -81,6 +86,58 @@ namespace PdfConverter
             PdfConverterTempDirectory.TryCleanupAll();
 
             base.OnExit(e);
+        }
+
+        /// <summary>
+        /// バッチ / ヘッドレスモードで起動された場合に変換を実行する
+        /// </summary>
+        /// <param name="args">起動引数</param>
+        /// <returns>true: バッチモードとして処理済み / false: GUI 起動を続行</returns>
+        private bool TryRunBatchMode(string[] args)
+        {
+            if (!BatchCliParser.TryParse(args, out BatchCliOptions options, out string parseError))
+            {
+                return false;
+            }
+
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            int exitCode = BatchCliParser.InvalidArgumentsExitCode;
+
+            try
+            {
+                if (options == null)
+                {
+                    BatchConsoleHelper.WriteErrorLine(parseError);
+                    BatchConsoleHelper.WriteLine(string.Empty);
+                    BatchConsoleHelper.WriteLine(BatchCliParser.GetHelpText());
+                }
+                else
+                {
+                    _serviceProvider = ServiceConfigurator.Configure();
+                    var batchExportService = _serviceProvider.GetRequiredService<IBatchExportService>();
+                    exitCode = batchExportService.RunAsync(options, CancellationToken.None).GetAwaiter().GetResult();
+                }
+            }
+            catch (Exception ex)
+            {
+                ApplicationLogger.Error("Batch", "Batch mode failed", ex);
+                BatchConsoleHelper.WriteErrorLine(ExceptionFormattingHelper.GetUserMessage(ex));
+                exitCode = BatchCliParser.RuntimeErrorExitCode;
+            }
+            finally
+            {
+                if (_serviceProvider is IDisposable disposable)
+                {
+                    disposable.Dispose();
+                    _serviceProvider = null;
+                }
+
+                PdfConverterTempDirectory.TryCleanupAll();
+                GlobalExceptionHandler.Unregister();
+                Shutdown(exitCode);
+            }
+
+            return true;
         }
     }
 }

@@ -14,6 +14,7 @@
 #   .\build-installer.ps1 -SkipBuild           # アプリの再ビルドをスキップ
 #   .\build-installer.ps1 -SkipRestore         # パッケージ復元をスキップ
 #   .\build-installer.ps1 -NoPause             # 完了後のキー入力待ちを省略（ターミナル向け）
+#   .\build-installer.ps1 -SolutionPath ..\src\PdfConverter.sln  # ソリューションを明示指定
 
 [CmdletBinding()]
 param(
@@ -24,7 +25,9 @@ param(
 
     [switch] $SkipRestore,
 
-    [switch] $NoPause
+    [switch] $NoPause,
+
+    [string] $SolutionPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,8 +35,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'build-common.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
-$slnxPath = Join-Path $repoRoot 'src\PdfConverter.slnx'
-$csprojPath = Join-Path $repoRoot 'src\PdfConverter\PdfConverter.csproj'
+$solutionPath = Resolve-SolutionPath -RepoRoot $repoRoot -PreferredPath $SolutionPath
 $issPath = Join-Path $PSScriptRoot 'PdfConverter.iss'
 $distDir = Join-Path $repoRoot 'dist'
 $assemblyInfoPath = Join-Path $repoRoot 'src\PdfConverter\Properties\AssemblyInfo.cs'
@@ -69,14 +71,17 @@ function Get-AppVersion {
 }
 
 function Build-App {
-    param([string[]] $Platforms)
+    param(
+        [string] $SolutionPath,
+        [string[]] $Platforms
+    )
 
     $msbuild = Find-MSBuild
     Write-Host "MSBuild: $msbuild"
 
     foreach ($plat in $Platforms) {
         Write-Host "アプリをビルドしています (Release / $plat)..."
-        & $msbuild $csprojPath /p:Configuration=Release /p:Platform=$plat /t:Rebuild /v:minimal
+        & $msbuild $SolutionPath /t:PdfConverter:Rebuild /p:Configuration=Release /p:Platform=$plat /v:minimal
         if ($LASTEXITCODE -ne 0) {
             throw "ビルドに失敗しました (Platform=$plat)"
         }
@@ -134,14 +139,14 @@ try {
     }
 
     if (-not $SkipRestore) {
-        Restore-NuGetPackages -SolutionPath $slnxPath
+        Restore-NuGetPackages -SolutionPath $solutionPath
     }
 
     $appVersion = Get-AppVersion
     Write-Host "バージョン: $appVersion"
 
     if (-not $SkipBuild) {
-        Build-App -Platforms $platformsToBuild
+        Build-App -SolutionPath $solutionPath -Platforms $platformsToBuild
     }
 
     New-Item -ItemType Directory -Path $distDir -Force | Out-Null

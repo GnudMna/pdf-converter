@@ -35,6 +35,7 @@ namespace PdfConverter.Infrastructure
             services.AddSingleton<IDocumentPdfSourceService, DocumentPdfSourceService>();
             services.AddSingleton<IDialogService, WpfDialogService>();
             services.AddSingleton<IClipboardService, WpfClipboardService>();
+            services.AddSingleton<IBatchExportService, BatchExportService>();
             services.AddTransient<IPdfPreviewCoordinator, PdfPreviewCoordinator>();
             services.AddTransient<IPdfSaveCoordinator, PdfSaveCoordinator>();
             services.AddTransient<MainViewModel>();

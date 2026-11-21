@@ -1,0 +1,445 @@
+using System;
+using System.Collections.Generic;
+using PdfConverter.Models;
+using PdfConverter.Services;
+
+namespace PdfConverter.Infrastructure
+{
+    /// <summary>
+    /// バッチ / ヘッドレスモード向けのコマンドライン引数解析
+    /// </summary>
+    public static class BatchCliParser
+    {
+        /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
+        /// <summary>引数不正時の終了コード</summary>
+        public const int InvalidArgumentsExitCode = 2;
+
+        /// <summary>実行時エラー時の終了コード</summary>
+        public const int RuntimeErrorExitCode = 1;
+
+        /// <summary>成功時の終了コード</summary>
+        public const int SuccessExitCode = 0;
+
+
+        /********************************************************************************/
+        /*                              パブリックメソッド                              */
+        /********************************************************************************/
+        /// <summary>
+        /// 起動引数がバッチ / ヘッドレスモードかどうかを判定し、必要なら解析する
+        /// </summary>
+        /// <param name="args">起動引数</param>
+        /// <param name="options">解析結果</param>
+        /// <param name="errorMessage">解析失敗時のメッセージ</param>
+        /// <returns>true: バッチモードとして処理する / false: GUI 起動</returns>
+        public static bool TryParse(string[] args, out BatchCliOptions options, out string errorMessage)
+        {
+            options = null;
+            errorMessage = null;
+
+            if (args == null || args.Length == 0)
+            {
+                return false;
+            }
+
+            if (!ContainsBatchSwitch(args))
+            {
+                return false;
+            }
+
+            options = new BatchCliOptions();
+            bool parsingOptions = true;
+
+            for (int index = 0; index < args.Length; index++)
+            {
+                string arg = args[index];
+                if (string.IsNullOrWhiteSpace(arg))
+                {
+                    continue;
+                }
+
+                if (parsingOptions && arg == "--")
+                {
+                    parsingOptions = false;
+                    continue;
+                }
+
+                if (parsingOptions && IsSwitch(arg))
+                {
+                    if (!TryParseSwitch(args, ref index, options, out errorMessage))
+                    {
+                        options = null;
+                        return true;
+                    }
+
+                    continue;
+                }
+
+                options.InputFiles.Add(arg.Trim().Trim('"'));
+            }
+
+            if (!Validate(options, out errorMessage))
+            {
+                options = null;
+                return true;
+            }
+
+            return true;
+        }
+
+        /// <summary>バッチモードのヘルプテキストを返す</summary>
+        /// <returns>ヘルプテキスト</returns>
+        public static string GetHelpText()
+        {
+            return @"PDF Converter — バッチ / ヘッドレスモード
+
+使い方:
+  ""PDF Converter.exe"" --output <フォルダー> [オプション] <ファイル> [<ファイル> ...]
+  ""PDF Converter.exe"" --export-pdf --output <フォルダーまたは.pdf> <Wordファイル> [...]
+
+必須:
+  --output, -o <path>       画像の出力先フォルダー、または PDF 出力先
+
+オプション:
+  --pages, -p <範囲>        出力ページ (例: 1-3,5)。省略時は全ページ
+  --format, -f <形式>       png / jpeg / bmp (省略時は保存済み設定)
+  --resolution-mode <方式>  default / width / height / dpi (省略時は保存済み設定)
+  --resolution, -r <数値>   解像度の数値 (省略時は保存済み設定)
+  --transparent             透明度を保持 (PNG のみ有効)
+  --no-transparent          白背景に合成して出力
+  --overwrite               既存ファイルを確認せず上書き
+  --export-pdf              Word を PDF として保存 (画像変換は行わない)
+  --quiet, -q               進捗メッセージを抑制
+  --help, -h, /?, --?        このヘルプを表示
+
+例:
+  ""PDF Converter.exe"" -o ""C:\out"" ""C:\docs\report.pdf""
+  ""PDF Converter.exe"" -o ""C:\out"" -f png -p 1-3 ""report.pdf""
+  ""PDF Converter.exe"" --export-pdf -o ""C:\out"" ""proposal.docx""
+  ""PDF Converter.exe"" -o ""C:\out"" -- ""C:\docs\a.pdf"" ""C:\docs\b.pdf""
+
+複数ファイルを同じ出力フォルダーへ保存する場合、各ファイルは
+<出力フォルダー>\<ファイル名>\page_1.png のようにサブフォルダーへ出力されます。
+入力が 1 件のみの場合は <出力フォルダー>\page_1.png 形式です。
+
+GUI モードでは従来どおり、引数にファイルパスを指定するだけで起動できます。";
+        }
+
+
+        /********************************************************************************/
+        /*                             プライベートメソッド                             */
+        /********************************************************************************/
+        /// <summary>バッチモードを示すスイッチが含まれるかどうかを判定する</summary>
+        /// <param name="args">起動引数</param>
+        /// <returns>true: バッチモードとして扱う</returns>
+        private static bool ContainsBatchSwitch(string[] args)
+        {
+            foreach (string arg in args)
+            {
+                if (string.IsNullOrWhiteSpace(arg))
+                {
+                    continue;
+                }
+
+                if (IsSwitch(arg))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>スイッチ引数かどうかを判定する</summary>
+        /// <param name="arg">引数</param>
+        /// <returns>true: スイッチ引数</returns>
+        private static bool IsSwitch(string arg)
+        {
+            return arg.StartsWith("--", StringComparison.Ordinal)
+                || arg.StartsWith("-", StringComparison.Ordinal)
+                || arg.StartsWith("/", StringComparison.Ordinal);
+        }
+
+        /// <summary>スイッチ引数を解析する</summary>
+        /// <param name="args">起動引数</param>
+        /// <param name="index">現在のインデックス</param>
+        /// <param name="options">解析結果</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 解析成功</returns>
+        private static bool TryParseSwitch(string[] args, ref int index, BatchCliOptions options, out string errorMessage)
+        {
+            errorMessage = null;
+            string arg = args[index];
+            string switchName = NormalizeSwitchName(arg);
+            string value = null;
+
+            if (TrySplitSwitchValue(arg, out string inlineName, out string inlineValue))
+            {
+                switchName = inlineName;
+                value = inlineValue;
+            }
+
+            switch (switchName)
+            {
+                case "help":
+                case "?":
+                    options.ShowHelp = true;
+                    return true;
+                case "batch":
+                case "b":
+                    return true;
+                case "quiet":
+                case "q":
+                    options.Quiet = true;
+                    return true;
+                case "overwrite":
+                    options.OverwriteExisting = true;
+                    return true;
+                case "export-pdf":
+                    options.ExportPdfOnly = true;
+                    return true;
+                case "transparent":
+                    options.PreserveTransparency = true;
+                    return true;
+                case "no-transparent":
+                    options.PreserveTransparency = false;
+                    return true;
+                case "output":
+                case "o":
+                    if (!TryReadOptionValue(args, ref index, value, out string outputPath, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.OutputPath = outputPath;
+                    return true;
+                case "pages":
+                case "p":
+                    if (!TryReadOptionValue(args, ref index, value, out string pageRange, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PageRange = pageRange;
+                    return true;
+                case "format":
+                case "f":
+                    if (!TryReadOptionValue(args, ref index, value, out string formatValue, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    if (!TryParseFormat(formatValue, out OutputImageFormat format, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.Format = format;
+                    return true;
+                case "resolution-mode":
+                    if (!TryReadOptionValue(args, ref index, value, out string modeValue, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    if (!TryParseResolutionMode(modeValue, out ResolutionMode mode, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.ResolutionMode = mode;
+                    return true;
+                case "resolution":
+                case "r":
+                    if (!TryReadOptionValue(args, ref index, value, out string resolutionValue, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.ResolutionValue = resolutionValue;
+                    return true;
+                default:
+                    errorMessage = $"不明なオプションです: {arg}";
+                    return false;
+            }
+        }
+
+        /// <summary>スイッチ名を正規化する</summary>
+        /// <param name="arg">引数</param>
+        /// <returns>正規化後のスイッチ名</returns>
+        private static string NormalizeSwitchName(string arg)
+        {
+            if (arg.StartsWith("--", StringComparison.Ordinal))
+            {
+                return arg.Substring(2).Trim().ToLowerInvariant();
+            }
+
+            if (arg.StartsWith("/", StringComparison.Ordinal))
+            {
+                return arg.Substring(1).Trim().ToLowerInvariant();
+            }
+
+            if (arg.StartsWith("-", StringComparison.Ordinal))
+            {
+                return arg.Substring(1).Trim().ToLowerInvariant();
+            }
+
+            return arg.Trim().ToLowerInvariant();
+        }
+
+        /// <summary><c>-o=value</c> 形式のスイッチを分割する</summary>
+        /// <param name="arg">引数</param>
+        /// <param name="switchName">スイッチ名</param>
+        /// <param name="value">値</param>
+        /// <returns>true: 分割できた</returns>
+        private static bool TrySplitSwitchValue(string arg, out string switchName, out string value)
+        {
+            switchName = null;
+            value = null;
+
+            int separatorIndex = arg.IndexOf('=');
+            if (separatorIndex <= 1)
+            {
+                return false;
+            }
+
+            switchName = NormalizeSwitchName(arg.Substring(0, separatorIndex));
+            value = arg.Substring(separatorIndex + 1).Trim().Trim('"');
+            return true;
+        }
+
+        /// <summary>オプションの値を読み取る</summary>
+        /// <param name="args">起動引数</param>
+        /// <param name="index">現在のインデックス</param>
+        /// <param name="inlineValue">同一引数内の値</param>
+        /// <param name="value">読み取った値</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 読み取り成功</returns>
+        private static bool TryReadOptionValue(
+            string[] args,
+            ref int index,
+            string inlineValue,
+            out string value,
+            out string errorMessage)
+        {
+            errorMessage = null;
+            value = null;
+
+            if (!string.IsNullOrWhiteSpace(inlineValue))
+            {
+                value = inlineValue.Trim().Trim('"');
+                return true;
+            }
+
+            if (index + 1 >= args.Length || IsSwitch(args[index + 1]))
+            {
+                errorMessage = $"オプション {args[index]} には値が必要です。";
+                return false;
+            }
+
+            index++;
+            value = args[index].Trim().Trim('"');
+            return true;
+        }
+
+        /// <summary>出力形式を解析する</summary>
+        /// <param name="value">入力文字列</param>
+        /// <param name="format">出力形式</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 解析成功</returns>
+        private static bool TryParseFormat(string value, out OutputImageFormat format, out string errorMessage)
+        {
+            format = OutputImageFormat.Png;
+            errorMessage = null;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                errorMessage = "出力形式を指定してください (png / jpeg / bmp)。";
+                return false;
+            }
+
+            string normalized = value.Trim();
+            if (string.Equals(normalized, "jpg", StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = "Jpeg";
+            }
+
+            if (Enum.TryParse(normalized, ignoreCase: true, result: out format))
+            {
+                return true;
+            }
+
+            errorMessage = $"未対応の出力形式です: {value} (png / jpeg / bmp を指定してください)";
+            return false;
+        }
+
+        /// <summary>解像度モードを解析する</summary>
+        /// <param name="value">入力文字列</param>
+        /// <param name="mode">解像度モード</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 解析成功</returns>
+        private static bool TryParseResolutionMode(string value, out ResolutionMode mode, out string errorMessage)
+        {
+            mode = ResolutionMode.Width;
+            errorMessage = null;
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                errorMessage = "解像度モードを指定してください (default / width / height / dpi)。";
+                return false;
+            }
+
+            if (Enum.TryParse(value.Trim(), ignoreCase: true, result: out mode))
+            {
+                return true;
+            }
+
+            errorMessage = $"未対応の解像度モードです: {value} (default / width / height / dpi を指定してください)";
+            return false;
+        }
+
+        /// <summary>解析結果を検証する</summary>
+        /// <param name="options">解析結果</param>
+        /// <param name="errorMessage">エラーメッセージ</param>
+        /// <returns>true: 検証成功</returns>
+        private static bool Validate(BatchCliOptions options, out string errorMessage)
+        {
+            errorMessage = null;
+
+            if (options.ShowHelp)
+            {
+                return true;
+            }
+
+            if (string.IsNullOrWhiteSpace(options.OutputPath))
+            {
+                errorMessage = "出力先を --output で指定してください。";
+                return false;
+            }
+
+            if (options.InputFiles.Count == 0)
+            {
+                errorMessage = "変換対象の PDF / Word ファイルを 1 件以上指定してください。";
+                return false;
+            }
+
+            if (options.ExportPdfOnly && !string.IsNullOrWhiteSpace(options.PageRange))
+            {
+                errorMessage = "--export-pdf では --pages は使用できません。";
+                return false;
+            }
+
+            if (!options.ExportPdfOnly
+                && options.Format.HasValue
+                && options.PreserveTransparency == true
+                && !ImageBitmapHelper.SupportsTransparency(options.Format.Value))
+            {
+                errorMessage = "選択した出力形式では --transparent は使用できません。";
+                return false;
+            }
+
+            return true;
+        }
+    }
+}

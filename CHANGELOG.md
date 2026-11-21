@@ -7,6 +7,19 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-08
+
+### Added
+
+- バッチ / ヘッドレスモード（`--output` などの CLI オプションで GUI なしの一括変換）
+- バッチモード向けの CLI 解析（`BatchCliParser`）、変換実行（`BatchExportService`）、コンソール出力補助（`BatchConsoleHelper`）
+- バッチモードの単体テスト（`BatchCliParserTests`、`BatchExportServiceTests`）
+
+### Changed
+
+- ビルドスクリプトで `.slnx` / `.sln` の自動フォールバックに対応（MSBuild 17.10 未満では `PdfConverter.sln` を使用。テストは `PdfConverter.slnx` 専用）
+- README にバッチ / ヘッドレスモードの使い方を追記
+
 ## [0.3.2] - 2026-07-04
 
 ### Added
