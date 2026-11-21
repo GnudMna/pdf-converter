@@ -218,29 +218,44 @@ namespace PdfConverter.Services
                 int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileSize, maxPagePixels, SaveRenderPixelBudget);
                 List<List<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
-                var tasks = partitions
-                    .Where(partition => partition.Count > 0)
-                    .Select(partition => Task.Run(() =>
-                    {
-                        using (PdfiumDocument document = openDocument())
+                // いずれかのワーカーが失敗したら残りのワーカーも打ち切り、結果が出ない描画を続けないようにする
+                using (CancellationTokenSource workerCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    CancellationToken workerToken = workerCts.Token;
+
+                    var tasks = partitions
+                        .Where(partition => partition.Count > 0)
+                        .Select(partition => Task.Run(() =>
                         {
-                            foreach (int pageIndex in partition)
+                            try
                             {
-                                cancellationToken.ThrowIfCancellationRequested();
-
-                                SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency);
-
-                                // 件数の加算から通知までを同じロックで行い、並列ワーカー間で進捗が逆戻りしないようにする
-                                lock (progressLock)
+                                using (PdfiumDocument document = openDocument())
                                 {
-                                    completedCount++;
-                                    progress?.Report(new SaveProgressReport(completedCount * 100.0 / total, $"保存中... {completedCount}/{total} ページ"));
+                                    foreach (int pageIndex in partition)
+                                    {
+                                        workerToken.ThrowIfCancellationRequested();
+
+                                        SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency);
+
+                                        // 件数の加算から通知までを同じロックで行い、並列ワーカー間で進捗が逆戻りしないようにする
+                                        lock (progressLock)
+                                        {
+                                            completedCount++;
+                                            progress?.Report(new SaveProgressReport(completedCount * 100.0 / total, $"保存中... {completedCount}/{total} ページ"));
+                                        }
+                                    }
                                 }
                             }
-                        }
-                    }, cancellationToken));
+                            catch (Exception ex) when (ex is not OperationCanceledException)
+                            {
+                                workerCts.Cancel();
+                                throw;
+                            }
+                        }, workerToken))
+                        .ToList();
 
-                await Task.WhenAll(tasks).ConfigureAwait(false);
+                    await Task.WhenAll(tasks).ConfigureAwait(false);
+                }
 
                 // 全ページの書き出し後に要求されたキャンセルでも、保存先へ反映せずに中断する
                 cancellationToken.ThrowIfCancellationRequested();

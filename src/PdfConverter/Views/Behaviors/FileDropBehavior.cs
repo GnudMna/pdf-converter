@@ -6,6 +6,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
+using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.ViewModels;
 
@@ -87,7 +88,16 @@ namespace PdfConverter.Views.Behaviors
         /// <summary>ドラッグエンターイベントのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
-        private static void OnDragEnter(object sender, DragEventArgs e) => UpdateDragFeedback(sender, e);
+        private static void OnDragEnter(object sender, DragEventArgs e)
+        {
+            UpdateDragFeedback(sender, e);
+
+            // ドロップ不可のカーソルではドロップ自体が届かないため、ドラッグの進入時に理由を伝える
+            if (TryGetViewModel(sender, out IMainWindowViewModel? viewModel))
+            {
+                NotifyIfRejectedWhileBusy(viewModel, e.Data);
+            }
+        }
 
         /// <summary>ドラッグオーバーイベントのハンドラ</summary>
         /// <param name="sender">イベントの送信元</param>
@@ -165,6 +175,7 @@ namespace PdfConverter.Views.Behaviors
 
             if (viewModel.IsBusy)
             {
+                NotifyIfRejectedWhileBusy(viewModel, data);
                 return false;
             }
 
@@ -188,6 +199,17 @@ namespace PdfConverter.Views.Behaviors
             }
 
             return false;
+        }
+
+        /// <summary>処理中に対応ドキュメントが来たとき、読み込めない理由をステータスバーへ表示する</summary>
+        /// <param name="viewModel">メインウィンドウ ViewModel</param>
+        /// <param name="data">ドラッグ・ドロップされたデータ</param>
+        internal static void NotifyIfRejectedWhileBusy(IMainWindowViewModel viewModel, IDataObject data)
+        {
+            if (viewModel.IsBusy && DocumentFileHelper.ContainsSupportedDocument(data))
+            {
+                viewModel.SetStatus(DocumentFileHelper.BusyLoadRejectedMessage, StatusKind.Warning);
+            }
         }
 
         /// <summary>フォーカスのある TextBox に入力途中の値があれば、バインディングのソースへ反映する</summary>

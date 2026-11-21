@@ -60,6 +60,31 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
+        /// ファイルパス未設定時に FileDisplayName が案内文を返すことを検証する
+        /// </summary>
+        [Fact]
+        public void FileDisplayName_WhenNoFilePath_ShowsPrompt()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+
+            Assert.False(viewModel.HasFilePath);
+            Assert.Equal("ファイルが選択されていません", viewModel.FileDisplayName);
+        }
+
+        /// <summary>
+        /// ファイルパス設定時に FileDisplayName がファイル名だけを返すことを検証する
+        /// </summary>
+        [Fact]
+        public void FileDisplayName_WhenFilePathSet_ReturnsFileName()
+        {
+            var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
+            viewModel.FilePath = "C:\\docs\\sample.pdf";
+
+            Assert.True(viewModel.HasFilePath);
+            Assert.Equal("sample.pdf", viewModel.FileDisplayName);
+        }
+
+        /// <summary>
         /// ページ数が 0 のときはページ移動 UI を非表示にすることを検証する
         /// </summary>
         [Fact]
@@ -388,10 +413,10 @@ namespace PdfConverter.Tests.ViewModels
         }
 
         /// <summary>
-        /// 処理中はドロップされた PDF を無視することを検証する
+        /// 処理中はドロップされた PDF を読み込まず、読み込めない旨を警告表示することを検証する
         /// </summary>
         [Fact]
-        public void HandleDroppedDocument_WhenBusy_DoesNothing()
+        public void HandleDroppedDocument_WhenBusy_KeepsFilePathAndShowsWarning()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.IsBusy = true;
@@ -400,6 +425,8 @@ namespace PdfConverter.Tests.ViewModels
             viewModel.HandleDroppedDocument("C:\\dropped.pdf");
 
             Assert.Equal("C:\\existing.pdf", viewModel.FilePath);
+            Assert.Equal(DocumentFileHelper.BusyLoadRejectedMessage, viewModel.Status.StatusMessage);
+            Assert.Equal(StatusKind.Warning, viewModel.Status.StatusKind);
         }
 
         /// <summary>

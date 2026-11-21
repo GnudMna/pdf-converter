@@ -123,6 +123,11 @@ namespace PdfConverter.Services
                     ApplicationLogger.Error("Batch", $"Batch export failed: {normalizedPath}", ex);
                     WriteError($"エラー: {normalizedPath} ({ExceptionFormattingHelper.GetUserMessage(ex)})");
                 }
+                finally
+                {
+                    // 入力ごとに作られた Word の変換結果は再利用しないため、次の入力へ進む前に一時 PDF を削除する
+                    _documentPdfSourceService.Invalidate(normalizedPath);
+                }
             }
 
             return hasFailure ? BatchCliParser.RuntimeErrorExitCode : BatchCliParser.SuccessExitCode;

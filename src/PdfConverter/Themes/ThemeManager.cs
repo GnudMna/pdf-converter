@@ -30,6 +30,20 @@ namespace PdfConverter.Themes
 
 
         /********************************************************************************/
+        /*                                  プロパティ                                  */
+        /********************************************************************************/
+        /// <summary>適用中のテーマがダークかどうか</summary>
+        public static bool IsDarkThemeApplied => _lastAppliedEffectiveMode == ThemeMode.Dark;
+
+
+        /********************************************************************************/
+        /*                                   イベント                                   */
+        /********************************************************************************/
+        /// <summary>テーマリソースの差し替えが完了したときに発生する</summary>
+        public static event EventHandler? ThemeApplied;
+
+
+        /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
@@ -205,6 +219,7 @@ namespace PdfConverter.Themes
             }
 
             mergedDictionaries.Insert(0, new ResourceDictionary { Source = themeUri });
+            ThemeApplied?.Invoke(null, EventArgs.Empty);
         }
 
         /// <summary>

@@ -96,10 +96,10 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
         }
 
         /// <summary>
-        /// 保存処理中 (IsSaving) のときに新しい読み込みが開始されないことを検証する
+        /// 保存処理中 (IsSaving) のときに新しい読み込みが開始されず、読み込めない旨を警告表示することを検証する
         /// </summary>
         [Fact]
-        public void LoadFromPath_WhenSaving_DoesNotStartLoad()
+        public void LoadFromPath_WhenSaving_DoesNotStartLoadAndShowsWarning()
         {
             var coordinator = CreateCoordinator(out var pdf);
             var host = new TestMainViewModelHost
@@ -113,6 +113,8 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 coordinator.LoadFromPath(host, forceReload: true);
 
                 pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+                Assert.Equal(DocumentFileHelper.BusyLoadRejectedMessage, host.StatusMessage);
+                Assert.Equal(StatusKind.Warning, host.StatusKind);
             }
             finally
             {

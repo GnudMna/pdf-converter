@@ -273,6 +273,121 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 同じ Word ファイルを変換中に再度要求しても、変換は 1 回だけで同じ PDF を共有することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_ConcurrentRequestsForSameWord_ConvertsOnce()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string pdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+
+            var conversion = new TaskCompletionSource<string>();
+            wordToPdf
+                .Setup(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .Returns(conversion.Task);
+
+            try
+            {
+                Task<string> first = service.GetPdfPathAsync(wordPath, TestContext.Current.CancellationToken);
+                Task<string> second = service.GetPdfPathAsync(wordPath, TestContext.Current.CancellationToken);
+
+                conversion.SetResult(pdfPath);
+
+                Assert.Equal(pdfPath, await first);
+                Assert.Equal(pdfPath, await second);
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Once);
+                Assert.True(File.Exists(pdfPath));
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 共有中の変換は、一部の要求がキャンセルしても残りの要求のために続行されることを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_OneOfSharedRequestsCanceled_ContinuesConversionForOthers()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            string pdfPath = CreateTempPdfPath();
+            File.WriteAllText(wordPath, "placeholder");
+
+            var conversion = new TaskCompletionSource<string>();
+            CancellationToken conversionToken = default;
+            wordToPdf
+                .Setup(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((_, token) => conversionToken = token)
+                .Returns(conversion.Task);
+
+            try
+            {
+                using var canceled = new CancellationTokenSource();
+                Task<string> first = service.GetPdfPathAsync(wordPath, canceled.Token);
+                Task<string> second = service.GetPdfPathAsync(wordPath, TestContext.Current.CancellationToken);
+
+                canceled.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+
+                Assert.False(conversionToken.IsCancellationRequested);
+
+                conversion.SetResult(pdfPath);
+
+                Assert.Equal(pdfPath, await second);
+                wordToPdf.Verify(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()), Times.Once);
+            }
+            finally
+            {
+                File.Delete(wordPath);
+                File.Delete(pdfPath);
+            }
+        }
+
+        /// <summary>
+        /// 共有中の変換を待つ要求がすべてキャンセルした場合は、変換も中断することを検証する
+        /// </summary>
+        [Fact]
+        public async Task GetPdfPathAsync_AllSharedRequestsCanceled_CancelsConversion()
+        {
+            var wordToPdf = new Mock<IWordToPdfConversionService>();
+            var service = CreateService(wordToPdf);
+            string wordPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.docx");
+            File.WriteAllText(wordPath, "placeholder");
+
+            var conversionStarted = new TaskCompletionSource<CancellationToken>();
+            var conversion = new TaskCompletionSource<string>();
+            wordToPdf
+                .Setup(w => w.ConvertToPdfAsync(wordPath, It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((_, token) => conversionStarted.TrySetResult(token))
+                .Returns(conversion.Task);
+
+            try
+            {
+                using var canceled = new CancellationTokenSource();
+                Task<string> first = service.GetPdfPathAsync(wordPath, canceled.Token);
+                Task<string> second = service.GetPdfPathAsync(wordPath, canceled.Token);
+                CancellationToken conversionToken = await conversionStarted.Task;
+
+                canceled.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+
+                Assert.True(conversionToken.IsCancellationRequested);
+            }
+            finally
+            {
+                File.Delete(wordPath);
+            }
+        }
+
+        /// <summary>
         /// Dispose 時にキャッシュ済みの一時 PDF が削除されることを検証する
         /// </summary>
         [Fact]

@@ -198,6 +198,106 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 入力ごとに変換結果の一時 PDF を破棄し、処理が終わるまで溜め込まないことを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_MultipleWordFiles_InvalidatesEachInputAfterProcessing()
+        {
+            string outputDir = CreateTempDirectory();
+            string wordA = CreateNamedTempFile("a", "a.docx");
+            string wordB = CreateNamedTempFile("b", "b.docx");
+            string pdf = CreateTempPdfPath();
+            var events = new List<string>();
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                .Callback<string, CancellationToken>((path, _) => events.Add("get:" + path))
+                .ReturnsAsync(pdf);
+            documentService
+                .Setup(s => s.Invalidate(It.IsAny<string>()))
+                .Callback<string>(path => events.Add("invalidate:" + path));
+
+            var service = CreateService(documentPdfSourceService: documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                ExportPdfOnly = true,
+                OverwriteExisting = true,
+                Quiet = true,
+            };
+            options.InputFiles.Add(wordA);
+            options.InputFiles.Add(wordB);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.SuccessExitCode, exitCode);
+            Assert.Equal(
+                new[] { "get:" + wordA, "invalidate:" + wordA, "get:" + wordB, "invalidate:" + wordB },
+                events);
+        }
+
+        /// <summary>
+        /// 変換に失敗した場合も、その入力の一時 PDF を破棄することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_ConversionFails_InvalidatesInput()
+        {
+            string outputDir = CreateTempDirectory();
+            string wordPath = CreateTempWordPath();
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new InvalidOperationException("変換失敗"));
+
+            var service = CreateService(documentPdfSourceService: documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                ExportPdfOnly = true,
+                OverwriteExisting = true,
+                Quiet = true,
+            };
+            options.InputFiles.Add(wordPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            documentService.Verify(s => s.Invalidate(wordPath), Times.Once);
+        }
+
+        /// <summary>
+        /// 変換中にキャンセルされた場合も、その入力の一時 PDF を破棄することを検証する
+        /// </summary>
+        [Fact]
+        public async Task RunAsync_CanceledDuringConversion_InvalidatesInput()
+        {
+            string outputDir = CreateTempDirectory();
+            string wordPath = CreateTempWordPath();
+
+            var documentService = new Mock<IDocumentPdfSourceService>();
+            documentService
+                .Setup(s => s.GetPdfPathAsync(wordPath, It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException());
+
+            var service = CreateService(documentPdfSourceService: documentService.Object);
+            var options = new BatchCliOptions
+            {
+                OutputPath = outputDir,
+                ExportPdfOnly = true,
+                OverwriteExisting = true,
+                Quiet = true,
+            };
+            options.InputFiles.Add(wordPath);
+
+            int exitCode = await service.RunAsync(options, cancellationToken: TestContext.Current.CancellationToken);
+
+            Assert.Equal(BatchCliParser.RuntimeErrorExitCode, exitCode);
+            documentService.Verify(s => s.Invalidate(wordPath), Times.Once);
+        }
+
+        /// <summary>
         /// 別フォルダーの同名 Word 文書を PDF 出力しても、互いを上書きせず連番を付けることを検証する
         /// </summary>
         [Fact]

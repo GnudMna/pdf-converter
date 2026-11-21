@@ -231,15 +231,14 @@ namespace PdfConverter.Infrastructure
                 ? $"致命的なエラーが発生したため、アプリケーションを終了します。{Environment.NewLine}{Environment.NewLine}{detail}"
                 : $"予期しないエラーが発生しました。{Environment.NewLine}{Environment.NewLine}{detail}";
 
-            if (TryUpdateMainViewModelStatus(message))
+            // Background は実行中の処理と無関係な場合があるため、処理中の状態は戻さずステータス表示だけにする
+            bool isBackground = kind == ExceptionReportKind.Background;
+            if (Application.Current?.MainWindow?.DataContext is IMainWindowViewModel viewModel)
             {
-                if (kind == ExceptionReportKind.Background)
-                {
-                    return;
-                }
+                ShowStatus(viewModel, message, resetBusyState: !isBackground);
             }
 
-            if (kind == ExceptionReportKind.Background)
+            if (isBackground)
             {
                 return;
             }
@@ -252,19 +251,18 @@ namespace PdfConverter.Infrastructure
         }
 
         /// <summary>メインウィンドウの ViewModel のステータスバーへエラーを表示する</summary>
+        /// <param name="viewModel">表示先の ViewModel</param>
         /// <param name="message">メッセージ</param>
-        /// <returns>true: 更新できた / false: 更新できなかった</returns>
-        private static bool TryUpdateMainViewModelStatus(string message)
+        /// <param name="resetBusyState">true: 処理中の状態とプログレスバーも戻す / false: ステータス表示だけ更新する</param>
+        internal static void ShowStatus(IMainWindowViewModel viewModel, string message, bool resetBusyState)
         {
-            if (!(Application.Current?.MainWindow?.DataContext is IMainWindowViewModel viewModel))
+            if (resetBusyState)
             {
-                return false;
+                viewModel.IsBusy = false;
+                viewModel.IsProgressBarVisible = false;
             }
 
-            viewModel.IsBusy = false;
-            viewModel.IsProgressBarVisible = false;
             viewModel.SetStatus(message, StatusKind.Error);
-            return true;
         }
 
         /// <summary>致命的な UI 例外の後にアプリケーションを終了する</summary>

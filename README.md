@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.6.1-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.6.2-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)

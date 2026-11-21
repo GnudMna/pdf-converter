@@ -4,6 +4,8 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Moq;
+using PdfConverter.Models;
+using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using PdfConverter.ViewModels;
 using PdfConverter.Views.Behaviors;
@@ -189,6 +191,56 @@ namespace PdfConverter.Tests.Views.Behaviors
 
                 Assert.False(accepted);
                 viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        /// <summary>
+        /// 処理中に対応ドキュメントが来たとき、読み込めない旨を警告表示することを検証する
+        /// </summary>
+        [Fact]
+        public void NotifyIfRejectedWhileBusy_WhenBusyAndSupportedDocument_ShowsWarning()
+        {
+            string filePath = CreateTempPdfPath();
+
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(true);
+                var data = CreateFileDropData(filePath);
+
+                FileDropBehavior.NotifyIfRejectedWhileBusy(viewModel.Object, data);
+
+                viewModel.Verify(
+                    v => v.SetStatus(DocumentFileHelper.BusyLoadRejectedMessage, StatusKind.Warning),
+                    Times.Once);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
+        }
+
+        /// <summary>
+        /// 処理中でなければ警告表示しないことを検証する
+        /// </summary>
+        [Fact]
+        public void NotifyIfRejectedWhileBusy_WhenNotBusy_DoesNotShowWarning()
+        {
+            string filePath = CreateTempPdfPath();
+
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                var data = CreateFileDropData(filePath);
+
+                FileDropBehavior.NotifyIfRejectedWhileBusy(viewModel.Object, data);
+
+                viewModel.Verify(v => v.SetStatus(It.IsAny<string>(), It.IsAny<StatusKind>()), Times.Never);
             }
             finally
             {

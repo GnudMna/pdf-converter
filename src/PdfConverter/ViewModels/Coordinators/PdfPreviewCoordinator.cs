@@ -86,13 +86,14 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
         public void LoadFromPath(IPreviewCoordinatorHost host, bool forceReload = false)
         {
-            if (host.IsSaving)
+            if (string.IsNullOrWhiteSpace(host.FilePath))
             {
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(host.FilePath))
+            if (host.IsSaving)
             {
+                host.SetStatus(DocumentFileHelper.BusyLoadRejectedMessage, StatusKind.Warning);
                 return;
             }
 

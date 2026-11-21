@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using Microsoft.Win32;
 using PdfConverter.Models;
 using PdfConverter.Themes;
@@ -61,6 +62,18 @@ namespace PdfConverter.Tests.Themes
             bool expected)
         {
             Assert.Equal(expected, ThemeManager.ShouldReactToUserPreferenceChange(selectedMode, category));
+        }
+
+        /// <summary>
+        /// WPF の色が COLORREF (0x00BBGGRR) の並びに変換されることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(0x11, 0x22, 0x33, 0x332211)]
+        [InlineData(0xFF, 0x00, 0x00, 0x0000FF)]
+        [InlineData(0x0B, 0x11, 0x20, 0x20110B)]
+        public void ToColorRef_ReturnsBlueGreenRedOrder(byte r, byte g, byte b, int expected)
+        {
+            Assert.Equal(expected, WindowTitleBarHelper.ToColorRef(Color.FromRgb(r, g, b)));
         }
     }
 }

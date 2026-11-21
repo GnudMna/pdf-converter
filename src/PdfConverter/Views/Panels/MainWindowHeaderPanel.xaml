@@ -4,11 +4,11 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
-             d:DesignHeight="80"
+             d:DesignHeight="48"
              d:DesignWidth="760">
 
-    <Border Margin="0,0,0,18"
-            Padding="0,0,0,16"
+    <Border Margin="0,0,0,14"
+            Padding="0,0,0,12"
             BorderBrush="{DynamicResource CardBorderBrush}"
             BorderThickness="0,0,0,1">
         <Grid>
@@ -17,34 +17,36 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="48"
-                        Height="48"
-                        CornerRadius="12"
-                        Background="{DynamicResource PreviewAreaBackgroundBrush}"
-                        BorderBrush="{DynamicResource PreviewAreaBorderBrush}"
-                        BorderThickness="1"
-                        Margin="0,0,14,0"
-                        Focusable="False"
-                        IsHitTestVisible="False">
-                    <Image Source="/Assets/app-icon.png"
-                           Width="32"
-                           Height="32"
-                           HorizontalAlignment="Center"
+            <DockPanel VerticalAlignment="Center"
+                       Margin="0,0,16,0"
+                       ToolTip="{Binding FilePath}"
+                       AutomationProperties.Name="読み込み中のファイル">
+                <Path DockPanel.Dock="Left"
+                      Width="18"
+                      Height="18"
+                      Margin="0,0,10,0"
+                      VerticalAlignment="Center"
+                      Stretch="Uniform"
+                      Fill="{DynamicResource MutedForegroundBrush}"
+                      Data="M6 2 L14 2 L20 8 L20 22 L6 22 Z M14 2 L14 8 L20 8" />
+                <TextBlock Text="{Binding FileDisplayName}"
                            VerticalAlignment="Center"
-                           Stretch="Uniform"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
-                </Border>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="PDF Converter"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               Foreground="{DynamicResource SectionTitleForegroundBrush}" />
-                    <TextBlock Text="PDF / Word を画像としてエクスポート"
-                               Margin="0,3,0,0"
-                               Style="{StaticResource HintText}" />
-                </StackPanel>
-            </StackPanel>
+                           FontSize="15"
+                           FontWeight="SemiBold"
+                           TextTrimming="CharacterEllipsis">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{DynamicResource SectionTitleForegroundBrush}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding HasFilePath}" Value="False">
+                                    <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+                                    <Setter Property="FontWeight" Value="Normal" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+            </DockPanel>
 
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"

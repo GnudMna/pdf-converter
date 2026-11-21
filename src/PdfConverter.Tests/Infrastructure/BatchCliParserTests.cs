@@ -29,6 +29,43 @@ namespace PdfConverter.Tests.Infrastructure
         }
 
         /// <summary>
+        /// スラッシュで始まるパスのみの引数は GUI 起動として扱うことを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("//server/share/a.pdf")]
+        [InlineData(@"\\server\share\a.pdf")]
+        [InlineData("/docs/a.pdf")]
+        public void TryParse_WithSlashPathOnly_ReturnsFalse(string path)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { path },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.False(isBatch);
+            Assert.Null(options);
+            Assert.Null(errorMessage);
+        }
+
+        /// <summary>
+        /// スイッチと併用したスラッシュで始まるパスを入力ファイルとして扱うことを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_WithSlashPathAndSwitches_TreatsPathAsInputFile()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "/o", @"C:\out", "//server/share/a.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(errorMessage);
+            Assert.Equal(@"C:\out", options.OutputPath);
+            Assert.Single(options.InputFiles);
+            Assert.Equal("//server/share/a.pdf", options.InputFiles[0]);
+        }
+
+        /// <summary>
         /// --help 指定時にバッチモードとして解析されることを検証する
         /// </summary>
         [Theory]

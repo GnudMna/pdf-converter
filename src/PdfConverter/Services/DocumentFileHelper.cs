@@ -46,6 +46,9 @@ namespace PdfConverter.Services
         /// <summary>パス不正のエラーメッセージ</summary>
         internal const string InvalidPathMessage = "ファイルパスが不正です。";
 
+        /// <summary>処理中のため読み込めないことを伝えるメッセージ</summary>
+        internal const string BusyLoadRejectedMessage = "処理中のため読み込めません。完了後にもう一度お試しください。";
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */

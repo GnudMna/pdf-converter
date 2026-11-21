@@ -23,6 +23,9 @@ namespace PdfConverter.Infrastructure
         /// <summary>成功時の終了コード</summary>
         public const int SuccessExitCode = 0;
 
+        /// <summary>パスの区切り文字 (<c>/</c> で始まる引数をスイッチかパスか判別するために使う)</summary>
+        private static readonly char[] PathSeparators = { '/', '\\' };
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -155,13 +158,24 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
         }
 
         /// <summary>スイッチ引数かどうかを判定する</summary>
+        /// <remarks><c>/</c> で始まる引数は、<c>//server/share/a.pdf</c> や <c>/docs/a.pdf</c> のようにスイッチ名の部分に区切り文字を含むとパスとして扱う</remarks>
         /// <param name="arg">引数</param>
         /// <returns>true: スイッチ引数</returns>
         private static bool IsSwitch(string arg)
         {
-            return arg.StartsWith("--", StringComparison.Ordinal)
-                || arg.StartsWith('-')
-                || arg.StartsWith('/');
+            if (arg.StartsWith('-'))
+            {
+                return true;
+            }
+
+            if (!arg.StartsWith('/'))
+            {
+                return false;
+            }
+
+            int valueIndex = arg.IndexOf('=');
+            string namePart = valueIndex < 0 ? arg : arg.Substring(0, valueIndex);
+            return namePart.IndexOfAny(PathSeparators, 1) < 0;
         }
 
         /// <summary>スイッチ引数を解析する</summary>

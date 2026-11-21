@@ -1,8 +1,11 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using Moq;
 using PdfConverter.Infrastructure;
+using PdfConverter.Models;
 using PdfConverter.Tests.Helpers;
+using PdfConverter.ViewModels;
 using Xunit;
 
 namespace PdfConverter.Tests.Infrastructure
@@ -145,6 +148,36 @@ namespace PdfConverter.Tests.Infrastructure
         public void IsFatalException_ReturnsFalseForNull()
         {
             Assert.False(GlobalExceptionHandler.IsFatalException(null));
+        }
+
+        /// <summary>
+        /// 処理中の状態を戻さない場合は、IsBusy とプログレスバーを変更せずエラーを表示することを検証する
+        /// </summary>
+        [Fact]
+        public void ShowStatus_WithoutReset_KeepsBusyState()
+        {
+            var viewModel = new Mock<IMainWindowViewModel>();
+
+            GlobalExceptionHandler.ShowStatus(viewModel.Object, "error", resetBusyState: false);
+
+            viewModel.VerifySet(v => v.IsBusy = It.IsAny<bool>(), Times.Never);
+            viewModel.VerifySet(v => v.IsProgressBarVisible = It.IsAny<bool>(), Times.Never);
+            viewModel.Verify(v => v.SetStatus("error", StatusKind.Error), Times.Once);
+        }
+
+        /// <summary>
+        /// 処理中の状態を戻す場合は、IsBusy とプログレスバーを解除してエラーを表示することを検証する
+        /// </summary>
+        [Fact]
+        public void ShowStatus_WithReset_ClearsBusyState()
+        {
+            var viewModel = new Mock<IMainWindowViewModel>();
+
+            GlobalExceptionHandler.ShowStatus(viewModel.Object, "error", resetBusyState: true);
+
+            viewModel.VerifySet(v => v.IsBusy = false, Times.Once);
+            viewModel.VerifySet(v => v.IsProgressBarVisible = false, Times.Once);
+            viewModel.Verify(v => v.SetStatus("error", StatusKind.Error), Times.Once);
         }
 
         /// <summary>致命的とみなす例外のケース</summary>

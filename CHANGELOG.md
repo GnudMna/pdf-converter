@@ -26,6 +26,30 @@
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-12
+
+### Changed
+
+- メインウィンドウ左上の「PDF Converter」というタイトルとアイコン、説明文を削除し、読み込み中のファイル名を表示するよう変更
+  - ファイル未選択のときは「ファイルが選択されていません」と表示し、マウスを重ねるとフルパスを表示する
+
+### Fixed
+
+- コマンドラインで `//server/share/a.pdf` のように `/` で始まる UNC パスを指定すると、「不明なオプション」として扱われる問題を修正
+  - `/` で始まる引数に `/` や `\` が含まれる場合は、ファイルパスとして扱う
+- 処理中にファイルをドロップしても何も表示されず無視されていた問題を修正
+  - 「処理中のため読み込めません。完了後にもう一度お試しください。」とステータスバーに表示する
+- メインウィンドウのタイトルバーの色が、ダークテーマなど画面のテーマと合わない問題を修正
+  - テーマを切り替えたときも、タイトルバーの色が追従する
+- バッチ変換 (コマンドライン) で Word 文書を多数処理すると、変換途中の一時 PDF が終了時まで残りディスクを圧迫する不具合を修正
+  - 1 ファイルの処理が終わるたびに、その一時 PDF を削除する
+- 保存中などにバックグラウンドで予期しないエラーが発生すると、処理中でも操作可能な状態に戻ってしまう問題を修正
+  - エラーはステータスバーに表示するだけにし、実行中の処理の状態は維持する
+- 同じ Word 文書への変換要求が重なると、Word / LibreOffice が二重に起動し、先に作られた一時 PDF が終了時まで残る不具合を修正
+  - 進行中の変換を共有し、1 回の変換結果をすべての要求で使う
+- ページが多い PDF の保存中にエラーが発生しても、残りのページの描画が続いてエラー表示が遅れる問題を修正
+  - 保存に失敗した時点で残りの処理を打ち切り、すぐにエラーを表示する
+
 ## [0.6.1] - 2026-10-12
 
 ### Changed
@@ -271,7 +295,8 @@
 
 - 実行ファイル名を `PDF Converter.exe` に変更
 
-[Unreleased]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.6.1...develop
+[Unreleased]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.6.2...develop
+[0.6.2]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.6.1...v0.6.2
 [0.6.1]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.6.0...v0.6.1
 [0.6.0]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.5.0...v0.6.0
 [0.5.0]: https://gitea.b-gnud.duckdns.org/GnudMna/pdf-converter/compare/v0.4.2...v0.5.0

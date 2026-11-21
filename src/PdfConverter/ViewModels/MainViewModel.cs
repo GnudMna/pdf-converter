@@ -188,10 +188,20 @@ namespace PdfConverter.ViewModels
                 }
 
                 Preview.NotifyFilePathChanged();
+                OnPropertyChanged(nameof(HasFilePath));
+                OnPropertyChanged(nameof(FileDisplayName));
                 OnPropertyChanged(nameof(IsSavePdfVisible));
                 RaiseCanExecuteChanged(SaveCommand);
             }
         }
+
+        /// <summary>ドキュメントのパスが入力されているかどうか</summary>
+        public bool HasFilePath => !string.IsNullOrWhiteSpace(FilePath);
+
+        /// <summary>ヘッダーに表示するファイル名 (未入力のときは案内文)</summary>
+        public string FileDisplayName => HasFilePath
+            ? Path.GetFileName(FilePath!.Trim())
+            : "ファイルが選択されていません";
 
         /* ------------------------------- 進捗表示関連 (Status 委譲) ------------------------------- */
         /// <summary>進捗値</summary>
@@ -281,8 +291,14 @@ namespace PdfConverter.ViewModels
         /// <inheritdoc/>
         public void HandleDroppedDocument(string filePath)
         {
-            if (string.IsNullOrEmpty(filePath) || IsBusy)
+            if (string.IsNullOrEmpty(filePath))
             {
+                return;
+            }
+
+            if (IsBusy)
+            {
+                SetStatus(DocumentFileHelper.BusyLoadRejectedMessage, StatusKind.Warning);
                 return;
             }
 
