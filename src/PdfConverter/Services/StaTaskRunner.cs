@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 
 namespace PdfConverter.Services
 {
@@ -36,8 +37,9 @@ namespace PdfConverter.Services
                     {
                         cancelCleanup?.Invoke();
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        ApplicationLogger.Warning(nameof(StaTaskRunner), "Cancel cleanup failed", ex);
                     }
 
                     tcs.TrySetCanceled(cancellationToken);

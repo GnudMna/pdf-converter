@@ -10,7 +10,8 @@
         ShowInTaskbar="False"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
+        Background="Transparent"
+        AutomationProperties.Name="確認">
 
     <Border Background="{DynamicResource CardBackgroundBrush}"
             BorderBrush="{DynamicResource CardBorderBrush}"
@@ -37,7 +38,9 @@
                         CornerRadius="20"
                         Background="{DynamicResource StatusWarningBackgroundBrush}"
                         Margin="0,0,14,0"
-                        VerticalAlignment="Top">
+                        VerticalAlignment="Top"
+                        Focusable="False"
+                        IsHitTestVisible="False">
                     <Path x:Name="IconPath"
                           Width="20"
                           Height="20"
@@ -57,7 +60,8 @@
                                TextWrapping="Wrap"
                                MaxWidth="400"
                                LineHeight="20"
-                               Foreground="{DynamicResource ControlForegroundBrush}" />
+                               Foreground="{DynamicResource ControlForegroundBrush}"
+                               AutomationProperties.LiveSetting="Polite" />
                 </StackPanel>
             </StackPanel>
 

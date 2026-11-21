@@ -32,11 +32,20 @@ namespace PdfConverter.Themes
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
+        /// 保存済み設定からテーマモードを読み込む
+        /// </summary>
+        /// <returns>保存済みの <see cref="ThemeMode"/></returns>
+        public static ThemeMode LoadSavedThemeMode()
+        {
+            return ParseThemeMode(Settings.Default.ThemeMode);
+        }
+
+        /// <summary>
         /// 保存済み設定に基づいて起動時テーマを適用する
         /// </summary>
         public static void Initialize()
         {
-            _selectedThemeMode = ParseThemeMode(Settings.Default.ThemeMode);
+            _selectedThemeMode = LoadSavedThemeMode();
             ApplyThemeResources(_selectedThemeMode);
             EnsureSystemThemeMonitoring();
         }

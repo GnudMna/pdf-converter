@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 
 namespace PdfConverter.Services
 {
@@ -56,8 +57,7 @@ namespace PdfConverter.Services
             cancellationToken.ThrowIfCancellationRequested();
 
             string sofficePath = LibreOfficePathHelper.Resolve(_settings.LibreOfficePath);
-            string outputDirectory = Path.Combine(Path.GetTempPath(), "PdfConverter", Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(outputDirectory);
+            string outputDirectory = PdfConverterTempDirectory.CreateTempWorkDirectory();
 
             try
             {
@@ -83,8 +83,12 @@ namespace PdfConverter.Services
 
                     if (process.ExitCode != 0)
                     {
-                        throw new InvalidOperationException(
-                            $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{capturedOutput.StandardError}");
+                        string errorMessage =
+                            $"LibreOffice による PDF 変換に失敗しました (終了コード {process.ExitCode})。{capturedOutput.StandardError}";
+                        ApplicationLogger.Error(
+                            "LibreOffice",
+                            $"Conversion failed (exit {process.ExitCode}). stderr: {capturedOutput.StandardError}");
+                        throw new InvalidOperationException(errorMessage);
                     }
                 }
 
@@ -99,14 +103,13 @@ namespace PdfConverter.Services
                     throw new InvalidOperationException("LibreOffice から PDF への変換結果ファイルを取得できませんでした。");
                 }
 
-                string finalPdfPath = Path.Combine(Path.GetTempPath(), "PdfConverter", $"{Guid.NewGuid():N}.pdf");
-                Directory.CreateDirectory(Path.GetDirectoryName(finalPdfPath));
+                string finalPdfPath = PdfConverterTempDirectory.CreateTempPdfPath();
                 File.Move(generatedPdfPath, finalPdfPath);
                 return finalPdfPath;
             }
             finally
             {
-                TryDeleteDirectory(outputDirectory);
+                PdfConverterTempDirectory.TryDeleteDirectory(outputDirectory);
             }
         }
 
@@ -140,22 +143,5 @@ namespace PdfConverter.Services
             return "\"" + value.Replace("\"", "\\\"") + "\"";
         }
 
-        /// <summary>
-        /// 一時ディレクトリを削除する
-        /// </summary>
-        /// <param name="directoryPath">削除対象ディレクトリ</param>
-        private static void TryDeleteDirectory(string directoryPath)
-        {
-            try
-            {
-                if (Directory.Exists(directoryPath))
-                {
-                    Directory.Delete(directoryPath, recursive: true);
-                }
-            }
-            catch
-            {
-            }
-        }
     }
 }

@@ -1,8 +1,8 @@
 using System;
 using System.Threading;
 using System.Windows.Input;
-using System.Windows.Media.Imaging;
 using PdfConverter.Commands;
+using PdfConverter.Infrastructure;
 using PdfConverter.Models;
 using PdfConverter.Services;
 using PdfConverter.ViewModels.Coordinators;
@@ -13,7 +13,7 @@ namespace PdfConverter.ViewModels
     /// メインウィンドウの ViewModel<br/>
     /// UI バインディングとコマンドを公開し、処理は Coordinator に委譲する
     /// </summary>
-    public class MainViewModel : ViewModelBase, IMainViewModelHost, IMainWindowViewModel
+    public class MainViewModel : ViewModelBase, IMainWindowViewModel
     {
         /********************************************************************************/
         /*                                 ローカル変数                                 */
@@ -26,6 +26,9 @@ namespace PdfConverter.ViewModels
         private readonly IClipboardService _clipboardService;
 
         /* --------------------------- コーディネーター関連 --------------------------- */
+        /// <summary>Coordinator 向けホストアダプター</summary>
+        private readonly IMainViewModelHost _coordinatorHost;
+
         /// <summary>PDF プレビュー コーディネーター</summary>
         private readonly IPdfPreviewCoordinator _previewCoordinator;
 
@@ -69,26 +72,28 @@ namespace PdfConverter.ViewModels
             _clipboardService = clipboardService;
             _previewCoordinator = previewCoordinator;
             _saveCoordinator = saveCoordinator;
+            _coordinatorHost = new MainViewModelCoordinatorHost(this);
 
             Theme = new ThemeSettingsViewModel();
             Status = new StatusBarViewModel();
             Preview = new PreviewPanelViewModel(
                 _previewCoordinator,
-                () => this,
+                () => _coordinatorHost,
                 () => IsBusy,
                 OnAsyncCommandException);
             WordSettings = new WordConversionSettingsViewModel(wordToPdfSettings, ReloadWordDocumentIfLoaded);
             ExportSettings = new ImageExportSettingsViewModel(
                 imageExportSettings,
-                () => _previewCoordinator.RequestRefreshIfLoaded(this),
+                () => _previewCoordinator.RequestRefreshIfLoaded(_coordinatorHost),
                 RaiseActionCanExecuteChanged);
 
             BrowseCommand = new RelayCommand(OnBrowse, () => !IsBusy);
-            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(this), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
-            SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(this), CanSavePdf, OnAsyncCommandException);
+            SaveCommand = new AsyncRelayCommand(() => _saveCoordinator.SaveAsync(_coordinatorHost), () => !string.IsNullOrEmpty(FilePath) && !IsBusy, OnAsyncCommandException);
+            SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(_coordinatorHost), CanSavePdf, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
             CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
             LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
+            ShowAboutCommand = new RelayCommand(() => _dialogService.ShowAbout());
         }
 
 
@@ -241,6 +246,9 @@ namespace PdfConverter.ViewModels
         /// <summary>パス入力欄のフォーカス喪失時に PDF を読み込むコマンド</summary>
         public ICommand LoadPdfFromPathCommand { get; }
 
+        /// <summary>バージョン情報を表示するコマンド</summary>
+        public ICommand ShowAboutCommand { get; }
+
 
         /********************************************************************************/
         /*                              パブリックメソッド                              */
@@ -249,7 +257,7 @@ namespace PdfConverter.ViewModels
         /// 指定したファイルパスの PDF を検証して読み込み、ページ数取得とプレビュー生成を開始する
         /// </summary>
         /// <param name="forceReload">強制的に再読み込みするかどうか</param>
-        public void LoadPdfFromPath(bool forceReload = false) => _previewCoordinator.LoadFromPath(this, forceReload);
+        public void LoadPdfFromPath(bool forceReload = false) => _previewCoordinator.LoadFromPath(_coordinatorHost, forceReload);
 
         /// <inheritdoc/>
         public void HandleDroppedDocument(string filePath)
@@ -268,95 +276,36 @@ namespace PdfConverter.ViewModels
 
 
         /********************************************************************************/
-        /*                           IMainViewModelHost 委譲                            */
+        /*                        Coordinator ホスト向け内部 API                        */
         /********************************************************************************/
-        string IPreviewCoordinatorHost.LoadedFilePath
+        /// <summary>読み込み済みドキュメントのパス (Coordinator ホスト専用)</summary>
+        internal string LoadedFilePath
         {
             get => _loadedFilePath;
             set => _loadedFilePath = value;
         }
 
-        string IPreviewCoordinatorHost.PageNumber
-        {
-            get => Preview.PageNumber;
-            set => Preview.PageNumber = value;
-        }
+        /// <summary><see cref="IsSavePdfVisible"/> の変更を通知する (Coordinator ホスト専用)</summary>
+        internal void NotifyIsSavePdfVisibleChanged() => OnPropertyChanged(nameof(IsSavePdfVisible));
 
-        int IPreviewCoordinatorHost.PageCount
-        {
-            get => Preview.PageCount;
-            set
-            {
-                Preview.PageCount = value;
-                OnPropertyChanged(nameof(IsSavePdfVisible));
-            }
-        }
+        /// <summary>クリップボードコピーコマンドの実行可能状態を更新する (Coordinator ホスト専用)</summary>
+        internal void NotifyCopyToClipboardCanExecuteChanged() => RaiseCanExecuteChanged(CopyToClipboardCommand);
 
-        BitmapSource IPreviewCoordinatorHost.PreviewImage
-        {
-            get => Preview.PreviewImage;
-            set
-            {
-                Preview.PreviewImage = value;
-                RaiseCanExecuteChanged(CopyToClipboardCommand);
-            }
-        }
+        /// <summary>キャンセル処理を準備する (Coordinator ホスト専用)</summary>
+        internal void PrepareCoordinatorCancellation() => PrepareCancellation();
 
-        bool IPreviewCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
+        /// <summary>キャンセルトークンを取得する (Coordinator ホスト専用)</summary>
+        internal CancellationToken GetCoordinatorCancellationToken() => _cancelTokenSource.Token;
 
-        int IPreviewCoordinatorHost.CurrentPreviewPage => Preview.CurrentPreviewPage;
-
-        string IPreviewCoordinatorHost.PageNumberValidationMessage
-        {
-            get => Preview.PageNumberValidationMessage;
-            set => Preview.PageNumberValidationMessage = value;
-        }
-
-        int ISaveCoordinatorHost.PageCount => Preview.PageCount;
-
-        ResolutionMode IResolutionInputHost.ResolutionMode => ExportSettings.ResolutionMode;
-
-        string IResolutionInputHost.ResolutionValue => ExportSettings.ResolutionValue;
-
-        string IResolutionInputHost.ResolutionValidationMessage
-        {
-            get => ExportSettings.ResolutionValidationMessage;
-            set => ExportSettings.ResolutionValidationMessage = value;
-        }
-
-        string ISaveCoordinatorHost.PageRange => ExportSettings.PageRange;
-
-        bool ISaveCoordinatorHost.IsAllPagesSelected => ExportSettings.IsAllPagesSelected;
-
-        OutputImageFormat ISaveCoordinatorHost.OutputImageFormat => ExportSettings.OutputImageFormat;
-
-        bool ISaveCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
-
-        string ISaveCoordinatorHost.PageRangeValidationMessage
-        {
-            get => ExportSettings.PageRangeValidationMessage;
-            set => ExportSettings.PageRangeValidationMessage = value;
-        }
-
-        void ICoordinatorSession.PrepareCancellation() => PrepareCancellation();
-
-        CancellationToken ICoordinatorSession.GetCancellationToken() => _cancelTokenSource.Token;
-
-        void ICoordinatorSession.DisposeCancellation()
+        /// <summary>キャンセルトークンを破棄する (Coordinator ホスト専用)</summary>
+        internal void DisposeCoordinatorCancellation()
         {
             _cancelTokenSource?.Dispose();
             _cancelTokenSource = null;
         }
 
-        void ICoordinatorSession.RaiseNavigationCanExecuteChanged() => Preview.RaiseNavigationCanExecuteChanged();
-
-        void ICoordinatorSession.RaiseActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
-
-        void ICoordinatorSession.ClearFieldValidationMessages()
-        {
-            ExportSettings.ClearValidationMessages();
-            Preview.PageNumberValidationMessage = null;
-        }
+        /// <summary>アクション可能なコマンドの実行可能状態を更新する (Coordinator ホスト専用)</summary>
+        internal void RaiseCoordinatorActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
 
 
         /********************************************************************************/
@@ -370,7 +319,7 @@ namespace PdfConverter.ViewModels
                 return;
             }
 
-            _loadedFilePath = null;
+            LoadedFilePath = null;
             LoadPdfFromPath(forceReload: true);
         }
 
@@ -438,7 +387,8 @@ namespace PdfConverter.ViewModels
         {
             IsBusy = false;
             IsProgressBarVisible = false;
-            SetStatus($"処理中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+            ApplicationLogger.Error("AsyncCommand", "Command execution failed", ex);
+            SetStatus($"処理中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
         }
 
         /// <summary>プレビュー画像をクリップボードにコピーする</summary>
@@ -457,7 +407,8 @@ namespace PdfConverter.ViewModels
             }
             catch (Exception ex)
             {
-                SetStatus($"クリップボードへのコピーに失敗しました: {ex.Message}", StatusKind.Error);
+                ApplicationLogger.Error("Clipboard", "Failed to copy preview image", ex);
+                SetStatus($"クリップボードへのコピーに失敗しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
             }
         }
     }

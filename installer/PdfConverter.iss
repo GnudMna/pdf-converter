@@ -1,12 +1,14 @@
 ; PDF Converter — Inno Setup スクリプト
 ; ビルド例:
-;   iscc /DPlatform=x64 /DSourceDir="..\src\PdfConverter\bin\x64\Release" PdfConverter.iss
+;   iscc /DAppVersion=x.x.x /DPlatform=x64 /DSourceDir="..\src\PdfConverter\bin\x64\Release" PdfConverter.iss
+;
+; AppVersion は必須です。通常は build-installer.ps1 が AssemblyInfo.cs から取得して渡します。
 ;
 ; 管理者権限を要求しないユーザー単位インストール（PrivilegesRequired=lowest）。
 ; UAC の昇格ダイアログ（「不明な発行元」）を表示させない構成です。
 
 #ifndef AppVersion
-  #define AppVersion "0.3.0"
+  #error AppVersion is required. Pass /DAppVersion=x.y.z (e.g. via installer\build-installer.ps1).
 #endif
 
 #ifndef Platform
@@ -62,6 +64,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "fileassoc"; Description: "PDF / Word (.pdf, .doc, .docx) をこのアプリで開けるように登録する"; GroupDescription: "ファイルの関連付け:"; Flags: unchecked
 
 [Files]
+; THIRD-PARTY-NOTICES.txt は build-installer.ps1 がビルド出力へ生成します
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

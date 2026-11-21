@@ -3,6 +3,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 using PdfConverter.Models;
 
 namespace PdfConverter.Services
@@ -119,9 +120,7 @@ namespace PdfConverter.Services
                 throw new InvalidOperationException("Microsoft Word がインストールされていません。Word → PDF 変換には Word のインストールが必要です。");
             }
 
-            string tempDirectory = Path.Combine(Path.GetTempPath(), "PdfConverter");
-            Directory.CreateDirectory(tempDirectory);
-            string outputPath = Path.Combine(tempDirectory, $"{Guid.NewGuid():N}.pdf");
+            string outputPath = PdfConverterTempDirectory.CreateTempPdfPath();
 
             dynamic wordApp = null;
             dynamic document = null;
@@ -152,6 +151,11 @@ namespace PdfConverter.Services
                 }
 
                 return outputPath;
+            }
+            catch
+            {
+                PdfConverterTempDirectory.TryDeleteFile(outputPath);
+                throw;
             }
             finally
             {
@@ -205,6 +209,7 @@ namespace PdfConverter.Services
             }
             catch
             {
+                ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "ShowComments is not supported in this Word version");
             }
         }
 
@@ -302,16 +307,18 @@ namespace PdfConverter.Services
                 {
                     closeAction(target);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to close Word COM object", ex);
                 }
 
                 try
                 {
                     Marshal.FinalReleaseComObject(target);
                 }
-                catch
+                catch (Exception ex)
                 {
+                    ApplicationLogger.Warning(nameof(MicrosoftWordToPdfConversionService), "Failed to release Word COM object", ex);
                 }
             }
         }

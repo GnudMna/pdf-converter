@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 
 namespace PdfConverter.Services
 {
@@ -107,8 +108,9 @@ namespace PdfConverter.Services
                     process.Kill();
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                ApplicationLogger.Warning(nameof(ProcessWaitHelper), "Failed to kill process", ex);
             }
         }
 
@@ -128,8 +130,9 @@ namespace PdfConverter.Services
             {
                 return reader.ReadToEnd().Trim();
             }
-            catch
+            catch (Exception ex)
             {
+                ApplicationLogger.Warning(nameof(ProcessWaitHelper), "Failed to read process stream", ex);
                 return string.Empty;
             }
         }

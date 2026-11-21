@@ -9,6 +9,8 @@
         mc:Ignorable="d"
         Title="PDF Converter"
         Icon="/Assets/app.ico"
+        AutomationProperties.Name="PDF Converter"
+        AutomationProperties.HelpText="PDF または Word 文書のページを画像としてエクスポートします"
         Height="920"
         Width="800"
         MinHeight="600"
@@ -38,7 +40,7 @@
             </Grid.RowDefinitions>
 
             <panels:MainWindowHeaderPanel Grid.Row="0"
-                                          DataContext="{Binding Theme}" />
+                                          DataContext="{Binding}" />
 
             <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
@@ -61,7 +63,9 @@
                 </ScrollViewer>
 
                 <GridSplitter Grid.Column="1"
-                              Style="{StaticResource PanelGridSplitter}" />
+                              Style="{StaticResource PanelGridSplitter}"
+                              AutomationProperties.Name="パネル幅の調整"
+                              AutomationProperties.HelpText="左右のパネル幅を変更します" />
 
                 <panels:PreviewPanel Grid.Column="2"
                                      DataContext="{Binding Preview}" />

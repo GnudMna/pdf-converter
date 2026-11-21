@@ -26,6 +26,16 @@ namespace PdfConverter.Tests.Themes
         }
 
         /// <summary>
+        /// 保存済み設定の読み込みが ParseThemeMode と同じ変換規則を使うことを検証する
+        /// </summary>
+        [Fact]
+        public void LoadSavedThemeMode_UsesSavedSettingValue()
+        {
+            var expected = ThemeManager.ParseThemeMode(PdfConverter.Properties.Settings.Default.ThemeMode);
+            Assert.Equal(expected, ThemeManager.LoadSavedThemeMode());
+        }
+
+        /// <summary>
         /// null・空文字・不正な文字列の場合に ThemeMode.System がフォールバックとして返されることを検証する
         /// </summary>
         [Theory]

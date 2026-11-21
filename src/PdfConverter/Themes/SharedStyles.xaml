@@ -89,6 +89,8 @@
         <Setter Property="Margin" Value="0,6,0,0" />
         <Setter Property="TextWrapping" Value="Wrap" />
         <Setter Property="Foreground" Value="{DynamicResource ValidationMessageForegroundBrush}" />
+        <Setter Property="AutomationProperties.Name" Value="入力エラー" />
+        <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
     </Style>
 
     <!-- ============================ カード ============================ -->

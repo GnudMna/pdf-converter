@@ -51,6 +51,8 @@
                                 Padding="0"
                                 Margin="0,0,4,0"
                                 ToolTip="前のページ (Ctrl+←)"
+                                AutomationProperties.Name="前のページ"
+                                AutomationProperties.HelpText="Ctrl+左矢印キーでも移動できます"
                                 Command="{Binding PreviousPageCommand}"
                                 Style="{StaticResource CompactToolbarButton}">
                             <Path Width="8"
@@ -71,6 +73,8 @@
                                  Style="{StaticResource CompactTextBox}"
                                  Text="{Binding PageNumber, UpdateSourceTrigger=PropertyChanged}"
                                  ToolTip="ページ番号を入力して Enter"
+                                 AutomationProperties.Name="ページ番号"
+                                 AutomationProperties.HelpText="移動先のページ番号を入力して Enter を押してください"
                                  HorizontalContentAlignment="Right"
                                  IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
                                  behaviors:InvokeCommandBehavior.EnterKeyCommand="{Binding GoToPageCommand}" />
@@ -87,6 +91,8 @@
                                 Padding="0"
                                 Margin="4,0,0,0"
                                 ToolTip="次のページ (Ctrl+→)"
+                                AutomationProperties.Name="次のページ"
+                                AutomationProperties.HelpText="Ctrl+右矢印キーでも移動できます"
                                 Command="{Binding NextPageCommand}"
                                 Style="{StaticResource CompactToolbarButton}">
                             <Path Width="8"
@@ -118,7 +124,9 @@
                            Stretch="Uniform"
                            HorizontalAlignment="Stretch"
                            VerticalAlignment="Stretch"
-                           RenderOptions.BitmapScalingMode="HighQuality">
+                           RenderOptions.BitmapScalingMode="HighQuality"
+                           AutomationProperties.Name="プレビュー画像"
+                           AutomationProperties.HelpText="{Binding PageIndicator}">
                         <Image.Style>
                             <Style TargetType="Image">
                                 <Setter Property="Opacity" Value="1" />

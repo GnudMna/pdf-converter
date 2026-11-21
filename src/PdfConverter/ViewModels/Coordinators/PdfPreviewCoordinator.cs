@@ -101,6 +101,7 @@ namespace PdfConverter.ViewModels.Coordinators
 
             host.LoadedFilePath = host.FilePath;
             host.SetStatus("ファイルを読み込み中...", StatusKind.Progress);
+            ApplicationLogger.Info("Preview", $"Loading document: {Path.GetFileName(host.FilePath)}");
             long operationGeneration = BeginPreviewOperation(host);
             TrackPreviewTask(LoadPageCountAndConvertAsync(host, operationGeneration));
         }
@@ -286,6 +287,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     }
 
                     host.PageCount = pageCount;
+                    ApplicationLogger.Info("Preview", $"Document loaded: {pageCount} page(s), file={Path.GetFileName(loadingPath)}");
                 }
                 catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
                 {
@@ -301,7 +303,8 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageCount = 0;
                     host.PreviewImage = null;
                     host.LoadedFilePath = null;
-                    host.SetStatus($"PDF の読み込みに失敗しました: {ex.Message}", StatusKind.Error);
+                    ApplicationLogger.Error("Preview", "Failed to load document", ex);
+                    host.SetStatus($"PDF の読み込みに失敗しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
                     return;
                 }
 
@@ -449,12 +452,14 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 if (manageBusyState)
                 {
-                    uiFeedback?.CompleteError($"プレビューの生成中にエラーが発生しました: {ex.Message}");
+                    uiFeedback?.CompleteError($"プレビューの生成中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}");
                 }
                 else
                 {
-                    host.SetStatus($"プレビューの生成中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                    host.SetStatus($"プレビューの生成中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
                 }
+
+                ApplicationLogger.Error("Preview", "Failed to render preview", ex);
             }
             finally
             {
@@ -491,7 +496,7 @@ namespace PdfConverter.ViewModels.Coordinators
             bool isWordDocument = DocumentFileHelper.IsWordFile(sourcePath);
             if (isWordDocument)
             {
-                host.SetStatus("Word を PDF に変換中...", StatusKind.Progress);
+                CoordinatorHelpers.ReportWordToPdfConversionProgress(host);
             }
 
             try
@@ -520,10 +525,11 @@ namespace PdfConverter.ViewModels.Coordinators
                 host.PageCount = 0;
                 host.PreviewImage = null;
                 host.LoadedFilePath = null;
+                ApplicationLogger.Error("Preview", isWordDocument ? "Word to PDF conversion failed" : "Failed to open PDF", ex);
                 host.SetStatus(
                     isWordDocument
-                        ? $"Word を PDF に変換に失敗しました: {ex.Message}"
-                        : $"PDF の読み込みに失敗しました: {ex.Message}",
+                        ? $"Word を PDF に変換に失敗しました: {ExceptionFormattingHelper.GetUserMessage(ex)}"
+                        : $"PDF の読み込みに失敗しました: {ExceptionFormattingHelper.GetUserMessage(ex)}",
                     StatusKind.Error);
                 return null;
             }

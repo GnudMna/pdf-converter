@@ -116,7 +116,7 @@ namespace PdfConverter.Services
 
                 if (_temporaryPdfPaths.Remove(pdfPath))
                 {
-                    TryDeleteFile(pdfPath);
+                    PdfConverterTempDirectory.TryDeleteFile(pdfPath);
                 }
             }
         }
@@ -130,7 +130,7 @@ namespace PdfConverter.Services
             {
                 foreach (string pdfPath in _temporaryPdfPaths)
                 {
-                    TryDeleteFile(pdfPath);
+                    PdfConverterTempDirectory.TryDeleteFile(pdfPath);
                 }
 
                 _temporaryPdfPaths.Clear();
@@ -152,25 +152,5 @@ namespace PdfConverter.Services
         }
 
 
-        /********************************************************************************/
-        /*                             プライベートメソッド                             */
-        /********************************************************************************/
-        /// <summary>
-        /// 一時 PDF ファイルを削除する
-        /// </summary>
-        /// <param name="path">削除対象のファイルパス</param>
-        private static void TryDeleteFile(string path)
-        {
-            try
-            {
-                if (File.Exists(path))
-                {
-                    File.Delete(path);
-                }
-            }
-            catch
-            {
-            }
-        }
     }
 }

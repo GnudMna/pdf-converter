@@ -9,8 +9,24 @@ namespace PdfConverter.ViewModels.Coordinators
     internal static class CoordinatorHelpers
     {
         /********************************************************************************/
+        /*                                     定数                                     */
+        /********************************************************************************/
+        /// <summary>Word 文書を PDF に変換中のステータスメッセージ</summary>
+        internal const string WordToPdfConversionStatusMessage = "Word を PDF に変換中...";
+
+
+        /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
+        /// <summary>
+        /// Word 文書の PDF 変換開始をステータスバーへ通知する
+        /// </summary>
+        /// <param name="session">ステータス更新先のセッション</param>
+        public static void ReportWordToPdfConversionProgress(ICoordinatorSession session)
+        {
+            session.SetStatus(WordToPdfConversionStatusMessage, StatusKind.Progress);
+        }
+
         /// <summary>
         /// 現在の解像度設定を検証して数値を取得する
         /// </summary>

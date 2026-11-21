@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
+using PdfConverter.Services;
 using PdfConverter.Themes;
 using PdfConverter.ViewModels;
 using PdfConverter.Views;
@@ -44,6 +45,8 @@ namespace PdfConverter
 
             GlobalExceptionHandler.Register();
 
+            PdfConverterTempDirectory.CleanupStaleEntries(PdfConverterTempDirectory.DefaultStaleAge);
+
             SetDllDirectory(ApplicationStartupHelper.GetNativeDllSearchPath(
                 System.Reflection.Assembly.GetExecutingAssembly().Location));
 
@@ -74,6 +77,8 @@ namespace PdfConverter
             {
                 disposable.Dispose();
             }
+
+            PdfConverterTempDirectory.TryCleanupAll();
 
             base.OnExit(e);
         }

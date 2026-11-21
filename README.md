@@ -6,7 +6,7 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.3.1-blue)](#)
+[![Version](https://img.shields.io/badge/Version-0.3.2-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -42,6 +42,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 | 🌗 | **テーマ切替** | ライト / ダーク / システム設定に追従 |
 | 🧠 | **メモリキャッシュ** | 一定サイズ以下の PDF をキャッシュし、I/O を削減 |
 | 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
+| ♿ | **アクセシビリティ** | スクリーンリーダー対応（ラベル関連付け・Live Region によるステータス読み上げ） |
 
 ---
 
@@ -56,7 +57,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 
 </div>
 
-- **アーキテクチャ**: MVVM（パネル単位の View / ViewModel、Coordinator / Service の責務分離）
+- **アーキテクチャ**: MVVM（パネル単位の View / ViewModel、`MainViewModelCoordinatorHost` による Coordinator 連携、Service の責務分離）
 - **DI コンテナ**: `Microsoft.Extensions.DependencyInjection`
 - **PDF レンダリング**: `Docnet.Core` (PDFium)
 - **Word → PDF 変換**: Microsoft Word COM または LibreOffice headless（設定で切り替え）
@@ -89,7 +90,7 @@ cd pdf-converter
 # NuGet パッケージの復元
 nuget restore src/PdfConverter.slnx
 
-# ビルド（Release / x64 構成）
+# ビルド（Release / x64 構成 — 既定）
 msbuild src/PdfConverter.slnx /p:Configuration=Release /p:Platform=x64
 
 # x86 向けにビルドする場合
@@ -99,15 +100,16 @@ msbuild src/PdfConverter.slnx /p:Configuration=Release /p:Platform=x86
 msbuild src/PdfConverter/PdfConverter.csproj /t:BuildAllPlatforms /p:Configuration=Release
 ```
 
+PDFium のネイティブ DLL（`pdfium.dll`）はプラットフォーム固有のため、**Any CPU 構成はサポートしていません**。ビルド時は `x64` または `x86` を明示してください（Visual Studio では既定が x64）。
+
 ビルド後、プラットフォームに応じて次の場所に `PDF Converter.exe` が生成されます。
 
 | プラットフォーム | 出力先 |
 |:---|:---|
-| `Any CPU` | `src/PdfConverter/bin/Release/` |
 | `x64` | `src/PdfConverter/bin/x64/Release/` |
 | `x86` | `src/PdfConverter/bin/x86/Release/` |
 
-ビルド後の出力フォルダ構成は次のとおりです。`PDF Converter.exe` はルートに配置され、依存するマネージド DLL と PDFium のネイティブ DLL（`pdfium.dll`）は `lib\` サブフォルダへ自動配置されます。起動時に `SetDllDirectory` で `lib\` を検索パスに追加するため、配布時もこの構成を維持してください。
+ビルド後の出力フォルダ構成は次のとおりです。`PDF Converter.exe` はルートに配置され、依存するマネージド DLL と PDFium のネイティブ DLL（`pdfium.dll`）は MSBuild ターゲット `OrganizeOutputLayout` により `lib\` サブフォルダへ自動配置されます。Release ビルドでは PDB は出力から除外されます。起動時に `SetDllDirectory` で `lib\` を検索パスに追加するため、配布時もこの構成を維持してください。
 
 ```text
 PDF Converter.exe
@@ -126,7 +128,7 @@ lib/
 ```powershell
 cd installer
 
-# x64 版（既定）— アプリの Release ビルドからインストーラーを生成
+# x64 版（既定）— NuGet 復元・Release ビルド・インストーラー生成を一括実行
 .\build-installer.ps1
 
 # x86 と x64 の両方
@@ -135,11 +137,14 @@ cd installer
 # アプリはビルド済みの場合
 .\build-installer.ps1 -SkipBuild
 
-# CI / ターミナル向け（完了後のキー入力待ちを省略）
+# パッケージ復元をスキップ（直前に復元済みの場合）
+.\build-installer.ps1 -SkipRestore
+
+# ターミナル向け（完了後のキー入力待ちを省略）
 .\build-installer.ps1 -NoPause
 ```
 
-生成物は `dist/` に出力されます（例: `PdfConverter-0.3.0-x64-setup.exe`）。バージョン番号は `src/PdfConverter/Properties/AssemblyInfo.cs` から自動取得されます。
+生成物は `dist/` に出力されます（例: `PdfConverter-x.x.x-x64-setup.exe`）。バージョン番号は `src/PdfConverter/Properties/AssemblyInfo.cs` から自動取得され、Inno Setup へ `/DAppVersion` として渡されます。`AppVersion` 未指定で `PdfConverter.iss` を直接コンパイルするとエラーになります。
 
 | 項目 | 内容 |
 |:---|:---|
@@ -176,6 +181,15 @@ cd installer
 
 エクスプローラーで PDF / Word をこのアプリにドラッグする、または「プログラムから開く」に登録して使うこともできます。
 
+### トラブルシューティング
+
+問題が発生した場合、次のログを確認できます（UTF-8 テキスト、最大 2 MB でローテーション）。
+
+| ファイル | 内容 |
+|:---|:---|
+| `%LOCALAPPDATA%\PDF Converter\logs\app.log` | 操作ログ・警告 |
+| `%LOCALAPPDATA%\PDF Converter\logs\error.log` | エラーと例外の詳細 |
+
 ---
 
 ## 🧪 テスト
@@ -183,14 +197,26 @@ cd installer
 単体テストは [xUnit.net v3](https://xunit.net/) で実装されています。テストプロジェクトは **SDK 形式の `net481`** で、ビルド後に生成されるテスト実行ファイルを直接起動して実行できます。
 
 ```powershell
+cd installer
+
+# 復元・ビルド・テストを一括実行（推奨）
+.\build-and-test.ps1
+
+# Release 構成で実行
+.\build-and-test.ps1 -Configuration Release
+```
+
+手動で実行する場合:
+
+```powershell
 # 1. NuGet パッケージの復元（未実施の場合）
 nuget restore src/PdfConverter.slnx
 
 # 2. テストプロジェクトをビルド
-msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Debug /p:Platform="Any CPU"
+msbuild src/PdfConverter.Tests/PdfConverter.Tests.csproj /p:Configuration=Debug /p:Platform=x64
 
 # 3. テスト実行（xUnit v3 In-Process Runner）
-src/PdfConverter.Tests/bin/Debug/net481/PdfConverter.Tests.exe
+src/PdfConverter.Tests/bin/x64/Debug/net481/PdfConverter.Tests.exe
 ```
 
 Visual Studio のテストエクスプローラーからも実行できます（`xunit.runner.visualstudio` を使用）。
@@ -207,13 +233,14 @@ pdf-converter/
 │  ├─ PdfConverter/                # アプリ本体 (WPF / MVVM)
 │  │  ├─ Commands/                 # コマンド実装
 │  │  ├─ Converters/               # 値変換
-│  │  ├─ Infrastructure/           # 例外処理・DI 構成・起動補助
+│  │  ├─ Infrastructure/           # ログ・例外処理・DI 構成・起動補助
 │  │  ├─ Models/                   # ドメインモデル / 列挙型
 │  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携
 │  │  ├─ Themes/                   # ライト / ダークテーマ
 │  │  ├─ ViewModels/               # ViewModel 群
 │  │  │  ├─ Coordinators/          # プレビュー・保存フローの調停
 │  │  │  ├─ MainViewModel.cs       # メイン画面の統合 ViewModel
+│  │  │  ├─ MainViewModelCoordinatorHost.cs  # Coordinator 向けホスト実装
 │  │  │  ├─ PreviewPanelViewModel.cs
 │  │  │  ├─ ImageExportSettingsViewModel.cs
 │  │  │  ├─ WordConversionSettingsViewModel.cs
@@ -238,7 +265,10 @@ pdf-converter/
 │     └─ Helpers/                  # テスト補助
 ├─ installer/                      # Inno Setup スクリプトとビルド用 PowerShell
 │  ├─ PdfConverter.iss
-│  └─ build-installer.ps1
+│  ├─ build-common.ps1             # 復元・MSBuild 検出など共通関数
+│  ├─ build-installer.ps1          # インストーラー生成
+│  ├─ build-and-test.ps1           # 復元・ビルド・テスト一括実行
+│  └─ generate-third-party-notices.ps1
 ├─ dist/                           # インストーラー出力先（gitignore 対象）
 ├─ LICENSE
 └─ README.md
@@ -249,3 +279,32 @@ pdf-converter/
 ## 📜 ライセンス
 
 本プロジェクトは [MIT License](LICENSE) の下で公開されています。
+
+### オープンソースソフトウェア
+
+本アプリは以下のオープンソースコンポーネントを使用しています。
+
+| コンポーネント | バージョン | ライセンス | 用途 |
+|:---|:---|:---|:---|
+| Docnet.Core | 2.6.0 | MIT | PDF レンダリング (.NET ラッパー) |
+| PDFium | Docnet.Core 同梱 | Apache 2.0 | PDF ネイティブエンジン |
+| Microsoft.Extensions.DependencyInjection | 10.0.8 | MIT | DI コンテナ |
+| Microsoft.Extensions.DependencyInjection.Abstractions | 10.0.8 | MIT | DI 抽象化 |
+| Microsoft.Bcl.AsyncInterfaces | 10.0.8 | MIT | 非同期インターフェース |
+| Ookii.Dialogs.Wpf | 5.0.1 | BSD-3-Clause | フォルダー選択ダイアログ |
+| System.Runtime.CompilerServices.Unsafe | 6.1.2 | MIT | 低レベル型操作 |
+| System.Threading.Tasks.Extensions | 4.6.3 | MIT | タスク拡張 |
+
+インストール版には `THIRD-PARTY-NOTICES.txt` が同梱され、各コンポーネントのライセンス全文が記載されています。アプリ右上の **ⓘ ボタン**（バージョン情報）からも開けます。
+
+### 外部ソフトウェア
+
+以下はユーザーの環境に別途インストールが必要です（本アプリに同梱されません）。
+
+- **.NET Framework 4.8.1** — ランタイム（Microsoft）
+- **Microsoft Word** — Word 文書の変換時（COM 利用。正規ライセンスが必要）
+- **LibreOffice** — Word 文書の変換時の代替手段
+
+### 商標
+
+PDF は Adobe Inc. の登録商標です。Microsoft、Word、Windows は Microsoft Corporation の米国およびその他の国における登録商標または商標です。LibreOffice は The Document Foundation の商標です。これらの名称は、各権利者との提携・後援・承認を示すものではありません。

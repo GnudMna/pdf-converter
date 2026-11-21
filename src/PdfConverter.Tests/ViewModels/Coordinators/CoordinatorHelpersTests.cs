@@ -52,5 +52,19 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
             Assert.Equal(StatusKind.Warning, host.StatusKind);
             Assert.Equal(host.StatusMessage, host.ResolutionValidationMessage);
         }
+
+        /// <summary>
+        /// Word 文書の PDF 変換開始時に進行中ステータスが設定されることを検証する
+        /// </summary>
+        [Fact]
+        public void ReportWordToPdfConversionProgress_SetsProgressStatus()
+        {
+            var host = new TestMainViewModelHost();
+
+            CoordinatorHelpers.ReportWordToPdfConversionProgress(host);
+
+            Assert.Equal(CoordinatorHelpers.WordToPdfConversionStatusMessage, host.StatusMessage);
+            Assert.Equal(StatusKind.Progress, host.StatusKind);
+        }
     }
 }

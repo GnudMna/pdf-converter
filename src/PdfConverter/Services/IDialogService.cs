@@ -60,5 +60,10 @@ namespace PdfConverter.Services
             DialogIcon icon = DialogIcon.None,
             string yesText = "はい",
             string noText = "いいえ");
+
+        /// <summary>
+        /// バージョン情報とオープンソースクレジットのダイアログを表示する
+        /// </summary>
+        void ShowAbout();
     }
 }

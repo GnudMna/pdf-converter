@@ -60,5 +60,17 @@ namespace PdfConverter.Services
 
             return confirmDialog.ShowDialog() == true;
         }
+
+        /// <inheritdoc/>
+        public void ShowAbout()
+        {
+            var owner = Application.Current?.MainWindow;
+            var aboutDialog = new AboutDialog
+            {
+                Owner = owner,
+            };
+
+            aboutDialog.ShowDialog();
+        }
     }
 }

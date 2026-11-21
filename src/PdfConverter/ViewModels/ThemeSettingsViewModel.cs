@@ -13,7 +13,7 @@ namespace PdfConverter.ViewModels
         /*                                 ローカル変数                                 */
         /********************************************************************************/
         /// <summary>テーマ</summary>
-        private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
+        private ThemeMode _themeMode = ThemeManager.LoadSavedThemeMode();
 
         /// <summary>テーマの選択肢</summary>
         private static readonly IReadOnlyList<ThemeModeOption> ThemeModeOptionsList =

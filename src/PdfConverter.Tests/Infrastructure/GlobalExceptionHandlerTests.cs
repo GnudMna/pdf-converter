@@ -22,12 +22,12 @@ namespace PdfConverter.Tests.Infrastructure
         public GlobalExceptionHandlerTests()
         {
             _logDirectory = Path.Combine(Path.GetTempPath(), "PdfConverterTests", Guid.NewGuid().ToString("N"));
-            GlobalExceptionHandler.LogDirectory = _logDirectory;
+            ApplicationLogger.LogDirectory = _logDirectory;
         }
 
         public void Dispose()
         {
-            GlobalExceptionHandler.LogDirectory = null;
+            ApplicationLogger.LogDirectory = null;
             GlobalExceptionHandler.Unregister();
 
             if (Directory.Exists(_logDirectory))
@@ -67,6 +67,7 @@ namespace PdfConverter.Tests.Infrastructure
             string content = File.ReadAllText(logPath);
             Assert.Contains("UnitTest", content);
             Assert.Contains("test failure", content);
+            Assert.Contains("[Error]", content);
             Assert.Contains(nameof(InvalidOperationException), content);
         }
 

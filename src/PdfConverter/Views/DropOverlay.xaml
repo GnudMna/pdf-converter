@@ -5,7 +5,9 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DesignHeight="600"
-             d:DesignWidth="900">
+             d:DesignWidth="900"
+             AutomationProperties.Name="ファイルドロップ"
+             AutomationProperties.LiveSetting="Assertive">
 
     <Border Background="{DynamicResource DropOverlayBackgroundBrush}"
             IsHitTestVisible="False">
@@ -21,7 +23,9 @@
                       HorizontalAlignment="Center"
                       Stretch="Uniform"
                       Fill="{DynamicResource DropOverlayForegroundBrush}"
-                      Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16" />
+                      Data="M12 2 L12 14 M12 14 L8 10 M12 14 L16 10 M4 16 L4 20 L20 20 L20 16"
+                      Focusable="False"
+                      IsHitTestVisible="False" />
                 <TextBlock Text="ここにファイルをドロップ"
                            FontSize="22"
                            FontWeight="SemiBold"

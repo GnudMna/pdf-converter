@@ -15,7 +15,8 @@
                 <TextBlock Text="入力情報" Style="{StaticResource SectionTitle}" />
             </StackPanel>
             <StackPanel Margin="0,14,0,0">
-                <TextBlock Text="ファイル (PDF / Word)"
+                <TextBlock x:Name="FilePathLabel"
+                           Text="ファイル (PDF / Word)"
                            Style="{StaticResource FieldLabel}"
                            ToolTip="PDF または Word ファイルのパス。入力後 Enter またはフォーカスを外すと読み込みます。ドラッグ&amp;ドロップでも選択できます。" />
                 <Grid Margin="0,8,0,0">
@@ -26,6 +27,8 @@
                     <TextBox Grid.Column="0"
                              Text="{Binding FilePath}"
                              ToolTip="入力後 Enter またはフォーカスを外すと読み込みます"
+                             AutomationProperties.LabeledBy="{Binding ElementName=FilePathLabel}"
+                             AutomationProperties.HelpText="PDF または Word ファイルのパス。ドラッグ&amp;ドロップでも選択できます"
                              behaviors:InvokeCommandBehavior.LostFocusCommand="{Binding LoadPdfFromPathCommand}"
                              behaviors:InvokeCommandBehavior.EnterKeyCommand="{Binding LoadPdfFromPathCommand}"
                              IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
@@ -34,21 +37,25 @@
                             Content="参照"
                             MinWidth="64"
                             Command="{Binding BrowseCommand}"
-                            Style="{StaticResource PrimaryButton}" />
+                            Style="{StaticResource PrimaryButton}"
+                            AutomationProperties.Name="ファイルを参照"
+                            AutomationProperties.HelpText="PDF または Word ファイルを選択します" />
                 </Grid>
             </StackPanel>
 
             <Expander Margin="0,14,0,0"
                       Style="{StaticResource OptionalSectionExpander}"
                       IsExpanded="{Binding WordSettings.IsSectionExpanded}"
-                      ToolTip="Word ファイルを開いたときに使用する変換オプションです。">
+                      ToolTip="Word ファイルを開いたときに使用する変換オプションです。"
+                      AutomationProperties.Name="Word 設定">
                 <Expander.Header>
                     <TextBlock Text="Word 設定"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource FieldLabelForegroundBrush}" />
                 </Expander.Header>
                 <StackPanel>
-                    <TextBlock Text="Word → PDF 変換"
+                    <TextBlock x:Name="WordBackendLabel"
+                               Text="Word → PDF 変換"
                                Style="{StaticResource FieldLabel}"
                                ToolTip="Word ファイルを PDF 化する際に使用するエンジンを選択します。" />
                     <ComboBox Margin="0,8,0,0"
@@ -56,16 +63,21 @@
                               ItemsSource="{Binding WordSettings.BackendOptions}"
                               SelectedValue="{Binding WordSettings.Backend}"
                               SelectedValuePath="Backend"
-                              DisplayMemberPath="DisplayName" />
+                              DisplayMemberPath="DisplayName"
+                              AutomationProperties.LabeledBy="{Binding ElementName=WordBackendLabel}" />
                     <StackPanel Margin="0,10,0,0"
                                 Visibility="{Binding WordSettings.IsLibreOfficePathVisible, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="LibreOffice 実行ファイル"
+                        <TextBlock x:Name="LibreOfficePathLabel"
+                                   Text="LibreOffice 実行ファイル"
                                    Style="{StaticResource FieldLabel}"
                                    ToolTip="空欄の場合は一般的なインストール先から soffice.exe を自動検出します。" />
                         <TextBox Margin="0,8,0,0"
-                                 Text="{Binding WordSettings.LibreOfficePath, UpdateSourceTrigger=PropertyChanged}" />
+                                 Text="{Binding WordSettings.LibreOfficePath, UpdateSourceTrigger=PropertyChanged}"
+                                 AutomationProperties.LabeledBy="{Binding ElementName=LibreOfficePathLabel}"
+                                 AutomationProperties.HelpText="空欄の場合は一般的なインストール先から soffice.exe を自動検出します" />
                     </StackPanel>
-                    <TextBlock Margin="0,14,0,0"
+                    <TextBlock x:Name="PdfFormatLabel"
+                               Margin="0,14,0,0"
                                Text="PDF 形式"
                                Style="{StaticResource FieldLabel}"
                                ToolTip="PDF/A-1 は長期保存向けの形式です。" />
@@ -74,8 +86,10 @@
                               ItemsSource="{Binding WordSettings.PdfFormatOptions}"
                               SelectedValue="{Binding WordSettings.PdfFormat}"
                               SelectedValuePath="Format"
-                              DisplayMemberPath="DisplayName" />
-                    <TextBlock Margin="0,14,0,0"
+                              DisplayMemberPath="DisplayName"
+                              AutomationProperties.LabeledBy="{Binding ElementName=PdfFormatLabel}" />
+                    <TextBlock x:Name="OptimizeForLabel"
+                               Margin="0,14,0,0"
                                Text="出力最適化"
                                Style="{StaticResource FieldLabel}"
                                ToolTip="オンライン向けはファイルサイズを抑えます。" />
@@ -84,7 +98,8 @@
                               ItemsSource="{Binding WordSettings.OptimizeForOptions}"
                               SelectedValue="{Binding WordSettings.OptimizeFor}"
                               SelectedValuePath="OptimizeFor"
-                              DisplayMemberPath="DisplayName" />
+                              DisplayMemberPath="DisplayName"
+                              AutomationProperties.LabeledBy="{Binding ElementName=OptimizeForLabel}" />
                     <CheckBox Margin="0,14,0,0"
                               Content="しおり (見出し) を出力"
                               IsChecked="{Binding WordSettings.ExportBookmarks}"

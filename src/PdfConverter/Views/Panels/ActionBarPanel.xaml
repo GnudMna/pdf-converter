@@ -8,26 +8,31 @@
              d:DesignWidth="760">
 
     <Border Margin="0,14,0,0"
-            Style="{StaticResource ActionBarBorder}">
+            Style="{StaticResource ActionBarBorder}"
+            AutomationProperties.Name="操作">
         <WrapPanel Orientation="Horizontal"
                    HorizontalAlignment="Left">
             <Button Content="画像として保存"
                     Command="{Binding SaveCommand}"
                     Style="{StaticResource SaveButton}"
-                    Margin="0,0,10,0" />
+                    Margin="0,0,10,0"
+                    AutomationProperties.HelpText="指定した設定でページを画像ファイルとして保存します" />
             <Button Content="PDF として保存"
                     Margin="0,0,10,0"
                     Command="{Binding SavePdfCommand}"
                     Style="{StaticResource SecondaryButton}"
-                    Visibility="{Binding IsSavePdfVisible, Converter={StaticResource BoolToVis}}" />
+                    Visibility="{Binding IsSavePdfVisible, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.HelpText="Word 文書を PDF ファイルとして保存します" />
             <Button Content="プレビューをコピー"
                     Margin="0,0,10,0"
                     Command="{Binding CopyToClipboardCommand}"
-                    Style="{StaticResource CopyButton}" />
+                    Style="{StaticResource CopyButton}"
+                    AutomationProperties.HelpText="現在表示中のプレビュー画像をクリップボードにコピーします" />
             <Button Content="キャンセル"
                     Command="{Binding CancelCommand}"
                     Style="{StaticResource CancelButton}"
-                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}"
+                    AutomationProperties.HelpText="実行中の処理を中断します" />
         </WrapPanel>
     </Border>
 </UserControl>

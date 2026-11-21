@@ -11,7 +11,8 @@
     <Border Margin="0,14,0,0"
             Padding="14,12"
             CornerRadius="14"
-            BorderThickness="1">
+            BorderThickness="1"
+            AutomationProperties.Name="ステータスバー">
         <Border.Style>
             <Style TargetType="Border">
                 <Setter Property="Background" Value="{DynamicResource StatusInfoBackgroundBrush}" />
@@ -43,7 +44,9 @@
                          Margin="0,0,0,10"
                          Value="{Binding ProgressValue}"
                          IsIndeterminate="{Binding IsProgressIndeterminate}"
-                         Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BoolToVis}}" />
+                         Visibility="{Binding IsProgressBarVisible, Converter={StaticResource BoolToVis}}"
+                         AutomationProperties.Name="進捗"
+                         AutomationProperties.HelpText="変換処理の進捗を示します" />
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -53,7 +56,9 @@
                          Width="18"
                          Height="18"
                          Margin="0,0,12,0"
-                         VerticalAlignment="Center">
+                         VerticalAlignment="Center"
+                         Focusable="False"
+                         IsHitTestVisible="False">
                     <Grid Width="24" Height="24">
                         <Path Data="M12 2 A10 10 0 1 0 12 22 A10 10 0 1 0 12 2 M12 10 L12 11 M12 14 L12 16"
                               Fill="{DynamicResource StatusInfoForegroundBrush}">
@@ -144,10 +149,12 @@
                 <TextBlock Grid.Column="1"
                            Text="{Binding StatusMessage}"
                            TextWrapping="Wrap"
-                           VerticalAlignment="Center">
+                           VerticalAlignment="Center"
+                           AutomationProperties.Name="ステータス">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Foreground" Value="{DynamicResource StatusInfoForegroundBrush}" />
+                            <Setter Property="AutomationProperties.LiveSetting" Value="Polite" />
                             <Style.Triggers>
                                 <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Progress}">
                                     <Setter Property="Foreground" Value="{DynamicResource StatusProgressForegroundBrush}" />
@@ -157,9 +164,11 @@
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Warning}">
                                     <Setter Property="Foreground" Value="{DynamicResource StatusWarningForegroundBrush}" />
+                                    <Setter Property="AutomationProperties.LiveSetting" Value="Assertive" />
                                 </DataTrigger>
                                 <DataTrigger Binding="{Binding StatusKind}" Value="{x:Static models:StatusKind.Error}">
                                     <Setter Property="Foreground" Value="{DynamicResource StatusErrorForegroundBrush}" />
+                                    <Setter Property="AutomationProperties.LiveSetting" Value="Assertive" />
                                 </DataTrigger>
                             </Style.Triggers>
                         </Style>

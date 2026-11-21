@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -21,7 +20,11 @@ namespace PdfConverter.Infrastructure
         private static bool _isRegistered;
 
         /// <summary>ログ出力先ディレクトリ (テスト時に上書き可能)</summary>
-        internal static string LogDirectory { get; set; }
+        internal static string LogDirectory
+        {
+            get => ApplicationLogger.LogDirectory;
+            set => ApplicationLogger.LogDirectory = value;
+        }
 
 
         /********************************************************************************/
@@ -140,17 +143,7 @@ namespace PdfConverter.Infrastructure
         /// <param name="kind">例外の種類</param>
         private static void WriteLog(Exception exception, string source, ExceptionReportKind kind)
         {
-            try
-            {
-                string directory = LogDirectory ?? GetDefaultLogDirectory();
-                Directory.CreateDirectory(directory);
-                string logPath = Path.Combine(directory, "error.log");
-                string entry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{kind}] [{source}] {exception.Message}{Environment.NewLine}{exception}{Environment.NewLine}{Environment.NewLine}";
-                File.AppendAllText(logPath, entry);
-            }
-            catch
-            {
-            }
+            ApplicationLogger.Error(source, $"[{kind}] {exception.Message}", exception);
         }
 
         /// <summary>ユーザーへ通知する</summary>
@@ -175,7 +168,8 @@ namespace PdfConverter.Infrastructure
         /// <param name="kind">例外の種類</param>
         private static void NotifyUserCore(Exception exception, string source, ExceptionReportKind kind)
         {
-            string message = $"予期しないエラーが発生しました。{Environment.NewLine}{Environment.NewLine}{exception.Message}";
+            string message =
+                $"予期しないエラーが発生しました。{Environment.NewLine}{Environment.NewLine}{ExceptionFormattingHelper.GetUserMessage(exception)}";
 
             if (TryUpdateMainViewModelStatus(message))
             {
@@ -213,12 +207,6 @@ namespace PdfConverter.Infrastructure
             return true;
         }
 
-        /// <summary>既定のログ出力先ディレクトリを返す</summary>
-        private static string GetDefaultLogDirectory()
-        {
-            string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            return Path.Combine(appData, "PDF Converter", "logs");
-        }
     }
 
     /// <summary>

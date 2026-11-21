@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 using PdfConverter.Models;
 using PdfConverter.Services;
 
@@ -74,12 +75,15 @@ namespace PdfConverter.ViewModels.Coordinators
             host.IsSaving = true;
             host.IsProgressBarVisible = true;
             host.SetStatus("保存処理を開始しています...", StatusKind.Progress);
+            ApplicationLogger.Info(
+                "Save",
+                $"Starting image export: file={Path.GetFileName(host.FilePath)}, format={host.OutputImageFormat}, mode={host.ResolutionMode}");
 
             try
             {
                 if (DocumentFileHelper.IsWordFile(host.FilePath))
                 {
-                    host.SetStatus("Word を PDF に変換中...", StatusKind.Progress);
+                    CoordinatorHelpers.ReportWordToPdfConversionProgress(host);
                 }
 
                 string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
@@ -150,14 +154,17 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 host.ProgressValue = 100;
                 host.SetStatus("画像の保存が完了しました。", StatusKind.Success);
+                ApplicationLogger.Info("Save", $"Image export completed: folder={folderPath}, pages={host.PageCount}");
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
+                ApplicationLogger.Info("Save", "Image export cancelled");
                 host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
             }
             catch (Exception ex)
             {
-                host.SetStatus($"保存処理中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                ApplicationLogger.Error("Save", "Image export failed", ex);
+                host.SetStatus($"保存処理中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
             }
             finally
             {
@@ -181,10 +188,11 @@ namespace PdfConverter.ViewModels.Coordinators
             host.IsBusy = true;
             host.IsProgressBarVisible = true;
             host.SetStatus("PDF 保存処理を開始しています...", StatusKind.Progress);
+            ApplicationLogger.Info("Save", $"Starting PDF export: file={Path.GetFileName(host.FilePath)}");
 
             try
             {
-                host.SetStatus("Word を PDF に変換中...", StatusKind.Progress);
+                CoordinatorHelpers.ReportWordToPdfConversionProgress(host);
                 string pdfPath = await _documentPdfSourceService.GetPdfPathAsync(host.FilePath, cancellationToken);
 
                 string suggestedFileName = Path.GetFileNameWithoutExtension(host.FilePath) + ".pdf";
@@ -209,14 +217,17 @@ namespace PdfConverter.ViewModels.Coordinators
 
                 File.Copy(pdfPath, destinationPath, overwrite: true);
                 host.SetStatus($"PDF を保存しました: {destinationPath}", StatusKind.Success);
+                ApplicationLogger.Info("Save", $"PDF export completed: {destinationPath}");
             }
             catch (Exception ex) when (CancellationExceptionHelper.IsOrContainsCancellation(ex))
             {
+                ApplicationLogger.Info("Save", "PDF export cancelled");
                 host.SetStatus("PDF の保存はキャンセルされました。", StatusKind.Info);
             }
             catch (Exception ex)
             {
-                host.SetStatus($"PDF の保存中にエラーが発生しました: {ex.Message}", StatusKind.Error);
+                ApplicationLogger.Error("Save", "PDF export failed", ex);
+                host.SetStatus($"PDF の保存中にエラーが発生しました: {ExceptionFormattingHelper.GetUserMessage(ex)}", StatusKind.Error);
             }
             finally
             {

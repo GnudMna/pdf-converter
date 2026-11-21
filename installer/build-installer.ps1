@@ -2,6 +2,7 @@
 #
 # 必要環境:
 #   - Visual Studio 2019 以降（または Build Tools）— MSBuild
+#   - NuGet CLI (nuget.exe) — Visual Studio に同梱、または PATH 上の nuget
 #   - Inno Setup 6 — ISCC.exe
 #
 # インストーラーは管理者権限を要求しないユーザー単位インストールです。
@@ -11,7 +12,8 @@
 #   .\build-installer.ps1                    # x64 のみ
 #   .\build-installer.ps1 -Platform all        # x86 と x64 の両方
 #   .\build-installer.ps1 -SkipBuild           # アプリの再ビルドをスキップ
-#   .\build-installer.ps1 -NoPause             # 完了後のキー入力待ちを省略（ターミナル / CI 向け）
+#   .\build-installer.ps1 -SkipRestore         # パッケージ復元をスキップ
+#   .\build-installer.ps1 -NoPause             # 完了後のキー入力待ちを省略（ターミナル向け）
 
 [CmdletBinding()]
 param(
@@ -20,10 +22,14 @@ param(
 
     [switch] $SkipBuild,
 
+    [switch] $SkipRestore,
+
     [switch] $NoPause
 )
 
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'build-common.ps1')
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $slnxPath = Join-Path $repoRoot 'src\PdfConverter.slnx'
@@ -31,47 +37,6 @@ $csprojPath = Join-Path $repoRoot 'src\PdfConverter\PdfConverter.csproj'
 $issPath = Join-Path $PSScriptRoot 'PdfConverter.iss'
 $distDir = Join-Path $repoRoot 'dist'
 $assemblyInfoPath = Join-Path $repoRoot 'src\PdfConverter\Properties\AssemblyInfo.cs'
-
-function Find-MSBuild {
-    $programFilesX86 = ${env:ProgramFiles(x86)}
-    $programFiles = $env:ProgramFiles
-    $vswhere = Join-Path $programFilesX86 'Microsoft Visual Studio\Installer\vswhere.exe'
-
-    if (Test-Path $vswhere) {
-        # VS 2019 (16.x) 以降を対象に、MSBuild コンポーネント付きの最新インストールを検索
-        $path = & $vswhere `
-            -version '[16.0,99.0)' `
-            -latest `
-            -requires Microsoft.Component.MSBuild `
-            -find 'MSBuild\**\Bin\MSBuild.exe' `
-            | Select-Object -First 1
-        if ($path) { return $path }
-
-        # Build Tools など、requires 指定なしでも MSBuild が存在する場合のフォールバック
-        $path = & $vswhere `
-            -version '[16.0,99.0)' `
-            -latest `
-            -products * `
-            -find 'MSBuild\**\Bin\MSBuild.exe' `
-            | Select-Object -First 1
-        if ($path) { return $path }
-    }
-
-    $editions = @('Community', 'Professional', 'Enterprise', 'BuildTools')
-    $years = @('2019', '2022')
-    $roots = @($programFilesX86, $programFiles)
-
-    foreach ($root in $roots) {
-        foreach ($year in $years) {
-            foreach ($edition in $editions) {
-                $path = Join-Path $root "Microsoft Visual Studio\$year\$edition\MSBuild\Current\Bin\MSBuild.exe"
-                if (Test-Path $path) { return $path }
-            }
-        }
-    }
-
-    throw 'MSBuild が見つかりません。Visual Studio 2019 以降（または Build Tools）をインストールしてください。'
-}
 
 function Find-ISCC {
     $programFilesX86 = ${env:ProgramFiles(x86)}
@@ -103,23 +68,6 @@ function Get-AppVersion {
     throw "AssemblyInfo.cs からバージョンを取得できませんでした: $assemblyInfoPath"
 }
 
-function Test-DoubleClickLaunch {
-    try {
-        $parentId = (Get-CimInstance Win32_Process -Filter "ProcessId=$PID").ParentProcessId
-        $parentName = (Get-CimInstance Win32_Process -Filter "ProcessId=$parentId").Name
-        return $parentName -in @('explorer.exe', 'OpenWith.exe')
-    }
-    catch {
-        return $false
-    }
-}
-
-function Wait-ForKeyPress {
-    Write-Host ''
-    Write-Host '終了するには何かキーを押してください...'
-    $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
-}
-
 function Build-App {
     param([string[]] $Platforms)
 
@@ -135,6 +83,19 @@ function Build-App {
     }
 }
 
+function Write-ThirdPartyNotices {
+    param(
+        [string] $TargetPlatform
+    )
+
+    $sourceDir = Join-Path $repoRoot "src\PdfConverter\bin\$TargetPlatform\Release"
+    $noticesPath = Join-Path $sourceDir 'THIRD-PARTY-NOTICES.txt'
+    $generateScript = Join-Path $PSScriptRoot 'generate-third-party-notices.ps1'
+
+    Write-Host "THIRD-PARTY-NOTICES を生成しています ($TargetPlatform)..."
+    & $generateScript -OutputPath $noticesPath -Platform $TargetPlatform
+}
+
 function Build-Installer {
     param(
         [string] $TargetPlatform,
@@ -143,8 +104,10 @@ function Build-Installer {
 
     $sourceDir = Join-Path $repoRoot "src\PdfConverter\bin\$TargetPlatform\Release"
     if (-not (Test-Path (Join-Path $sourceDir 'PDF Converter.exe'))) {
-        throw "ビルド出力が見つかりません: $sourceDir"
+        throw "ビルド出力が見つかりません: $sourceDir`n先にビルドを実行するか、-SkipBuild を外してください。"
     }
+
+    Write-ThirdPartyNotices -TargetPlatform $TargetPlatform
 
     $iscc = Find-ISCC
     Write-Host "Inno Setup: $iscc"
@@ -168,6 +131,10 @@ try {
     $platformsToBuild = switch ($Platform) {
         'all' { @('x86', 'x64') }
         default { @($Platform) }
+    }
+
+    if (-not $SkipRestore) {
+        Restore-NuGetPackages -SolutionPath $slnxPath
     }
 
     $appVersion = Get-AppVersion
