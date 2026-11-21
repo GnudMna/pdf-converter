@@ -3,9 +3,12 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using PdfConverter.Infrastructure;
+using PdfConverter.Services;
 using PdfConverter.Themes;
+using PdfConverter.ViewModels;
 using PdfConverter.Views;
 
 namespace PdfConverter
@@ -53,6 +56,14 @@ namespace PdfConverter
             _serviceProvider = ServiceConfigurator.Configure();
             var mainWindow = _serviceProvider.GetRequiredService<MainWindow>();
             mainWindow.Show();
+
+            if (DocumentFileHelper.TryGetFirstSupportedPathFromArgs(e.Args, out string initialFilePath)
+                && mainWindow.DataContext is IMainWindowViewModel viewModel)
+            {
+                mainWindow.Dispatcher.BeginInvoke(
+                    new Action(() => viewModel.HandleDroppedDocument(initialFilePath)),
+                    DispatcherPriority.Loaded);
+            }
         }
 
         /// <inheritdoc/>

@@ -69,34 +69,28 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public async Task<string> GetPdfPathAsync(string sourcePath, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrWhiteSpace(sourcePath))
-            {
-                throw new ArgumentException("入力ファイルのパスが指定されていません。", nameof(sourcePath));
-            }
+            string normalizedPath = DocumentFileHelper.ValidateAndNormalizeSupportedDocumentPath(
+                sourcePath,
+                nameof(sourcePath));
 
-            if (!IsSupportedDocument(sourcePath))
+            if (DocumentFileHelper.IsPdfFile(normalizedPath))
             {
-                throw new ArgumentException("PDF (.pdf) または Word (.doc / .docx) ファイルを指定してください。", nameof(sourcePath));
-            }
-
-            if (DocumentFileHelper.IsPdfFile(sourcePath))
-            {
-                return sourcePath;
+                return normalizedPath;
             }
 
             lock (_cacheLock)
             {
-                if (_pdfPathBySourcePath.TryGetValue(sourcePath, out string cachedPath) && File.Exists(cachedPath))
+                if (_pdfPathBySourcePath.TryGetValue(normalizedPath, out string cachedPath) && File.Exists(cachedPath))
                 {
                     return cachedPath;
                 }
             }
 
-            string pdfPath = await _wordToPdfService.ConvertToPdfAsync(sourcePath, cancellationToken);
+            string pdfPath = await _wordToPdfService.ConvertToPdfAsync(normalizedPath, cancellationToken);
 
             lock (_cacheLock)
             {
-                _pdfPathBySourcePath[sourcePath] = pdfPath;
+                _pdfPathBySourcePath[normalizedPath] = pdfPath;
                 _temporaryPdfPaths.Add(pdfPath);
             }
 

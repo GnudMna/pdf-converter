@@ -26,7 +26,7 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
 
-            Assert.Equal("ファイルを選択してください", viewModel.PageIndicator);
+            Assert.Equal("ファイルを選択してください", viewModel.Preview.PageIndicator);
         }
 
         /// <summary>
@@ -37,9 +37,9 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.FilePath = "C:\\sample.pdf";
-            viewModel.PageCount = 0;
+            viewModel.Preview.PageCount = 0;
 
-            Assert.Equal("ページ数を読み込んでいます...", viewModel.PageIndicator);
+            Assert.Equal("ページ数を読み込んでいます...", viewModel.Preview.PageIndicator);
         }
 
         /// <summary>
@@ -50,10 +50,10 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             viewModel.FilePath = "C:\\sample.pdf";
-            viewModel.PageCount = 5;
-            viewModel.PageNumber = "3";
+            viewModel.Preview.PageCount = 5;
+            viewModel.Preview.PageNumber = "3";
 
-            Assert.Equal("3/5 ページ", viewModel.PageIndicator);
+            Assert.Equal("3/5 ページ", viewModel.Preview.PageIndicator);
         }
 
         /// <summary>
@@ -64,11 +64,11 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
 
-            Assert.False(viewModel.IsPageNavigationVisible);
+            Assert.False(viewModel.Preview.IsPageNavigationVisible);
 
-            viewModel.PageCount = 3;
+            viewModel.Preview.PageCount = 3;
 
-            Assert.True(viewModel.IsPageNavigationVisible);
+            Assert.True(viewModel.Preview.IsPageNavigationVisible);
         }
 
         /// <summary>
@@ -78,16 +78,16 @@ namespace PdfConverter.Tests.ViewModels
         public void PageNumberInputMinWidth_ExpandsForLargePageCount()
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
-            viewModel.PageCount = 12;
-            viewModel.PageNumber = "1";
+            viewModel.Preview.PageCount = 12;
+            viewModel.Preview.PageNumber = "1";
 
-            var narrowWidth = viewModel.PageNumberInputMinWidth;
+            var narrowWidth = viewModel.Preview.PageNumberInputMinWidth;
 
-            viewModel.PageCount = 1234;
-            viewModel.PageNumber = "1234";
+            viewModel.Preview.PageCount = 1234;
+            viewModel.Preview.PageNumber = "1234";
 
-            Assert.True(viewModel.PageNumberInputMinWidth > narrowWidth);
-            Assert.True(viewModel.PageCountDisplayMinWidth > 16);
+            Assert.True(viewModel.Preview.PageNumberInputMinWidth > narrowWidth);
+            Assert.True(viewModel.Preview.PageCountDisplayMinWidth > 16);
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace PdfConverter.Tests.ViewModels
 
             viewModel.LoadPdfFromPath();
 
-            Assert.Equal(0, viewModel.PageCount);
+            Assert.Equal(0, viewModel.Preview.PageCount);
             Assert.Contains("見つかりません", viewModel.StatusMessage);
             pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         }
@@ -168,7 +168,7 @@ namespace PdfConverter.Tests.ViewModels
         public void CopyToClipboardCommand_WithoutPreview_SetsStatusMessage()
         {
             var (viewModel, _, _, clipboard) = MainViewModelTestFactory.Create();
-            viewModel.PreviewImage = null;
+            viewModel.Preview.PreviewImage = null;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
 
@@ -187,7 +187,7 @@ namespace PdfConverter.Tests.ViewModels
             StaTestHelper.Run(() => image = BitmapTestHelper.CreateBitmap());
             viewModel.ExportSettings.OutputImageFormat = OutputImageFormat.Png;
             viewModel.ExportSettings.PreserveTransparency = true;
-            viewModel.PreviewImage = image;
+            viewModel.Preview.PreviewImage = image;
 
             StaTestHelper.Run(() => viewModel.CopyToClipboardCommand.Execute(null));
 
@@ -254,15 +254,15 @@ namespace PdfConverter.Tests.ViewModels
         {
             var (viewModel, _, _, _) = MainViewModelTestFactory.Create();
             var raised = false;
-            viewModel.PropertyChanged += (_, e) =>
+            viewModel.Status.PropertyChanged += (_, e) =>
             {
-                if (e.PropertyName == nameof(viewModel.StatusMessage))
+                if (e.PropertyName == "StatusMessage")
                 {
                     raised = true;
                 }
             };
 
-            viewModel.StatusMessage = "updated";
+            viewModel.SetStatus("updated");
 
             Assert.True(raised);
             Assert.Equal("updated", viewModel.StatusMessage);
@@ -278,7 +278,7 @@ namespace PdfConverter.Tests.ViewModels
             string folder = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}");
             Directory.CreateDirectory(folder);
             viewModel.FilePath = "C:\\sample.pdf";
-            viewModel.PageCount = 1;
+            viewModel.Preview.PageCount = 1;
             viewModel.ExportSettings.PageRange = "1";
             viewModel.ExportSettings.ResolutionValue = "1080";
             dialog.Setup(d => d.ShowFolderBrowserDialog()).Returns(folder);

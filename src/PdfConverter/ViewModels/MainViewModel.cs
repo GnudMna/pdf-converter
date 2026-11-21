@@ -1,12 +1,10 @@
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Windows.Input;
 using System.Windows.Media.Imaging;
 using PdfConverter.Commands;
 using PdfConverter.Models;
 using PdfConverter.Services;
-using PdfConverter.Themes;
 using PdfConverter.ViewModels.Coordinators;
 
 namespace PdfConverter.ViewModels
@@ -44,52 +42,12 @@ namespace PdfConverter.ViewModels
         /// <summary>キャンセルトークンソース</summary>
         private CancellationTokenSource _cancelTokenSource;
 
-        /* -------------------------------- テーマ関連 -------------------------------- */
-        /// <summary>テーマ</summary>
-        private ThemeMode _themeMode = ThemeManager.ParseThemeMode(Properties.Settings.Default.ThemeMode);
-
-        /// <summary>テーマの選択肢</summary>
-        private static readonly IReadOnlyList<ThemeModeOption> ThemeModeOptionsList =
-            new List<ThemeModeOption>
-            {
-                new ThemeModeOption(ThemeMode.Light, "ライト"),
-                new ThemeModeOption(ThemeMode.Dark, "ダーク"),
-                new ThemeModeOption(ThemeMode.System, "システム"),
-            };
-
         /* ------------------------------- 入力情報関連 ------------------------------- */
         /// <summary>読み込むドキュメントのパス</summary>
         private string _filePath;
 
         /// <summary>読み込み済みドキュメントのパス</summary>
         private string _loadedFilePath;
-
-        /* ------------------------------ プレビュー関連 ------------------------------ */
-        /// <summary>プレビュー画像</summary>
-        private BitmapSource _previewImage;
-
-        /// <summary>PDF のページ数</summary>
-        private int _pageCount;
-
-        /// <summary>表示ページ番号の入力値</summary>
-        private string _pageNumber = "1";
-
-        /* ------------------------------- 進捗表示関連 ------------------------------- */
-        /// <summary>進捗値</summary>
-        private double _progressValue;
-
-        /// <summary>プログレスバーを表示するかどうか</summary>
-        private bool _isProgressBarVisible;
-
-        /* ---------------------------- ステータス表示関連 ---------------------------- */
-        /// <summary>ステータスメッセージ</summary>
-        private string _statusMessage = "ファイルを選択して開始してください。";
-
-        /// <summary>ステータスバーの表示種類</summary>
-        private StatusKind _statusKind = StatusKind.Info;
-
-        /// <summary>表示ページ番号の入力エラーメッセージ</summary>
-        private string _pageNumberValidationMessage;
 
         /* ----------------------------- オーバーレイ関連 ----------------------------- */
         /// <summary>ドラッグ&amp;ドロップオーバーレイを表示するかどうか</summary>
@@ -112,6 +70,13 @@ namespace PdfConverter.ViewModels
             _previewCoordinator = previewCoordinator;
             _saveCoordinator = saveCoordinator;
 
+            Theme = new ThemeSettingsViewModel();
+            Status = new StatusBarViewModel();
+            Preview = new PreviewPanelViewModel(
+                _previewCoordinator,
+                () => this,
+                () => IsBusy,
+                OnAsyncCommandException);
             WordSettings = new WordConversionSettingsViewModel(wordToPdfSettings, ReloadWordDocumentIfLoaded);
             ExportSettings = new ImageExportSettingsViewModel(
                 imageExportSettings,
@@ -123,9 +88,6 @@ namespace PdfConverter.ViewModels
             SavePdfCommand = new AsyncRelayCommand(() => _saveCoordinator.SavePdfAsync(this), CanSavePdf, OnAsyncCommandException);
             CancelCommand = new RelayCommand(CancelOperation, () => IsBusy);
             CopyToClipboardCommand = new RelayCommand(OnCopyToClipboard, CanCopyToClipboard);
-            GoToPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPageAsync(this), CanGoToPage, OnAsyncCommandException);
-            PreviousPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToPreviousPageAsync(this), CanGoPrevious, OnAsyncCommandException);
-            NextPageCommand = new AsyncRelayCommand(() => _previewCoordinator.GoToNextPageAsync(this), CanGoNext, OnAsyncCommandException);
             LoadPdfFromPathCommand = new RelayCommand(() => LoadPdfFromPath(), () => !IsBusy);
         }
 
@@ -133,13 +95,22 @@ namespace PdfConverter.ViewModels
         /********************************************************************************/
         /*                                  プロパティ                                  */
         /********************************************************************************/
-        /* ------------------------------- 状態管理関連 ------------------------------- */
+        /// <summary>外観テーマ設定</summary>
+        public ThemeSettingsViewModel Theme { get; }
+
+        /// <summary>ステータスバー表示</summary>
+        public StatusBarViewModel Status { get; }
+
+        /// <summary>プレビューパネル</summary>
+        public PreviewPanelViewModel Preview { get; }
+
         /// <summary>Word → PDF 変換設定</summary>
         public WordConversionSettingsViewModel WordSettings { get; }
 
         /// <summary>画像出力設定</summary>
         public ImageExportSettingsViewModel ExportSettings { get; }
 
+        /* ------------------------------- 状態管理関連 ------------------------------- */
         /// <summary>処理中かどうか</summary>
         public bool IsBusy
         {
@@ -151,13 +122,14 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
+                Preview.IsBusy = value;
+                Status.NotifyBusyStateChanged(IsSaving);
                 RaiseCanExecuteChanged(BrowseCommand);
                 RaiseCanExecuteChanged(SaveCommand);
                 RaiseCanExecuteChanged(CancelCommand);
                 RaiseCanExecuteChanged(LoadPdfFromPathCommand);
-                RaiseNavigationCanExecuteChanged();
+                Preview.RaiseNavigationCanExecuteChanged();
                 RaiseActionCanExecuteChanged();
-                OnPropertyChanged(nameof(IsProgressIndeterminate));
             }
         }
 
@@ -172,7 +144,7 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
-                OnPropertyChanged(nameof(IsProgressIndeterminate));
+                Status.NotifyBusyStateChanged(value);
             }
         }
 
@@ -180,68 +152,7 @@ namespace PdfConverter.ViewModels
         public bool IsSavePdfVisible =>
             !string.IsNullOrEmpty(FilePath)
             && DocumentFileHelper.IsWordFile(FilePath)
-            && PageCount > 0;
-
-        /* -------------------------------- テーマ関連 -------------------------------- */
-        /// <summary>テーマ</summary>
-        public ThemeMode ThemeMode
-        {
-            get => _themeMode;
-            set
-            {
-                if (!SetProperty(ref _themeMode, value))
-                {
-                    return;
-                }
-
-                ThemeManager.Apply(value);
-                OnPropertyChanged(nameof(IsLightThemeSelected));
-                OnPropertyChanged(nameof(IsDarkThemeSelected));
-                OnPropertyChanged(nameof(IsSystemThemeSelected));
-            }
-        }
-
-        /// <summary>ライトテーマが選択されているかどうか</summary>
-        public bool IsLightThemeSelected
-        {
-            get => ThemeMode == ThemeMode.Light;
-            set
-            {
-                if (value)
-                {
-                    ThemeMode = ThemeMode.Light;
-                }
-            }
-        }
-
-        /// <summary>ダークテーマが選択されているかどうか</summary>
-        public bool IsDarkThemeSelected
-        {
-            get => ThemeMode == ThemeMode.Dark;
-            set
-            {
-                if (value)
-                {
-                    ThemeMode = ThemeMode.Dark;
-                }
-            }
-        }
-
-        /// <summary>システム設定に従うテーマが選択されているかどうか</summary>
-        public bool IsSystemThemeSelected
-        {
-            get => ThemeMode == ThemeMode.System;
-            set
-            {
-                if (value)
-                {
-                    ThemeMode = ThemeMode.System;
-                }
-            }
-        }
-
-        /// <summary>テーマの選択肢</summary>
-        public IReadOnlyList<ThemeModeOption> ThemeModeOptions => ThemeModeOptionsList;
+            && Preview.PageCount > 0;
 
         /* ------------------------------- 入力情報関連 ------------------------------- */
         /// <summary>読み込むドキュメントのパス</summary>
@@ -255,152 +166,40 @@ namespace PdfConverter.ViewModels
                     return;
                 }
 
-                OnPropertyChanged(nameof(PageIndicator));
+                Preview.NotifyFilePathChanged();
                 OnPropertyChanged(nameof(IsSavePdfVisible));
                 RaiseCanExecuteChanged(SaveCommand);
             }
         }
 
-        /* ------------------------------ プレビュー関連 ------------------------------ */
-        /// <summary>プレビュー画像</summary>
-        public BitmapSource PreviewImage
-        {
-            get => _previewImage;
-            set
-            {
-                if (!SetProperty(ref _previewImage, value))
-                {
-                    return;
-                }
-
-                RaiseActionCanExecuteChanged();
-            }
-        }
-
-        /// <summary>PDF のページ数</summary>
-        public int PageCount
-        {
-            get => _pageCount;
-            set
-            {
-                if (!SetProperty(ref _pageCount, value))
-                {
-                    return;
-                }
-
-                OnPropertyChanged(nameof(PageIndicator));
-                OnPropertyChanged(nameof(IsPageNavigationVisible));
-                OnPropertyChanged(nameof(PageCountDisplayMinWidth));
-                OnPropertyChanged(nameof(PageNumberInputMinWidth));
-                OnPropertyChanged(nameof(IsSavePdfVisible));
-                RaiseNavigationCanExecuteChanged();
-                RaiseActionCanExecuteChanged();
-            }
-        }
-
-        /// <summary>ページ移動 UI を表示するかどうか</summary>
-        public bool IsPageNavigationVisible => PageCount > 0;
-
-        /// <summary>総ページ数表示の最小幅</summary>
-        public double PageCountDisplayMinWidth => GetPageDigitCount(PageCount) * PageNavigationCharWidth;
-
-        /// <summary>ページ番号入力欄の最小幅</summary>
-        public double PageNumberInputMinWidth
-        {
-            get
-            {
-                int pageNumberDigits = string.IsNullOrWhiteSpace(PageNumber)
-                    ? 1
-                    : PageNumber.Trim().Length;
-                int digitCount = Math.Max(GetPageDigitCount(PageCount), pageNumberDigits);
-                return digitCount * PageNavigationCharWidth + PageNavigationInputPadding;
-            }
-        }
-
-        /// <summary>表示ページ番号の入力値</summary>
-        public string PageNumber
-        {
-            get => _pageNumber;
-            set
-            {
-                if (!SetProperty(ref _pageNumber, value))
-                {
-                    return;
-                }
-
-                PageNumberValidationMessage = null;
-                OnPropertyChanged(nameof(PageIndicator));
-                OnPropertyChanged(nameof(PageNumberInputMinWidth));
-                RaiseNavigationCanExecuteChanged();
-                RaiseActionCanExecuteChanged();
-            }
-        }
-
-        /* ------------------------------- 進捗表示関連 ------------------------------- */
+        /* ------------------------------- 進捗表示関連 (Status 委譲) ------------------------------- */
         /// <summary>進捗値</summary>
         public double ProgressValue
         {
-            get => _progressValue;
-            set => SetProperty(ref _progressValue, value);
+            get => Status.ProgressValue;
+            set => Status.ProgressValue = value;
         }
 
         /// <summary>プログレスバーを表示するかどうか</summary>
         public bool IsProgressBarVisible
         {
-            get => _isProgressBarVisible;
-            set
-            {
-                if (!SetProperty(ref _isProgressBarVisible, value))
-                {
-                    return;
-                }
-
-                OnPropertyChanged(nameof(IsProgressIndeterminate));
-            }
+            get => Status.IsProgressBarVisible;
+            set => Status.IsProgressBarVisible = value;
         }
 
-        /// <summary>
-        /// 進捗を不確定 (マーキー) 表示にするかどうか<br/>
-        /// ファイル読み込み中は具体的な進捗値を持たないため不確定表示にする
-        /// </summary>
-        public bool IsProgressIndeterminate => IsProgressBarVisible && !IsSaving;
-
-        /* ---------------------------- ステータス表示関連 ---------------------------- */
+        /* ---------------------------- ステータス表示関連 (Status 委譲) ---------------------------- */
         /// <summary>ステータスメッセージ</summary>
         public string StatusMessage
         {
-            get => _statusMessage;
-            set => SetProperty(ref _statusMessage, value);
+            get => Status.StatusMessage;
+            set => Status.StatusMessage = value;
         }
 
         /// <summary>ステータスバーの表示種類</summary>
         public StatusKind StatusKind
         {
-            get => _statusKind;
-            set => SetProperty(ref _statusKind, value);
-        }
-
-        /// <summary>表示ページ番号の入力エラーメッセージ</summary>
-        public string PageNumberValidationMessage
-        {
-            get => _pageNumberValidationMessage;
-            set => SetProperty(ref _pageNumberValidationMessage, value);
-        }
-
-        /// <summary>現在表示中のページ番号の表示文字列</summary>
-        public string PageIndicator
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(FilePath))
-                {
-                    return "ファイルを選択してください";
-                }
-
-                return PageCount > 0
-                    ? $"{CurrentPreviewPage}/{PageCount} ページ"
-                    : "ページ数を読み込んでいます...";
-            }
+            get => Status.StatusKind;
+            set => Status.StatusKind = value;
         }
 
         /* ----------------------------- オーバーレイ関連 ----------------------------- */
@@ -411,11 +210,6 @@ namespace PdfConverter.ViewModels
             set => SetProperty(ref _isDropOverlayVisible, value);
         }
 
-        /// <summary>現在表示中のページ番号</summary>
-        private int CurrentPreviewPage => int.TryParse(PageNumber, out int value)
-            ? (value < 1 ? 1 : (value > Math.Max(1, PageCount) ? Math.Max(1, PageCount) : value))
-            : 1;
-
 
         /********************************************************************************/
         /*                                   コマンド                                   */
@@ -424,13 +218,13 @@ namespace PdfConverter.ViewModels
         public ICommand BrowseCommand { get; }
 
         /// <summary>前のページに移動するコマンド</summary>
-        public ICommand PreviousPageCommand { get; }
+        public ICommand PreviousPageCommand => Preview.PreviousPageCommand;
 
         /// <summary>次のページに移動するコマンド</summary>
-        public ICommand NextPageCommand { get; }
+        public ICommand NextPageCommand => Preview.NextPageCommand;
 
         /// <summary>指定したページに移動するコマンド</summary>
-        public ICommand GoToPageCommand { get; }
+        public ICommand GoToPageCommand => Preview.GoToPageCommand;
 
         /// <summary>保存するコマンド</summary>
         public ICommand SaveCommand { get; }
@@ -470,11 +264,7 @@ namespace PdfConverter.ViewModels
         }
 
         /// <inheritdoc/>
-        public void SetStatus(string message, StatusKind kind = StatusKind.Info)
-        {
-            StatusMessage = message;
-            StatusKind = kind;
-        }
+        public void SetStatus(string message, StatusKind kind = StatusKind.Info) => Status.SetStatus(message, kind);
 
 
         /********************************************************************************/
@@ -486,6 +276,44 @@ namespace PdfConverter.ViewModels
             set => _loadedFilePath = value;
         }
 
+        string IPreviewCoordinatorHost.PageNumber
+        {
+            get => Preview.PageNumber;
+            set => Preview.PageNumber = value;
+        }
+
+        int IPreviewCoordinatorHost.PageCount
+        {
+            get => Preview.PageCount;
+            set
+            {
+                Preview.PageCount = value;
+                OnPropertyChanged(nameof(IsSavePdfVisible));
+            }
+        }
+
+        BitmapSource IPreviewCoordinatorHost.PreviewImage
+        {
+            get => Preview.PreviewImage;
+            set
+            {
+                Preview.PreviewImage = value;
+                RaiseCanExecuteChanged(CopyToClipboardCommand);
+            }
+        }
+
+        bool IPreviewCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
+
+        int IPreviewCoordinatorHost.CurrentPreviewPage => Preview.CurrentPreviewPage;
+
+        string IPreviewCoordinatorHost.PageNumberValidationMessage
+        {
+            get => Preview.PageNumberValidationMessage;
+            set => Preview.PageNumberValidationMessage = value;
+        }
+
+        int ISaveCoordinatorHost.PageCount => Preview.PageCount;
+
         ResolutionMode IResolutionInputHost.ResolutionMode => ExportSettings.ResolutionMode;
 
         string IResolutionInputHost.ResolutionValue => ExportSettings.ResolutionValue;
@@ -495,10 +323,6 @@ namespace PdfConverter.ViewModels
             get => ExportSettings.ResolutionValidationMessage;
             set => ExportSettings.ResolutionValidationMessage = value;
         }
-
-        bool IPreviewCoordinatorHost.PreserveTransparency => ExportSettings.PreserveTransparency;
-
-        int IPreviewCoordinatorHost.CurrentPreviewPage => CurrentPreviewPage;
 
         string ISaveCoordinatorHost.PageRange => ExportSettings.PageRange;
 
@@ -524,14 +348,14 @@ namespace PdfConverter.ViewModels
             _cancelTokenSource = null;
         }
 
-        void ICoordinatorSession.RaiseNavigationCanExecuteChanged() => RaiseNavigationCanExecuteChanged();
+        void ICoordinatorSession.RaiseNavigationCanExecuteChanged() => Preview.RaiseNavigationCanExecuteChanged();
 
         void ICoordinatorSession.RaiseActionCanExecuteChanged() => RaiseActionCanExecuteChanged();
 
         void ICoordinatorSession.ClearFieldValidationMessages()
         {
             ExportSettings.ClearValidationMessages();
-            PageNumberValidationMessage = null;
+            Preview.PageNumberValidationMessage = null;
         }
 
 
@@ -561,46 +385,25 @@ namespace PdfConverter.ViewModels
             }
         }
 
-        /// <summary>前のページに移動可能かどうか</summary>
-        /// <returns>true: 移動可能 / false: 移動不可能</returns>
-        private bool CanGoPrevious() => !IsBusy && PageCount > 0 && CurrentPreviewPage > 1;
-
-        /// <summary>次のページに移動可能かどうか</summary>
-        /// <returns>true: 移動可能 / false: 移動不可能</returns>
-        private bool CanGoNext() => !IsBusy && PageCount > 0 && CurrentPreviewPage < PageCount;
-
-        /// <summary>指定したページに移動可能かどうか</summary>
-        /// <returns>true: 移動可能 / false: 移動不可能</returns>
-        private bool CanGoToPage() => !IsBusy && PageCount > 0 && int.TryParse(PageNumber, out int pageNumber) && pageNumber >= 1 && pageNumber <= PageCount;
-
         /// <summary>プレビュー画像をクリップボードにコピー可能かどうか</summary>
-        /// <returns>true: コピー可能 / false: コピー不可能</returns>
-        private bool CanCopyToClipboard() => !IsBusy && PreviewImage != null;
+        private bool CanCopyToClipboard() => !IsBusy && Preview.PreviewImage != null;
 
         /// <summary>Word から変換した PDF を保存できるかどうか</summary>
-        /// <returns>true: 保存可能 / false: 保存不可能</returns>
         private bool CanSavePdf() =>
             !IsBusy
             && !string.IsNullOrEmpty(FilePath)
             && DocumentFileHelper.IsWordFile(FilePath)
-            && PageCount > 0;
-
-        /// <summary>ナビゲーション可能なコマンドの実行可能状態を更新する</summary>
-        private void RaiseNavigationCanExecuteChanged()
-        {
-            RaiseCanExecuteChanged(PreviousPageCommand);
-            RaiseCanExecuteChanged(NextPageCommand);
-            RaiseCanExecuteChanged(GoToPageCommand);
-        }
+            && Preview.PageCount > 0;
 
         /// <summary>アクション可能なコマンドの実行可能状態を更新する</summary>
         private void RaiseActionCanExecuteChanged()
         {
             RaiseCanExecuteChanged(SaveCommand);
             RaiseCanExecuteChanged(SavePdfCommand);
-            RaiseCanExecuteChanged(GoToPageCommand);
+            Preview.RaiseActionCanExecuteChanged();
             RaiseCanExecuteChanged(CancelCommand);
             RaiseCanExecuteChanged(CopyToClipboardCommand);
+            OnPropertyChanged(nameof(IsSavePdfVisible));
         }
 
         /// <summary>コマンドの実行可能状態を更新する</summary>
@@ -611,17 +414,6 @@ namespace PdfConverter.ViewModels
                 relayCommand.RaiseCanExecuteChanged();
             }
         }
-
-        /// <summary>ページ番号 1 桁あたりの表示幅 (px)</summary>
-        private const double PageNavigationCharWidth = 9;
-
-        /// <summary>ページ番号入力欄の左右余白 (px)</summary>
-        private const double PageNavigationInputPadding = 18;
-
-        /// <summary>ページ番号の桁数を返す</summary>
-        /// <param name="pageValue">ページ番号または総ページ数</param>
-        private static int GetPageDigitCount(int pageValue) =>
-            pageValue > 0 ? (int)Math.Floor(Math.Log10(pageValue)) + 1 : 1;
 
         /// <summary>キャンセル処理を準備する</summary>
         private void PrepareCancellation()
@@ -652,7 +444,7 @@ namespace PdfConverter.ViewModels
         /// <summary>プレビュー画像をクリップボードにコピーする</summary>
         private void OnCopyToClipboard()
         {
-            if (PreviewImage == null)
+            if (Preview.PreviewImage == null)
             {
                 SetStatus("コピーするプレビュー画像がありません。", StatusKind.Warning);
                 return;
@@ -660,7 +452,7 @@ namespace PdfConverter.ViewModels
 
             try
             {
-                _clipboardService.CopyImage(PreviewImage, ExportSettings.PreserveTransparency);
+                _clipboardService.CopyImage(Preview.PreviewImage, ExportSettings.PreserveTransparency);
                 SetStatus("プレビュー画像をクリップボードにコピーしました。", StatusKind.Success);
             }
             catch (Exception ex)

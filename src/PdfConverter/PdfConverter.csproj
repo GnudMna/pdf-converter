@@ -189,6 +189,9 @@
     <Compile Include="ViewModels\Coordinators\PdfPreviewCoordinator.cs" />
     <Compile Include="ViewModels\Coordinators\PreviewUiFeedback.cs" />
     <Compile Include="ViewModels\Coordinators\PdfSaveCoordinator.cs" />
+    <Compile Include="ViewModels\ThemeSettingsViewModel.cs" />
+    <Compile Include="ViewModels\PreviewPanelViewModel.cs" />
+    <Compile Include="ViewModels\StatusBarViewModel.cs" />
     <Compile Include="ViewModels\MainViewModel.cs" />
     <Compile Include="App.xaml.cs">
       <DependentUpon>App.xaml</DependentUpon>
@@ -197,6 +200,24 @@
     <Compile Include="Converters\InverseBooleanConverter.cs" />
     <Compile Include="Converters\NullToVisibilityConverter.cs" />
     <Compile Include="Converters\StringToVisibilityConverter.cs" />
+    <Compile Include="Views\Panels\MainWindowHeaderPanel.xaml.cs">
+      <DependentUpon>MainWindowHeaderPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Panels\DocumentInputPanel.xaml.cs">
+      <DependentUpon>DocumentInputPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Panels\ExportSettingsPanel.xaml.cs">
+      <DependentUpon>ExportSettingsPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Panels\PreviewPanel.xaml.cs">
+      <DependentUpon>PreviewPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Panels\ActionBarPanel.xaml.cs">
+      <DependentUpon>ActionBarPanel.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="Views\Panels\StatusBarPanel.xaml.cs">
+      <DependentUpon>StatusBarPanel.xaml</DependentUpon>
+    </Compile>
     <Compile Include="Views\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
@@ -256,6 +277,30 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Views\DropOverlay.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\MainWindowHeaderPanel.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\DocumentInputPanel.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\ExportSettingsPanel.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\PreviewPanel.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\ActionBarPanel.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Views\Panels\StatusBarPanel.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

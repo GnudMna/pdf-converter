@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Input;
 using Moq;
@@ -39,17 +40,26 @@ namespace PdfConverter.Tests.Views.Behaviors
         [Fact]
         public void EvaluateDragEffects_SupportedDocument_ReturnsCopyAndShowsOverlay()
         {
-            var viewModel = new Mock<IMainWindowViewModel>();
-            viewModel.SetupGet(v => v.IsBusy).Returns(false);
-            var data = CreateFileDropData(@"C:\sample.pdf");
+            string filePath = CreateTempPdfPath();
 
-            DragDropEffects effects = FileDropBehavior.EvaluateDragEffects(
-                viewModel.Object,
-                data,
-                out bool showOverlay);
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                var data = CreateFileDropData(filePath);
 
-            Assert.Equal(DragDropEffects.Copy, effects);
-            Assert.True(showOverlay);
+                DragDropEffects effects = FileDropBehavior.EvaluateDragEffects(
+                    viewModel.Object,
+                    data,
+                    out bool showOverlay);
+
+                Assert.Equal(DragDropEffects.Copy, effects);
+                Assert.True(showOverlay);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
         }
 
         /// <summary>
@@ -58,35 +68,52 @@ namespace PdfConverter.Tests.Views.Behaviors
         [Fact]
         public void EvaluateDragEffects_WhenBusy_ReturnsNone()
         {
-            var viewModel = new Mock<IMainWindowViewModel>();
-            viewModel.SetupGet(v => v.IsBusy).Returns(true);
-            var data = CreateFileDropData(@"C:\sample.pdf");
+            string filePath = CreateTempPdfPath();
 
-            DragDropEffects effects = FileDropBehavior.EvaluateDragEffects(
-                viewModel.Object,
-                data,
-                out bool showOverlay);
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(true);
+                var data = CreateFileDropData(filePath);
 
-            Assert.Equal(DragDropEffects.None, effects);
-            Assert.False(showOverlay);
+                DragDropEffects effects = FileDropBehavior.EvaluateDragEffects(
+                    viewModel.Object,
+                    data,
+                    out bool showOverlay);
+
+                Assert.Equal(DragDropEffects.None, effects);
+                Assert.False(showOverlay);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
         }
 
         /// <summary>
-        /// サポート対象ファイルのドロップ時に ViewModel へ委譲されることを検証する
+        /// サポート対象ファイルのドロップ時に ViewModel へ正規化済みパスを委譲することを検証する
         /// </summary>
         [Fact]
         public void TryProcessDrop_SupportedDocument_DelegatesToViewModel()
         {
-            var viewModel = new Mock<IMainWindowViewModel>();
-            viewModel.SetupGet(v => v.IsBusy).Returns(false);
-            string filePath = @"C:\sample.docx";
-            var data = CreateFileDropData(filePath);
+            string filePath = CreateTempDocxPath();
 
-            bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(false);
+                var data = CreateFileDropData(filePath);
 
-            Assert.True(accepted);
-            viewModel.VerifySet(v => v.IsDropOverlayVisible = false);
-            viewModel.Verify(v => v.HandleDroppedDocument(filePath), Times.Once);
+                bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+
+                Assert.True(accepted);
+                viewModel.VerifySet(v => v.IsDropOverlayVisible = false);
+                viewModel.Verify(v => v.HandleDroppedDocument(Path.GetFullPath(filePath)), Times.Once);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
         }
 
         /// <summary>
@@ -95,14 +122,23 @@ namespace PdfConverter.Tests.Views.Behaviors
         [Fact]
         public void TryProcessDrop_WhenBusy_ReturnsFalse()
         {
-            var viewModel = new Mock<IMainWindowViewModel>();
-            viewModel.SetupGet(v => v.IsBusy).Returns(true);
-            var data = CreateFileDropData(@"C:\sample.pdf");
+            string filePath = CreateTempPdfPath();
 
-            bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+            try
+            {
+                var viewModel = new Mock<IMainWindowViewModel>();
+                viewModel.SetupGet(v => v.IsBusy).Returns(true);
+                var data = CreateFileDropData(filePath);
 
-            Assert.False(accepted);
-            viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
+                bool accepted = FileDropBehavior.TryProcessDrop(viewModel.Object, data);
+
+                Assert.False(accepted);
+                viewModel.Verify(v => v.HandleDroppedDocument(It.IsAny<string>()), Times.Never);
+            }
+            finally
+            {
+                File.Delete(filePath);
+            }
         }
 
 
@@ -114,6 +150,20 @@ namespace PdfConverter.Tests.Views.Behaviors
             var data = new DataObject();
             data.SetData(DataFormats.FileDrop, new[] { filePath });
             return data;
+        }
+
+        private static string CreateTempPdfPath()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{System.Guid.NewGuid():N}.pdf");
+            File.WriteAllText(path, "placeholder");
+            return path;
+        }
+
+        private static string CreateTempDocxPath()
+        {
+            string path = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{System.Guid.NewGuid():N}.docx");
+            File.WriteAllText(path, "placeholder");
+            return path;
         }
     }
 }

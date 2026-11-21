@@ -6,6 +6,7 @@
 
 **PDF のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
+[![Version](https://img.shields.io/badge/Version-0.3.0-blue)](#)
 [![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
 [![.NET Framework](https://img.shields.io/badge/.NET%20Framework-4.8.1-512BD4?logo=dotnet&logoColor=white)](#)
 [![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
@@ -37,6 +38,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 | 📋 | **クリップボードコピー** | プレビュー画像をワンクリックでコピー |
 | 📄 | **Word 対応** | `.doc` / `.docx` を Word または LibreOffice 経由で PDF 化し、画像へ変換 |
 | 🖱️ | **ドラッグ＆ドロップ** | PDF / Word をウィンドウへドロップするだけで読み込み |
+| 🚀 | **コマンドライン起動** | 起動時引数で PDF / Word を指定し、開いた状態で起動 |
 | 🌗 | **テーマ切替** | ライト / ダーク / システム設定に追従 |
 | 🧠 | **メモリキャッシュ** | 一定サイズ以下の PDF をキャッシュし、I/O を削減 |
 | 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
@@ -54,7 +56,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 
 </div>
 
-- **アーキテクチャ**: MVVM（View / ViewModel / Coordinator / Service の責務分離）
+- **アーキテクチャ**: MVVM（パネル単位の View / ViewModel、Coordinator / Service の責務分離）
 - **DI コンテナ**: `Microsoft.Extensions.DependencyInjection`
 - **PDF レンダリング**: `Docnet.Core` (PDFium)
 - **Word → PDF 変換**: Microsoft Word COM または LibreOffice headless（設定で切り替え）
@@ -65,7 +67,7 @@ Word ファイルは Microsoft Word 経由で PDF に変換したうえで、レ
 
 ## 📦 必要要件
 
-- Windows 10 / 11
+- Windows 10 / 11（x86 / x64 いずれのビルドも利用可能）
 - [.NET Framework 4.8.1](https://dotnet.microsoft.com/download/dotnet-framework/net481)
 - Word ファイルを変換する場合: **Microsoft Word**（デスクトップ版）または **LibreOffice** のいずれか
 - LibreOffice 使用時: 一般的なインストール先から `soffice.exe` を自動検出（必要に応じてアプリ内でパス指定可能）
@@ -86,21 +88,52 @@ cd pdf-converter
 # NuGet パッケージの復元
 nuget restore src/PdfConverter.slnx
 
-# ビルド（Release 構成）
-msbuild src/PdfConverter.slnx /p:Configuration=Release
+# ビルド（Release / x64 構成）
+msbuild src/PdfConverter.slnx /p:Configuration=Release /p:Platform=x64
+
+# x86 向けにビルドする場合
+msbuild src/PdfConverter.slnx /p:Configuration=Release /p:Platform=x86
+
+# x86 と x64 の両方をまとめてビルドする場合
+msbuild src/PdfConverter/PdfConverter.csproj /t:BuildAllPlatforms /p:Configuration=Release
 ```
 
-ビルド後、`src/PdfConverter/bin/Release/` に `PDF Converter.exe` が生成されます。
+ビルド後、プラットフォームに応じて次の場所に `PDF Converter.exe` が生成されます。
+
+| プラットフォーム | 出力先 |
+|:---|:---|
+| `Any CPU` | `src/PdfConverter/bin/Release/` |
+| `x64` | `src/PdfConverter/bin/x64/Release/` |
+| `x86` | `src/PdfConverter/bin/x86/Release/` |
+
+PDFium のネイティブ DLL（`pdfium.dll`）は、ビルド時にプラットフォームに合わせて `lib\` フォルダへ自動配置されます。
 
 ---
 
 ## 📖 使い方
 
-1. **ファイルを開く** — `参照` ボタンから PDF / Word を選択するか、ウィンドウへ **ドラッグ＆ドロップ**
+1. **ファイルを開く** — 次のいずれかの方法で PDF / Word を読み込む
+   - `参照` ボタンからファイルを選択
+   - ウィンドウへ **ドラッグ＆ドロップ**
+   - コマンドライン引数で起動（例: `"PDF Converter.exe" "C:\docs\sample.pdf"`）
 2. **プレビュー確認** — ページを移動しながら出力内容をチェック
 3. **出力設定** — 画像形式・解像度・透過の有無を指定
 4. **範囲を選ぶ** — 単一ページ / 範囲指定 / 全ページから選択
 5. **保存** — 出力先フォルダを指定して変換実行（`page_1.png` のように連番出力）
+
+### コマンドライン引数
+
+起動時に PDF / Word のパスを渡すと、アプリ起動後に自動で読み込みます。複数の引数が渡された場合は、先頭から順に検証し、最初の有効なパスを使用します。
+
+```powershell
+# 絶対パスで指定
+& ".\PDF Converter.exe" "C:\docs\report.pdf"
+
+# 相対パスでも指定可能（起動時の作業ディレクトリ基準）
+& ".\PDF Converter.exe" ".\sample.docx"
+```
+
+エクスプローラーで PDF / Word をこのアプリにドラッグする、または「プログラムから開く」に登録して使うこともできます。
 
 ---
 
@@ -138,9 +171,19 @@ pdf-converter/
 │  │  ├─ Services/                 # 変換・I/O・Word/LibreOffice 連携
 │  │  ├─ Themes/                   # ライト / ダークテーマ
 │  │  ├─ ViewModels/               # ViewModel 群
-│  │  │  └─ Coordinators/          # 画面フロー調停
+│  │  │  ├─ Coordinators/          # プレビュー・保存フローの調停
+│  │  │  ├─ MainViewModel.cs       # メイン画面の統合 ViewModel
+│  │  │  ├─ PreviewPanelViewModel.cs
+│  │  │  ├─ ImageExportSettingsViewModel.cs
+│  │  │  ├─ WordConversionSettingsViewModel.cs
+│  │  │  ├─ ThemeSettingsViewModel.cs
+│  │  │  └─ StatusBarViewModel.cs
 │  │  ├─ Views/                    # 画面 (XAML)
-│  │  │  └─ Behaviors/             # UI ビヘイビア
+│  │  │  ├─ Panels/                # メイン画面を構成する各パネル
+│  │  │  ├─ Behaviors/             # UI ビヘイビア（D&D など）
+│  │  │  ├─ BusyOverlay.xaml       # 処理中オーバーレイ
+│  │  │  ├─ DropOverlay.xaml       # ドロップ受付オーバーレイ
+│  │  │  └─ ConfirmDialog.xaml     # 確認ダイアログ
 │  │  └─ Assets/                   # アイコンなどのリソース
 │  └─ PdfConverter.Tests/          # xUnit v3 単体テスト
 │     ├─ Commands/

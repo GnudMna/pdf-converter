@@ -72,20 +72,21 @@ namespace PdfConverter.ViewModels.Coordinators
                 return;
             }
 
-            if (!File.Exists(host.FilePath))
+            SupportedDocumentPathError pathError =
+                DocumentFileHelper.ResolveSupportedDocumentPath(host.FilePath, out string normalizedPath);
+            if (pathError != SupportedDocumentPathError.None)
             {
                 host.PageCount = 0;
                 host.PreviewImage = null;
                 host.LoadedFilePath = null;
-                host.SetStatus("ファイルが見つかりません。パスを確認してください。", StatusKind.Error);
+                StatusKind statusKind = pathError == SupportedDocumentPathError.UnsupportedExtension
+                    ? StatusKind.Warning
+                    : StatusKind.Error;
+                host.SetStatus(DocumentFileHelper.GetSupportedDocumentPathErrorMessage(pathError), statusKind);
                 return;
             }
 
-            if (!_documentPdfSourceService.IsSupportedDocument(host.FilePath))
-            {
-                host.SetStatus("PDF (.pdf) または Word (.doc / .docx) ファイルを指定してください。", StatusKind.Warning);
-                return;
-            }
+            host.FilePath = normalizedPath;
 
             if (!forceReload && string.Equals(host.FilePath, host.LoadedFilePath, StringComparison.OrdinalIgnoreCase))
             {
