@@ -1,11 +1,11 @@
 ---
 name: check
-description: ビルドと単体テストの一括実行 (installer/build-and-test.ps1) を行い、失敗した項目を直して通るまで繰り返す。作業の完了前・コミットや PR の前に品質チェックを通すとき、または「check して」「ビルドとテストを通して」と頼まれたときに使う
+description: ビルドと単体テストの一括実行 (scripts/build-and-test.ps1) を行い、失敗した項目を直して通るまで繰り返す。作業の完了前・コミットや PR の前に品質チェックを通すとき、または「check して」「ビルドとテストを通して」と頼まれたときに使う
 ---
 
 # 品質チェック
 
-`./installer/build-and-test.ps1` で復元・ビルド・単体テストを実行し、失敗を直して全項目を通す。コード解析の警告もビルドエラーになる。
+`./scripts/build-and-test.ps1` で復元・書式チェック・ビルド・単体テストを実行し、失敗を直して全項目を通す。コード解析の警告もビルドエラーになる。
 
 ## 実行
 
@@ -14,7 +14,7 @@ description: ビルドと単体テストの一括実行 (installer/build-and-tes
 - 引数 (`-Configuration Release` / `-Platform x86` など) が渡されたときはそのまま付ける。渡されないときは既定 (Debug / x64) で実行する
 
 ```powershell
-./installer/build-and-test.ps1 -NoPause
+./scripts/build-and-test.ps1 -NoPause
 ```
 
 ## 失敗したとき
@@ -23,11 +23,13 @@ description: ビルドと単体テストの一括実行 (installer/build-and-tes
 
 | 失敗した項目 | 直し方 | 項目だけの確認 |
 | :--- | :--- | :--- |
-| パッケージ復元 | 直さずにユーザーへ報告する (ネットワーク・NuGet ソースの問題が多い) | `dotnet restore src/PdfConverter.slnx -p:Platform=x64` |
+| パッケージ復元 (NU1004 などロックファイルの不一致) | `PackageReference` を変えたなら `dotnet restore` でロックファイルを更新する。変えていなければ直さずにユーザーへ報告する | `dotnet restore src/PdfConverter.slnx -p:Platform=x64 --locked-mode` |
+| パッケージ復元 (そのほか) | 直さずにユーザーへ報告する (ネットワーク・NuGet ソースの問題が多い) | `dotnet restore src/PdfConverter.slnx -p:Platform=x64 --locked-mode` |
+| 書式チェック | `./scripts/format.ps1 -NoPause` で直し、差分を確かめる | `./scripts/format.ps1 -NoPause` |
 | ビルドエラー・コード解析の警告 | 原因をコードで直す | `dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64 --no-restore` |
 | 単体テスト | 失敗の原因を直す | テスト実行ファイルに `-class` / `-method` を付けて絞る |
 
-テスト実行ファイルは `src/PdfConverter.Tests/bin/<Platform>/<Configuration>/net10.0-windows/PdfConverter.Tests.exe`。
+テスト実行ファイルは `src/PdfConverter.Tests/bin/<Platform>/<Configuration>/PdfConverter.Tests.exe`。
 
 次はしない。
 

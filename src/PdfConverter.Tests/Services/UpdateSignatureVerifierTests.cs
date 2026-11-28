@@ -17,7 +17,7 @@ namespace PdfConverter.Tests.Services
         private const long Size = 12345;
         private const string Sha256 = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
-        // installer/update-signing.ps1 で生成した使い捨て鍵と署名 (ファイルは 18 バイトの "vector-setup-bytes")
+        // scripts/update-signing.ps1 で生成した使い捨て鍵と署名 (ファイルは 18 バイトの "vector-setup-bytes")
         private const string ScriptPublicKey =
             "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKQ48fv8HXsZj4YTAKj6fnlmpnZNhG3TCsUu7S+cNkQf56p5VNYLDq5Ek2qdvDPrEMfjdLXoMrNfeP35FwXlc7Q==";
         private const string ScriptSignature =

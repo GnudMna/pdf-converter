@@ -1,12 +1,12 @@
 namespace PdfConverter.Infrastructure
 {
     /// <summary>
-    /// 更新インストーラーの署名検証に使う公開鍵 (対の秘密鍵はリポジトリに含めない)
+    /// 更新用の配布物 (インストーラー・ポータブル版の zip) の署名検証に使う公開鍵 (対の秘密鍵はリポジトリに含めない)
     /// </summary>
     /// <remarks>
-    /// 値は <c>installer/new-update-signing-key.ps1</c> が出力する SubjectPublicKeyInfo (DER) の Base64<br/>
+    /// 値は <c>scripts/new-update-signing-key.ps1</c> が出力する SubjectPublicKeyInfo (DER) の Base64<br/>
     /// 空のままだと、更新の適用は署名を検証できないため失敗する<br/>
-    /// <c>installer/sign-update.ps1</c> がこの値を読み取って秘密鍵との対応を確認するため、定数の書式を変えない
+    /// <c>scripts/sign-update.ps1</c> がこの値を読み取って秘密鍵との対応を確認するため、定数の書式を変えない
     /// </remarks>
     internal static class UpdateSigningKey
     {

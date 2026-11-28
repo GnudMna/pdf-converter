@@ -101,7 +101,7 @@ namespace PdfConverter.Tests.Infrastructure
         /// 利用者向けドキュメントの表紙が、実行ファイルと同じフォルダーの docs\index.html を指すことを検証する
         /// </summary>
         /// <remarks>
-        /// インストーラー (installer/PdfConverter.iss) のスタートメニューのショートカットと同じ場所を指す
+        /// インストーラー (scripts/PdfConverter.iss) のスタートメニューのショートカットと同じ場所を指す
         /// </remarks>
         [Fact]
         public void UserDocsIndexFilePath_PointsToDocsIndexUnderBaseDirectory()
@@ -115,7 +115,7 @@ namespace PdfConverter.Tests.Infrastructure
         /// 本アプリの使用許諾が、実行ファイルと同じフォルダーの LICENSE.txt を指すことを検証する
         /// </summary>
         /// <remarks>
-        /// インストーラー (installer/PdfConverter.iss) がリポジトリの LICENSE を置く場所と同じ
+        /// インストーラー (scripts/PdfConverter.iss) がリポジトリの LICENSE を置く場所と同じ
         /// </remarks>
         [Fact]
         public void LicenseFilePath_PointsToLicenseUnderBaseDirectory()

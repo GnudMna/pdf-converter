@@ -69,8 +69,13 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public void Reload()
         {
+            var before = (Backend, LibreOfficePath, PdfFormat, OptimizeFor, ExportBookmarks, ExportComments);
             LoadFromStore();
-            SettingsChanged?.Invoke(this, EventArgs.Empty);
+            var after = (Backend, LibreOfficePath, PdfFormat, OptimizeFor, ExportBookmarks, ExportComments);
+            if (before != after)
+            {
+                SettingsChanged?.Invoke(this, EventArgs.Empty);
+            }
         }
 
 

@@ -13,15 +13,49 @@
             "stopAtEntry": false
         },
         {
+            "name": "PDF Converter バッチ変換 (Debug / x64)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug/PDF Converter.exe",
+            "args": ["-o", "${input:outputDir}", "${input:inputFile}"],
+            "cwd": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
+            "name": "pdfconv 起動プログラム (Debug / x64。本体は対象外)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug/pdfconv.exe",
+            "args": ["-o", "${input:outputDir}", "${input:inputFile}"],
+            "cwd": "${workspaceFolder}/src/PdfConverter/bin/x64/Debug",
+            "console": "integratedTerminal",
+            "stopAtEntry": false
+        },
+        {
             "name": "PdfConverter.Tests (Debug / x64)",
             "type": "coreclr",
             "request": "launch",
             "preLaunchTask": "build",
-            "program": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe",
+            "program": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug/PdfConverter.Tests.exe",
             "args": [],
-            "cwd": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows",
+            "cwd": "${workspaceFolder}/src/PdfConverter.Tests/bin/x64/Debug",
             "console": "integratedTerminal",
             "stopAtEntry": false
+        }
+    ],
+    "inputs": [
+        {
+            "id": "inputFile",
+            "type": "promptString",
+            "description": "変換する PDF / Word 文書のパス"
+        },
+        {
+            "id": "outputDir",
+            "type": "promptString",
+            "description": "出力フォルダーのパス"
         }
     ]
 }

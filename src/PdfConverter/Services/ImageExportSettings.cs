@@ -23,6 +23,9 @@ namespace PdfConverter.Services
         /// <inheritdoc/>
         public bool PreserveTransparency { get; set; }
 
+        /// <inheritdoc/>
+        public int JpegQuality { get; set; }
+
 
         /********************************************************************************/
         /*                                コンストラクタ                                */
@@ -46,6 +49,7 @@ namespace PdfConverter.Services
             Settings.Default.ResolutionMode = ResolutionMode.ToString();
             Settings.Default.ResolutionValue = ResolutionValue ?? string.Empty;
             Settings.Default.PreserveTransparency = PreserveTransparency;
+            Settings.Default.JpegQuality = JpegQuality;
             Settings.Default.Save();
         }
 
@@ -66,6 +70,7 @@ namespace PdfConverter.Services
             ResolutionMode = ResolutionModeParser.Parse(Settings.Default.ResolutionMode);
             ResolutionValue = ResolveResolutionValue(ResolutionMode, Settings.Default.ResolutionValue);
             PreserveTransparency = ResolvePreserveTransparency(OutputImageFormat, Settings.Default.PreserveTransparency);
+            JpegQuality = Services.JpegQuality.Resolve(Settings.Default.JpegQuality);
         }
 
         /// <summary>

@@ -9,7 +9,7 @@
 ; UAC の昇格ダイアログ（「不明な発行元」）を表示させない構成です。
 
 #ifndef AppVersion
-  #error AppVersion is required. Pass /DAppVersion=x.y.z (e.g. via installer\build-installer.ps1).
+  #error AppVersion is required. Pass /DAppVersion=x.y.z (e.g. via scripts\build-installer.ps1).
 #endif
 
 #ifndef Platform
@@ -124,6 +124,8 @@ Root: HKCU; Subkey: ".docx\OpenWithProgids"; ValueType: none; ValueName: "{#MyAp
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; アプリ内の更新は /SILENT /RELAUNCH=1 でウィザードを出さずに実行するため、完了後にアプリを起動し直す
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: ShouldRelaunch
 
 [Code]
 // 0.6.0 以前の AppId で入っている版を、新しい AppId の版へ移行する
@@ -165,6 +167,13 @@ begin
     RootKey := HKLM;
     Result := True;
   end;
+end;
+
+// インストール後にアプリを起動し直すかどうかを返す
+// アプリ内の更新が付ける /RELAUNCH=1 のときだけ起動する (手作業のサイレントインストールでは起動しない)
+function ShouldRelaunch: Boolean;
+begin
+  Result := WizardSilent and (ExpandConstant('{param:RELAUNCH|0}') = '1');
 end;
 
 // 既定のインストール先を返す (旧 AppId の版があればそのインストール先を引き継ぐ)

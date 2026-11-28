@@ -72,6 +72,15 @@ namespace PdfConverter.ViewModels.Coordinators
             ResolutionMode resolutionMode = host.ResolutionMode;
             OutputImageFormat outputImageFormat = host.OutputImageFormat;
             bool preserveTransparency = host.PreserveTransparency;
+            int jpegQuality = host.JpegQuality;
+            bool isAllPagesSelected = host.IsAllPagesSelected;
+            string pageRange = host.PageRange;
+
+            // 書式の誤りは Word 変換やフォルダー選択の前に知らせる。総ページ数を超えていないかの確認だけは変換後に行う
+            if (!isAllPagesSelected && !TryValidatePageRangeFormat(host, pageRange))
+            {
+                return;
+            }
 
             host.ProgressValue = 0;
             host.PrepareCancellation();
@@ -104,18 +113,11 @@ namespace PdfConverter.ViewModels.Coordinators
                 }
 
                 IEnumerable<int>? pageIndexes = null;
-                if (!host.IsAllPagesSelected)
+                if (!isAllPagesSelected)
                 {
-                    if (string.IsNullOrWhiteSpace(host.PageRange))
-                    {
-                        host.PageRangeValidationMessage = "保存対象のページ番号または範囲を入力してください。";
-                        host.SetStatus("保存対象のページ番号または範囲を指定してください。", StatusKind.Warning);
-                        return;
-                    }
-
                     try
                     {
-                        pageIndexes = PageRangeParser.Parse(host.PageRange, pageCount);
+                        pageIndexes = PageRangeParser.Parse(pageRange, pageCount);
                         host.PageRangeValidationMessage = null;
                     }
                     catch (Exception ex)
@@ -131,7 +133,7 @@ namespace PdfConverter.ViewModels.Coordinators
                     host.PageRangeValidationMessage = null;
                 }
 
-                if (!ConfirmOverwriteExistingFiles(host, folderPath, pageIndexes, pageCount, outputImageFormat))
+                if (!ConfirmOverwriteExistingFiles(isAllPagesSelected, folderPath, pageIndexes, pageCount, outputImageFormat))
                 {
                     host.SetStatus("保存処理はキャンセルされました。", StatusKind.Info);
                     return;
@@ -147,11 +149,12 @@ namespace PdfConverter.ViewModels.Coordinators
                     pdfPath,
                     pageIndexes,
                     folderPath,
-                    host.IsAllPagesSelected,
+                    isAllPagesSelected,
                     resolutionMode,
                     resolutionValue,
                     outputImageFormat,
                     preserveTransparency,
+                    jpegQuality,
                     progress,
                     cancellationToken);
 
@@ -249,22 +252,52 @@ namespace PdfConverter.ViewModels.Coordinators
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
-        /// 既存のファイルとの上書き確認を行う
+        /// ページ範囲の書式 (空・番号・範囲の形) を、総ページ数に依存しない形で検証する
         /// </summary>
         /// <param name="host">メインビューモデル</param>
+        /// <param name="pageRange">保存開始時に確定したページ範囲</param>
+        /// <returns>true: 書式が正しい / false: 誤りがあり、通知済み</returns>
+        private static bool TryValidatePageRangeFormat(ISaveCoordinatorHost host, string pageRange)
+        {
+            if (string.IsNullOrWhiteSpace(pageRange))
+            {
+                host.PageRangeValidationMessage = "保存対象のページ番号または範囲を入力してください。";
+                host.SetStatus("保存対象のページ番号または範囲を指定してください。", StatusKind.Warning);
+                return false;
+            }
+
+            try
+            {
+                // 総ページ数に依存しない誤りだけを検出する
+                PageRangeParser.ValidateFormat(pageRange);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                string message = ExceptionFormattingHelper.GetUserMessage(ex);
+                host.PageRangeValidationMessage = message;
+                host.SetStatus($"ページ範囲の指定が不正です: {message}", StatusKind.Warning);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 既存のファイルとの上書き確認を行う
+        /// </summary>
+        /// <param name="isAllPagesSelected">保存開始時に確定した、全ページ保存かどうか</param>
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="pageIndexes">保存するページのインデックス</param>
         /// <param name="pageCount">保存対象の PDF の総ページ数 (ファイル名の桁数の決定に使う)</param>
         /// <param name="outputImageFormat">保存開始時に確定した出力画像形式</param>
         /// <returns>true: 保存を続行してよい (既存ファイルがない、または上書きが承認された) / false: 上書きが承認されなかった</returns>
         private bool ConfirmOverwriteExistingFiles(
-            ISaveCoordinatorHost host,
+            bool isAllPagesSelected,
             string folderPath,
             IEnumerable<int>? pageIndexes,
             int pageCount,
             OutputImageFormat outputImageFormat)
         {
-            IEnumerable<int> pagesToSave = host.IsAllPagesSelected || pageIndexes == null
+            IEnumerable<int> pagesToSave = isAllPagesSelected || pageIndexes == null
                 ? Enumerable.Range(0, pageCount)
                 : pageIndexes;
 

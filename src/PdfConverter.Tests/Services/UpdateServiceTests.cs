@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -6,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using PdfConverter.Infrastructure;
 using PdfConverter.Services;
 using PdfConverter.Tests.Helpers;
 using Xunit;
@@ -22,6 +24,8 @@ namespace PdfConverter.Tests.Services
         /*                                     定数                                     */
         /********************************************************************************/
         private const string AssetName = "PdfConverter-0.5.0-x64-setup.exe";
+
+        private const string PortableAssetName = "PdfConverter-0.5.0-x64-portable.zip";
 
 
         /********************************************************************************/
@@ -61,7 +65,7 @@ namespace PdfConverter.Tests.Services
         {
             string digest = "sha256:" + new string('d', 64);
             string json = $@"{{
-  ""tag"": ""v0.5.0"",
+  ""tag_name"": ""v0.5.0"",
   ""assets"": [{{
     ""name"": ""PdfConverter-0.5.0-x64-setup.exe"",
     ""size"": 10,
@@ -71,7 +75,11 @@ namespace PdfConverter.Tests.Services
 
             using (var handler = new StubHandler((request, _) =>
             {
-                Assert.EndsWith("/GnudMna/pdf-converter/version", request.RequestUri.AbsolutePath);
+                Assert.Equal(
+                    "https://api.test/repos/GnudMna/pdf-converter/releases/latest",
+                    request.RequestUri.AbsoluteUri);
+                Assert.Contains(request.Headers.Accept, h => h.MediaType == "application/vnd.github+json");
+                Assert.True(request.Headers.Contains("X-GitHub-Api-Version"));
                 Assert.Null(request.Headers.Authorization);
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
@@ -79,7 +87,7 @@ namespace PdfConverter.Tests.Services
                 };
             }))
             using (var client = new HttpClient(handler))
-            using (var service = CreateService(client, releaseKey: "test-key", platform: "x64"))
+            using (var service = CreateService(client, platform: "x64"))
             {
                 UpdateCheckResult result = await service.CheckForUpdateAsync(
                     TestContext.Current.CancellationToken);
@@ -89,8 +97,49 @@ namespace PdfConverter.Tests.Services
             }
         }
 
+        /// <summary>
+        /// 公開されたリリースが無い (HTTP 404) ときは、その旨を示して失敗することを検証する
+        /// </summary>
         [Fact]
-        public async Task ApplyUpdateAsync_SendsBearerAndStartsSetup()
+        public async Task CheckForUpdateAsync_NoRelease_FailsWithMessage()
+        {
+            using (var handler = new StubHandler((_, __) => new HttpResponseMessage(HttpStatusCode.NotFound)))
+            using (var client = new HttpClient(handler))
+            using (var service = CreateService(client))
+            {
+                UpdateCheckResult result = await service.CheckForUpdateAsync(
+                    TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateCheckKind.Failed, result.Kind);
+                Assert.Contains("リリースが見つかりません", result.ErrorMessage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub API の回数制限に達したときは、その旨を示して失敗することを検証する
+        /// </summary>
+        [Fact]
+        public async Task CheckForUpdateAsync_RateLimited_FailsWithMessage()
+        {
+            using (var handler = new StubHandler((_, __) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.Forbidden);
+                response.Headers.Add("X-RateLimit-Remaining", "0");
+                return response;
+            }))
+            using (var client = new HttpClient(handler))
+            using (var service = CreateService(client))
+            {
+                UpdateCheckResult result = await service.CheckForUpdateAsync(
+                    TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateCheckKind.Failed, result.Kind);
+                Assert.Contains("上限", result.ErrorMessage);
+            }
+        }
+
+        [Fact]
+        public async Task ApplyUpdateAsync_DownloadsFromGitHubAndStartsSetup()
         {
             byte[] payload = Encoding.UTF8.GetBytes("setup-bytes");
             string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
@@ -99,10 +148,10 @@ namespace PdfConverter.Tests.Services
             using (var signingKey = new UpdateSigningTestKey())
             using (var handler = new StubHandler((request, _) =>
             {
-                Assert.Contains("/GnudMna/pdf-converter/v0.5.0/", request.RequestUri.AbsoluteUri);
-                Assert.NotNull(request.Headers.Authorization);
-                Assert.Equal("Bearer", request.Headers.Authorization.Scheme);
-                Assert.Equal("secret-key", request.Headers.Authorization.Parameter);
+                Assert.StartsWith(
+                    $"https://download.test/GnudMna/pdf-converter/releases/download/v0.5.0/{AssetName}",
+                    request.RequestUri.AbsoluteUri);
+                Assert.Null(request.Headers.Authorization);
                 return CreateInstallerOrSignatureResponse(
                     request,
                     payload,
@@ -114,9 +163,9 @@ namespace PdfConverter.Tests.Services
                 ownsHttpClient: false,
                 () => "0.4.0",
                 () => "x64",
-                () => "secret-key",
                 () => signingKey.PublicKey,
-                "https://bridge.test",
+                "https://api.test",
+                "https://download.test",
                 (path, _) =>
                 {
                     startedPath = path;
@@ -131,6 +180,25 @@ namespace PdfConverter.Tests.Services
                 Assert.NotNull(startedPath);
                 Assert.EndsWith(AssetName, startedPath);
             }
+        }
+
+        /// <summary>
+        /// インストーラーの引数が、ウィザードのページを出さずに進捗とメッセージは表示し、完了後にアプリを起動し直す指定になることを検証する
+        /// </summary>
+        [Fact]
+        public void BuildSetupArguments_ReturnsSilentArgumentsWithRelaunchAndLog()
+        {
+            string workDir = Path.Combine(_testRoot, "updates", "0.5.0");
+
+            var arguments = UpdateService.BuildSetupArguments(workDir);
+
+            Assert.Contains("/SILENT", arguments);
+            Assert.Contains("/NORESTART", arguments);
+            Assert.Contains("/CLOSEAPPLICATIONS", arguments);
+            Assert.Contains("/RELAUNCH=1", arguments);
+            Assert.Contains("/LOG=" + Path.Combine(workDir, UpdateService.SetupLogFileName), arguments);
+            Assert.DoesNotContain("/VERYSILENT", arguments);
+            Assert.DoesNotContain("/SUPPRESSMSGBOXES", arguments);
         }
 
         /// <summary>
@@ -274,29 +342,6 @@ namespace PdfConverter.Tests.Services
             }
         }
 
-        [Fact]
-        public async Task ApplyUpdateAsync_FailsWhenKeyMissing()
-        {
-            using (var handler = new StubHandler((_, __) => new HttpResponseMessage(HttpStatusCode.OK)))
-            using (var client = new HttpClient(handler))
-            using (var service = CreateService(client, releaseKey: string.Empty, platform: "x64"))
-            {
-                UpdateApplyResult result = await service.ApplyUpdateAsync(
-                    new AvailableUpdate
-                    {
-                        LatestVersion = "0.5.0",
-                        Tag = "v0.5.0",
-                        AssetName = "PdfConverter-0.5.0-x64-setup.exe",
-                        Size = 1,
-                        Sha256 = new string('a', 64),
-                    },
-                    TestContext.Current.CancellationToken);
-
-                Assert.Equal(UpdateApplyKind.Failed, result.Kind);
-                Assert.Contains("リリースキー", result.ErrorMessage);
-            }
-        }
-
         [Theory]
         [InlineData("0.5.0", @"..\..\evil-setup.exe")]
         [InlineData("0.5.0", "../evil-setup.exe")]
@@ -318,9 +363,9 @@ namespace PdfConverter.Tests.Services
                 ownsHttpClient: false,
                 () => "0.4.0",
                 () => "x64",
-                () => "secret-key",
                 () => "unused-public-key",
-                "https://bridge.test",
+                "https://api.test",
+                "https://download.test",
                 (_, __) =>
                 {
                     started = true;
@@ -365,9 +410,9 @@ namespace PdfConverter.Tests.Services
                 ownsHttpClient: false,
                 () => "0.4.0",
                 () => "x64",
-                () => "secret-key",
                 () => "unused-public-key",
-                "https://bridge.test",
+                "https://api.test",
+                "https://download.test",
                 (_, __) =>
                 {
                     started = true;
@@ -419,21 +464,165 @@ namespace PdfConverter.Tests.Services
             HttpClient client,
             string signingPublicKey = "unused-public-key",
             Action onStarted = null,
-            string releaseKey = "secret-key",
             string platform = "x64") =>
             new UpdateService(
                 client,
                 ownsHttpClient: false,
                 () => "0.4.0",
                 () => platform,
-                () => releaseKey,
                 () => signingPublicKey,
-                "https://bridge.test",
+                "https://api.test",
+                "https://download.test",
                 (_, __) =>
                 {
                     onStarted?.Invoke();
                     return true;
                 });
+
+        /// <summary>
+        /// ポータブル版は署名を検証した zip を展開し、展開した新しい版を更新先とプロセス ID を指定して起動することを検証する
+        /// </summary>
+        [Fact]
+        public async Task ApplyUpdateAsync_Portable_ExtractsZipAndStartsUpdater()
+        {
+            byte[] payload = PortablePackageTestHelper.BuildZip(PortablePackageTestHelper.CreateAppFiles("0.5.0"));
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
+            string appDirectory = Path.Combine(_testRoot, "app");
+
+            string startedPath = null;
+            IReadOnlyList<string> startedArguments = null;
+            using (var signingKey = new UpdateSigningTestKey())
+            using (var handler = new StubHandler((request, _) => CreateInstallerOrSignatureResponse(
+                request,
+                payload,
+                signingKey.Sign("v0.5.0", PortableAssetName, payload.Length, sha256))))
+            using (var client = new HttpClient(handler))
+            using (var service = CreatePortableService(
+                client,
+                signingKey.PublicKey,
+                appDirectory,
+                (path, arguments) =>
+                {
+                    startedPath = path;
+                    startedArguments = arguments;
+                    return true;
+                }))
+            {
+                UpdateApplyResult result = await service.ApplyUpdateAsync(
+                    CreatePortableUpdate(payload, sha256),
+                    TestContext.Current.CancellationToken);
+
+                string stagingDir = Path.Combine(_testRoot, "updates", "0.5.0", UpdateService.PortableStagingDirectoryName);
+                Assert.Equal(UpdateApplyKind.SetupStarted, result.Kind);
+                Assert.Equal(Path.Combine(stagingDir, PortableUpdatePackage.AppExecutableFileName), startedPath);
+                Assert.Equal("exe 0.5.0", File.ReadAllText(startedPath));
+                Assert.Equal(
+                    PortableUpdateCommand.BuildArguments(appDirectory, Environment.ProcessId),
+                    startedArguments);
+                Assert.False(File.Exists(Path.Combine(_testRoot, "updates", "0.5.0", PortableAssetName)));
+            }
+        }
+
+        /// <summary>
+        /// 署名済みでもポータブル版として不正な zip は、更新処理を起動せずに失敗することを検証する
+        /// </summary>
+        [Fact]
+        public async Task ApplyUpdateAsync_PortableZipWithoutMarker_FailsWithoutStarting()
+        {
+            var files = PortablePackageTestHelper.CreateAppFiles("0.5.0");
+            files.Remove(PortableMode.MarkerFileName);
+            byte[] payload = PortablePackageTestHelper.BuildZip(files);
+            string sha256 = Convert.ToHexStringLower(SHA256.HashData(payload));
+
+            bool started = false;
+            using (var signingKey = new UpdateSigningTestKey())
+            using (var handler = new StubHandler((request, _) => CreateInstallerOrSignatureResponse(
+                request,
+                payload,
+                signingKey.Sign("v0.5.0", PortableAssetName, payload.Length, sha256))))
+            using (var client = new HttpClient(handler))
+            using (var service = CreatePortableService(
+                client,
+                signingKey.PublicKey,
+                Path.Combine(_testRoot, "app"),
+                (_, __) =>
+                {
+                    started = true;
+                    return true;
+                }))
+            {
+                UpdateApplyResult result = await service.ApplyUpdateAsync(
+                    CreatePortableUpdate(payload, sha256),
+                    TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateApplyKind.Failed, result.Kind);
+                Assert.Contains(PortableMode.MarkerFileName, result.ErrorMessage);
+                Assert.False(started);
+                Assert.False(Directory.Exists(
+                    Path.Combine(_testRoot, "updates", "0.5.0", UpdateService.PortableStagingDirectoryName)));
+            }
+        }
+
+        /// <summary>
+        /// ポータブル版の更新を確認すると、インストーラーではなく zip を選ぶことを検証する
+        /// </summary>
+        [Fact]
+        public async Task CheckForUpdateAsync_Portable_SelectsZip()
+        {
+            string digest = "sha256:" + new string('d', 64);
+            string json = $@"{{
+  ""tag_name"": ""v0.5.0"",
+  ""assets"": [
+    {{ ""name"": ""{AssetName}"", ""size"": 10, ""digest"": ""{digest}"" }},
+    {{ ""name"": ""{PortableAssetName}"", ""size"": 20, ""digest"": ""{digest}"" }}
+  ]
+}}";
+
+            using (var handler = new StubHandler((_, __) => new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(json, Encoding.UTF8, "application/json"),
+            }))
+            using (var client = new HttpClient(handler))
+            using (var service = CreatePortableService(client, "unused-public-key", Path.Combine(_testRoot, "app"), (_, __) => true))
+            {
+                UpdateCheckResult result = await service.CheckForUpdateAsync(
+                    TestContext.Current.CancellationToken);
+
+                Assert.Equal(UpdateCheckKind.Available, result.Kind);
+                Assert.Equal(PortableAssetName, result.Update.AssetName);
+                Assert.Equal(UpdatePackageKind.Portable, result.Update.PackageKind);
+            }
+        }
+
+        private static UpdateService CreatePortableService(
+            HttpClient client,
+            string signingPublicKey,
+            string appDirectory,
+            Func<string, IReadOnlyList<string>, bool> portableUpdaterStarter) =>
+            new UpdateService(
+                client,
+                ownsHttpClient: false,
+                () => "0.4.0",
+                () => "x64",
+                () => signingPublicKey,
+                "https://api.test",
+                "https://download.test",
+                (_, __) => throw new InvalidOperationException("ポータブル版でインストーラーを起動した"),
+                packageKindProvider: () => UpdatePackageKind.Portable,
+                appDirectoryProvider: () => appDirectory,
+                portableUpdaterStarter: portableUpdaterStarter);
+
+        private static AvailableUpdate CreatePortableUpdate(byte[] payload, string sha256) =>
+            new AvailableUpdate
+            {
+                CurrentVersion = "0.4.0",
+                LatestVersion = "0.5.0",
+                Tag = "v0.5.0",
+                AssetName = PortableAssetName,
+                PackageKind = UpdatePackageKind.Portable,
+                Size = payload.Length,
+                Sha256 = sha256,
+            };
 
         private static AvailableUpdate CreateUpdate(byte[] payload, string sha256) =>
             new AvailableUpdate

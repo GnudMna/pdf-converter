@@ -47,9 +47,11 @@ namespace PdfConverter.Services
         /// <param name="source">保存する画像</param>
         /// <param name="outputPath">出力ファイルの絶対パス</param>
         /// <param name="format">出力形式</param>
+        /// <param name="jpegQuality">JPEG 品質 (1〜100。JPEG 以外の形式では無視する)</param>
         /// <exception cref="ArgumentNullException"><paramref name="source"/> が <c>null</c> の場合</exception>
         /// <exception cref="ArgumentException"><paramref name="outputPath"/> が <c>null</c>・空文字・空白のみの場合</exception>
-        public static void SaveToFile(BitmapSource source, string outputPath, OutputImageFormat format)
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="jpegQuality"/> が 1〜100 の範囲外の場合 (JPEG 形式のみ)</exception>
+        public static void SaveToFile(BitmapSource source, string outputPath, OutputImageFormat format, int jpegQuality = JpegQuality.Default)
         {
             ArgumentNullException.ThrowIfNull(source);
 
@@ -58,7 +60,7 @@ namespace PdfConverter.Services
                 throw new ArgumentException("出力パスが指定されていません。", nameof(outputPath));
             }
 
-            BitmapEncoder encoder = CreateEncoder(format);
+            BitmapEncoder encoder = CreateEncoder(format, jpegQuality);
             encoder.Frames.Add(BitmapFrame.Create(source));
 
             using (var fs = new FileStream(outputPath, FileMode.Create, FileAccess.Write))
@@ -136,16 +138,22 @@ namespace PdfConverter.Services
         /// 出力形式に対応するビットマップエンコーダを返す
         /// </summary>
         /// <param name="format">出力形式</param>
+        /// <param name="jpegQuality">JPEG 品質 (JPEG 以外の形式では無視する)</param>
         /// <returns>対応するビットマップエンコーダ</returns>
-        /// <exception cref="ArgumentOutOfRangeException">未対応の出力形式の場合</exception>
-        private static BitmapEncoder CreateEncoder(OutputImageFormat format)
+        /// <exception cref="ArgumentOutOfRangeException">未対応の出力形式、または JPEG 品質が範囲外の場合</exception>
+        private static BitmapEncoder CreateEncoder(OutputImageFormat format, int jpegQuality)
         {
             switch (format)
             {
                 case OutputImageFormat.Png:
                     return new PngBitmapEncoder();
                 case OutputImageFormat.Jpeg:
-                    return new JpegBitmapEncoder { QualityLevel = 90 };
+                    if (!JpegQuality.IsValid(jpegQuality))
+                    {
+                        throw new ArgumentOutOfRangeException(nameof(jpegQuality), jpegQuality, $"JPEG 品質は {JpegQuality.Min}〜{JpegQuality.Max} で指定してください。");
+                    }
+
+                    return new JpegBitmapEncoder { QualityLevel = jpegQuality };
                 case OutputImageFormat.Bmp:
                     return new BmpBitmapEncoder();
                 default:

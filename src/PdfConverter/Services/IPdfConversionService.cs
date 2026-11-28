@@ -82,10 +82,12 @@ namespace PdfConverter.Services
         /// <param name="value"><paramref name="mode"/> に対応する数値 (幅・高さ・DPI)</param>
         /// <param name="format">出力画像形式</param>
         /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
+        /// <param name="jpegQuality">JPEG 品質 (1〜100。JPEG 以外の形式では無視する)</param>
         /// <param name="progress">進捗通知用コールバック<br/><c>null</c> の場合は通知しない</param>
         /// <param name="cancellationToken">処理をキャンセルするためのトークン</param>
         /// <returns>非同期操作の完了を表すタスク</returns>
         /// <exception cref="OperationCanceledException">キャンセル要求が発生した場合</exception>
-        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default);
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="format"/> が JPEG で <paramref name="jpegQuality"/> が範囲外の場合</exception>
+        Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, int jpegQuality = JpegQuality.Default, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default);
     }
 }

@@ -80,6 +80,9 @@ namespace PdfConverter.ViewModels
         public bool PreserveTransparency => _viewModel.ExportSettings.PreserveTransparency;
 
         /// <inheritdoc/>
+        public int JpegQuality => _viewModel.ExportSettings.JpegQuality;
+
+        /// <inheritdoc/>
         public int DisplayedPageNumber
         {
             get => _viewModel.Preview.DisplayedPageNumber;

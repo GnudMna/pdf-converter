@@ -5,17 +5,18 @@ using Xunit;
 namespace PdfConverter.Tests.Services
 {
     /// <summary>
-    /// <see cref="VersionApiJsonParser"/> の単体テスト
+    /// <see cref="GitHubReleaseJsonParser"/> の単体テスト
     /// </summary>
-    public class VersionApiJsonParserTests
+    public class GitHubReleaseJsonParserTests
     {
         [Fact]
         public void Parse_ReadsTagAndAssets()
         {
             const string json = @"{
-  ""owner"": ""GnudMna"",
-  ""repo"": ""pdf-converter"",
-  ""tag"": ""v0.5.0"",
+  ""tag_name"": ""v0.5.0"",
+  ""name"": ""v0.5.0"",
+  ""draft"": false,
+  ""prerelease"": false,
   ""assets"": [
     {
       ""name"": ""PdfConverter-0.5.0-x64-setup.exe"",
@@ -26,7 +27,7 @@ namespace PdfConverter.Tests.Services
   ]
 }";
 
-            VersionApiResponse response = VersionApiJsonParser.Parse(json);
+            GitHubRelease response = GitHubReleaseJsonParser.Parse(json);
 
             Assert.Equal("v0.5.0", response.Tag);
             Assert.Single(response.Assets);
@@ -38,7 +39,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void Parse_ThrowsOnEmpty()
         {
-            Assert.Throws<InvalidDataException>(() => VersionApiJsonParser.Parse(""));
+            Assert.Throws<InvalidDataException>(() => GitHubReleaseJsonParser.Parse(""));
         }
     }
 }

@@ -207,6 +207,71 @@ namespace PdfConverter.Tests.Infrastructure
         }
 
         /// <summary>
+        /// --password-file / --password-env / --password-stdin の指定を読み取ることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_PasswordSourceOptions_ParsesEachSource()
+        {
+            bool isFile = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password-file", @"C:\pw.txt", "a.pdf" },
+                out BatchCliOptions file,
+                out string fileError);
+            bool isEnv = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password-env=PDF_PW", "a.pdf" },
+                out BatchCliOptions env,
+                out string envError);
+            bool isStdin = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--password-stdin", "a.pdf" },
+                out BatchCliOptions stdin,
+                out string stdinError);
+
+            Assert.True(isFile);
+            Assert.Null(fileError);
+            Assert.Equal(@"C:\pw.txt", file.PasswordFilePath);
+            Assert.True(isEnv);
+            Assert.Null(envError);
+            Assert.Equal("PDF_PW", env.PasswordEnvironmentVariable);
+            Assert.True(isStdin);
+            Assert.Null(stdinError);
+            Assert.True(stdin.PasswordFromStandardInput);
+            Assert.Null(stdin.Password);
+        }
+
+        /// <summary>
+        /// パスワードの指定方法を複数同時に指定した場合はエラーになることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("--password", "secret", "--password-stdin")]
+        [InlineData("--password-file", "pw.txt", "--password-env=PDF_PW")]
+        public void TryParse_MultiplePasswordSources_ReturnsError(string first, string second, string third)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", first, second, third, "a.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.Contains("--password-file", errorMessage);
+        }
+
+        /// <summary>
+        /// --password-file に値がない場合はエラーになることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_PasswordFileWithoutValue_ReturnsError()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "a.pdf", "--password-file" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.Contains("--password-file", errorMessage);
+        }
+
+        /// <summary>
         /// --password に値がない場合はエラーになることを検証する
         /// </summary>
         [Fact]
@@ -401,6 +466,71 @@ namespace PdfConverter.Tests.Infrastructure
             Assert.Contains("--output", help);
             Assert.Contains("--export-pdf", help);
             Assert.Contains("--pages", help);
+        }
+
+        /// <summary>
+        /// ヘルプテキストでコンソール用の起動プログラム pdfconv.exe を案内することを検証する
+        /// </summary>
+        [Fact]
+        public void GetHelpText_MentionsConsoleLauncher()
+        {
+            string help = BatchCliParser.GetHelpText();
+
+            Assert.Contains("pdfconv.exe", help);
+        }
+
+        /// <summary>
+        /// --jpeg-quality の値を別引数と --jpeg-quality=value のどちらの形式でも読み取ることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("--jpeg-quality", "70")]
+        [InlineData("--jpeg-quality=70", null)]
+        public void TryParse_JpegQuality_ParsesValue(string first, string second)
+        {
+            string[] args = second == null
+                ? new[] { "-o", @"C:\out", "-f", "jpeg", first, @"C:\docs\sample.pdf" }
+                : new[] { "-o", @"C:\out", "-f", "jpeg", first, second, @"C:\docs\sample.pdf" };
+
+            bool isBatch = BatchCliParser.TryParse(args, out BatchCliOptions options, out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(errorMessage);
+            Assert.Equal(70, options.JpegQuality);
+        }
+
+        /// <summary>
+        /// 範囲外・整数でない --jpeg-quality はエラーになることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("0")]
+        [InlineData("101")]
+        [InlineData("abc")]
+        public void TryParse_InvalidJpegQuality_ReturnsError(string quality)
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "--jpeg-quality", quality, @"C:\docs\sample.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.NotNull(errorMessage);
+        }
+
+        /// <summary>
+        /// JPEG 以外の形式を明示した --jpeg-quality はエラーになることを検証する
+        /// </summary>
+        [Fact]
+        public void TryParse_JpegQualityWithPng_ReturnsError()
+        {
+            bool isBatch = BatchCliParser.TryParse(
+                new[] { "-o", @"C:\out", "-f", "png", "--jpeg-quality", "80", @"C:\docs\sample.pdf" },
+                out BatchCliOptions options,
+                out string errorMessage);
+
+            Assert.True(isBatch);
+            Assert.Null(options);
+            Assert.NotNull(errorMessage);
         }
     }
 }

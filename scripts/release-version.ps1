@@ -1,6 +1,6 @@
 # PDF Converter — リリース用バージョン更新の共通関数
 #
-# installer/release.ps1 からドットソースして使用します。
+# scripts/release.ps1 からドットソースして使用します。
 #   . (Join-Path $PSScriptRoot 'release-version.ps1')
 
 # ======================================================================
@@ -17,7 +17,7 @@ function Read-ReleaseTextFile {
     return [System.IO.File]::ReadAllText($Path, [System.Text.UTF8Encoding]::new($false))
 }
 
-# BOM なしの UTF-8 で書き込む (Windows PowerShell 5.1 の Set-Content -Encoding utf8 は BOM を付けるため)
+# BOM なしの UTF-8 で書き込む
 function Write-ReleaseTextFile {
     param(
         [Parameter(Mandatory = $true)]
@@ -107,39 +107,6 @@ function Assert-NewVersionIsGreater {
 }
 
 # ======================================================================
-# 更新キー
-# ======================================================================
-
-# 更新ダウンロード用キーが埋め込まれる設定か検証する (環境変数 PDF_CONVERTER_KEY または UpdateReleaseKey.local.props)
-function Assert-UpdateReleaseKeyConfigured {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string] $RepoRoot
-    )
-
-    if (-not [string]::IsNullOrWhiteSpace($env:PDF_CONVERTER_KEY)) {
-        return
-    }
-
-    $propsPath = Join-Path $RepoRoot 'src\PdfConverter\UpdateReleaseKey.local.props'
-    if (Test-Path -LiteralPath $propsPath) {
-        $content = Read-ReleaseTextFile -Path $propsPath
-        if ($content -match '<PdfConverterReleaseKey>\s*([^<]*?)\s*</PdfConverterReleaseKey>') {
-            $key = $Matches[1]
-            if ($key -and $key -ne 'YOUR_PDF_CONVERTER_KEY_HERE') {
-                return
-            }
-        }
-    }
-
-    throw @"
-更新ダウンロード用キーが設定されていません。
-環境変数 PDF_CONVERTER_KEY を設定するか、src\PdfConverter\UpdateReleaseKey.local.props に PdfConverterReleaseKey を設定してください。
-(キー無しで配布したアプリは更新を適用できません)
-"@
-}
-
-# ======================================================================
 # ファイル更新
 # ======================================================================
 
@@ -179,34 +146,6 @@ function Set-AssemblyInfoVersion {
     }
 
     Write-ReleaseTextFile -Path $assemblyInfoPath -Value $updated
-}
-
-# README.md のバージョンバッジを更新する
-function Set-ReadmeVersionBadge {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string] $RepoRoot,
-
-        [Parameter(Mandatory = $true)]
-        [string] $NewVersion,
-
-        [switch] $DryRun
-    )
-
-    $readmePath = Join-Path $RepoRoot 'README.md'
-    $content = Read-ReleaseTextFile -Path $readmePath
-    $pattern = '(img\.shields\.io/badge/Version-)[^-]+(-blue)'
-    if ([regex]::Matches($content, $pattern).Count -ne 1) {
-        throw 'README.md のバージョンバッジが見つからないか、複数あります'
-    }
-
-    if ($DryRun) {
-        Write-Host "[DryRun] README.md -> バージョンバッジを $NewVersion に更新"
-        return
-    }
-
-    $updated = [regex]::Replace($content, $pattern, '${1}' + $NewVersion + '${2}')
-    Write-ReleaseTextFile -Path $readmePath -Value $updated
 }
 
 # CHANGELOG.md の [Unreleased] 節をリリース見出しへ移し、末尾の比較リンクを更新する
@@ -273,8 +212,7 @@ function Update-ChangelogForRelease {
 function Get-ReleaseVersionFilePaths {
     return @(
         'src/PdfConverter/Properties/AssemblyInfo.cs',
-        'CHANGELOG.md',
-        'README.md'
+        'CHANGELOG.md'
     )
 }
 

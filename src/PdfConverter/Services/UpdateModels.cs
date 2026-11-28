@@ -3,21 +3,21 @@ using System;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// gh-release-bridge の <c>/version</c> レスポンス
+    /// GitHub Releases API の最新リリース情報
     /// </summary>
-    public sealed class VersionApiResponse
+    public sealed class GitHubRelease
     {
         /// <summary>リリースタグ (例: <c>v0.4.0</c>)</summary>
         public string Tag { get; set; } = string.Empty;
 
-        /// <summary>許可されたアセット一覧</summary>
-        public VersionApiAsset[] Assets { get; set; } = Array.Empty<VersionApiAsset>();
+        /// <summary>アセット一覧</summary>
+        public GitHubReleaseAsset[] Assets { get; set; } = Array.Empty<GitHubReleaseAsset>();
     }
 
     /// <summary>
-    /// version API のアセット要素
+    /// GitHub Release のアセット要素
     /// </summary>
-    public sealed class VersionApiAsset
+    public sealed class GitHubReleaseAsset
     {
         /// <summary>アセット名</summary>
         public string Name { get; set; } = string.Empty;
@@ -46,11 +46,26 @@ namespace PdfConverter.Services
         /// <summary>ダウンロードするアセット名</summary>
         public string AssetName { get; set; } = string.Empty;
 
+        /// <summary>更新パッケージの種類</summary>
+        public UpdatePackageKind PackageKind { get; set; } = UpdatePackageKind.Installer;
+
         /// <summary>宣言サイズ (バイト)</summary>
         public long Size { get; set; }
 
         /// <summary>正規化済み SHA-256 (小文字 64 桁)</summary>
         public string Sha256 { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 更新パッケージの種類
+    /// </summary>
+    public enum UpdatePackageKind
+    {
+        /// <summary>インストーラー (<c>PdfConverter-*-{platform}-setup.exe</c>)。インストール版の更新に使う</summary>
+        Installer,
+
+        /// <summary>ポータブル版の zip (<c>PdfConverter-*-{platform}-portable.zip</c>)。ポータブル版の更新に使う</summary>
+        Portable,
     }
 
     /// <summary>
@@ -121,7 +136,7 @@ namespace PdfConverter.Services
     /// </summary>
     public enum UpdateApplyKind
     {
-        /// <summary>インストーラーを起動した</summary>
+        /// <summary>更新を適用するプログラム (インストーラー、またはポータブル版の更新処理) を起動した</summary>
         SetupStarted,
 
         /// <summary>失敗</summary>
@@ -136,7 +151,7 @@ namespace PdfConverter.Services
         /// <summary>結果種別</summary>
         public UpdateApplyKind Kind { get; private set; }
 
-        /// <summary>保存したセットアップのパス (成功時)</summary>
+        /// <summary>起動したプログラムのパス (成功時)</summary>
         public string? SetupPath { get; private set; }
 
         /// <summary>エラーメッセージ (失敗時)</summary>

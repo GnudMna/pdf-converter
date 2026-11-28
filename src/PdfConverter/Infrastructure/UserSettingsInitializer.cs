@@ -64,6 +64,11 @@ namespace PdfConverter.Infrastructure
                 }
             }
 
+            if (PortableMode.IsEnabled)
+            {
+                return PortableMode.SettingsFilePath;
+            }
+
             try
             {
                 return ConfigurationManager

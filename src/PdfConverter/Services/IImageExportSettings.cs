@@ -22,6 +22,9 @@ namespace PdfConverter.Services
         /// <summary>透明度を保持するかどうか</summary>
         bool PreserveTransparency { get; set; }
 
+        /// <summary>JPEG 品質 (1〜100)</summary>
+        int JpegQuality { get; set; }
+
 
         /********************************************************************************/
         /*                                 抽象メソッド                                 */

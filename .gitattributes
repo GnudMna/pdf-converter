@@ -1,0 +1,7 @@
+# 改行コードは .editorconfig (end_of_line = crlf) に合わせ、個人の core.autocrlf に依存させない
+* text=auto eol=crlf
+
+# バイナリ
+*.png binary
+*.ico binary
+*.pdf binary

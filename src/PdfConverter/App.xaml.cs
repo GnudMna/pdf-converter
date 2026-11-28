@@ -43,9 +43,29 @@ namespace PdfConverter
 
             GlobalExceptionHandler.Register();
 
+            // ポータブル版の更新処理は展開先から起動されるため、設定・一時ファイルに触れる前に分岐する
+            if (PortableUpdateCommand.TryParse(e.Args, out PortableUpdateOptions? portableUpdateOptions))
+            {
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                try
+                {
+                    PortableUpdateCommand.Run(portableUpdateOptions);
+                }
+                finally
+                {
+                    Shutdown();
+                }
+
+                return;
+            }
+
             UserSettingsBootstrapResult settingsBootstrap = UserSettingsInitializer.Initialize();
 
             PdfConverterTempDirectory.CleanupStaleEntries(PdfConverterTempDirectory.DefaultStaleAge);
+            if (PortableMode.IsEnabled)
+            {
+                PortableUpdateApplier.CleanupLeftoverBackups(PortableMode.AppDirectory);
+            }
 
             if (TryRunBatchMode(e.Args, settingsBootstrap))
             {
@@ -133,6 +153,10 @@ namespace PdfConverter
                     BatchConsoleHelper.WriteErrorLine(parseError);
                     BatchConsoleHelper.WriteLine(string.Empty);
                     BatchConsoleHelper.WriteLine(BatchCliParser.GetHelpText());
+                }
+                else if (!BatchPasswordResolver.TryResolve(options, Console.OpenStandardInput, Environment.GetEnvironmentVariable, out string? passwordError))
+                {
+                    BatchConsoleHelper.WriteErrorLine(passwordError);
                 }
                 else
                 {

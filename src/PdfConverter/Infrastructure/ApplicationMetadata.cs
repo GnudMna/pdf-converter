@@ -69,7 +69,7 @@ namespace PdfConverter.Infrastructure
                 .FirstOrDefault(attribute => attribute.Key == "Publisher")?.Value ?? string.Empty;
 
         /// <summary>アプリ本体のライセンス名</summary>
-        public static string ApplicationLicenseName => "All Rights Reserved";
+        public static string ApplicationLicenseName => "MIT License";
 
         /// <summary>同梱 OSS 一覧</summary>
         public static IReadOnlyList<ThirdPartyComponent> BundledComponents => BundledComponentsList;

@@ -1,7 +1,7 @@
 # PDF Converter — 利用者向けドキュメントのビルド関数
 #
 # docs/user を mdBook で HTML 化し、インストーラーへ同梱する出力 (artifacts\user-docs) を作ります。
-# installer/ 配下のスクリプトからドットソースして使用します。
+# scripts/ 配下のスクリプトからドットソースして使用します。
 #   . (Join-Path $PSScriptRoot 'build-user-docs.ps1')
 #
 # 必要環境:
@@ -21,26 +21,7 @@ $script:UserDocsRequiredPages = @(
     'changelog.html'
 )
 
-# ディレクトリからの相対パスを返す (Windows PowerShell 5.1 には Path.GetRelativePath が無いため)
-function Get-UserDocsRelativePath {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string] $BaseDir,
-
-        [Parameter(Mandatory = $true)]
-        [string] $Path
-    )
-
-    $base = [System.IO.Path]::GetFullPath($BaseDir).TrimEnd('\') + '\'
-    $full = [System.IO.Path]::GetFullPath($Path)
-    if (-not $full.StartsWith($base, [System.StringComparison]::OrdinalIgnoreCase)) {
-        return $full
-    }
-
-    return $full.Substring($base.Length)
-}
-
-# BOM なしの UTF-8 で書き込む (Windows PowerShell 5.1 の Set-Content -Encoding utf8 は BOM を付けるため)
+# BOM なしの UTF-8 で書き込む
 function Write-Utf8NoBomFile {
     param(
         [Parameter(Mandatory = $true)]
@@ -157,7 +138,7 @@ function Assert-UserDocsLinks {
     $errors = New-Object 'System.Collections.Generic.List[string]'
     foreach ($page in Get-ChildItem -LiteralPath $OutputDir -Recurse -File -Filter '*.html') {
         $html = Get-Content -LiteralPath $page.FullName -Raw -Encoding utf8
-        $relativePage = Get-UserDocsRelativePath -BaseDir $OutputDir -Path $page.FullName
+        $relativePage = [System.IO.Path]::GetRelativePath($OutputDir, $page.FullName)
 
         foreach ($m in [regex]::Matches($html, '\s(?:href|src)="([^"]+)"')) {
             $link = [System.Net.WebUtility]::HtmlDecode($m.Groups[1].Value)

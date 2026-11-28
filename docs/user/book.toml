@@ -1,5 +1,5 @@
 # 利用者向けドキュメントの mdBook 設定
-# インストーラー同梱用の HTML は installer/build-user-docs.ps1 で生成する
+# インストーラー同梱用の HTML は scripts/build-user-docs.ps1 で生成する
 
 [book]
 title = "PDF Converter ドキュメント"

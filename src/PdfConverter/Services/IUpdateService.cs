@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// gh-release-bridge 経由の更新確認・適用
+    /// GitHub Release からの更新確認・適用
     /// </summary>
     public interface IUpdateService
     {
@@ -19,7 +19,7 @@ namespace PdfConverter.Services
         Task<UpdateCheckResult> CheckForUpdateAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// 更新アセットをダウンロード・検証し、インストーラーを起動する
+        /// 更新アセットをダウンロード・検証し、インストーラー (ポータブル版は展開した新しい版の更新処理) を起動する
         /// </summary>
         /// <param name="update">確認済みの更新情報</param>
         /// <param name="cancellationToken">キャンセルトークン</param>

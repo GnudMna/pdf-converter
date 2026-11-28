@@ -40,6 +40,9 @@ namespace PdfConverter.ViewModels
         /// <summary>透明度を保持するかどうか</summary>
         private bool _preserveTransparency;
 
+        /// <summary>JPEG 品質 (1〜100)</summary>
+        private int _jpegQuality;
+
         /// <summary>出力解像度の入力エラーメッセージ</summary>
         private string? _resolutionValidationMessage;
 
@@ -86,6 +89,7 @@ namespace PdfConverter.ViewModels
             _resolutionMode = settings.ResolutionMode;
             _resolutionValue = settings.ResolutionValue;
             _preserveTransparency = settings.PreserveTransparency;
+            _jpegQuality = settings.JpegQuality;
         }
 
 
@@ -171,6 +175,7 @@ namespace PdfConverter.ViewModels
                 }
 
                 OnPropertyChanged(nameof(IsTransparencySelectable));
+                OnPropertyChanged(nameof(IsJpegQualitySelectable));
                 PersistSettings();
             }
         }
@@ -196,6 +201,27 @@ namespace PdfConverter.ViewModels
 
         /// <summary>透明度を選択可能かどうか</summary>
         public bool IsTransparencySelectable => ImageBitmapHelper.SupportsTransparency(OutputImageFormat);
+
+        /// <summary>JPEG 品質 (1〜100。範囲外の入力は範囲内に丸める)</summary>
+        public int JpegQuality
+        {
+            get => _jpegQuality;
+            set
+            {
+                int clamped = Services.JpegQuality.Clamp(value);
+                if (!SetProperty(ref _jpegQuality, clamped))
+                {
+                    // 範囲外の入力が丸められて現在値と同じになった場合も、入力欄を現在値へ戻す
+                    OnPropertyChanged();
+                    return;
+                }
+
+                PersistSettings();
+            }
+        }
+
+        /// <summary>JPEG 品質を選択可能かどうか</summary>
+        public bool IsJpegQualitySelectable => OutputImageFormat == OutputImageFormat.Jpeg;
 
         /// <summary>出力解像度の入力エラーメッセージ</summary>
         public string? ResolutionValidationMessage
@@ -236,11 +262,14 @@ namespace PdfConverter.ViewModels
             _resolutionMode = _settings.ResolutionMode;
             _resolutionValue = _settings.ResolutionValue;
             _preserveTransparency = _settings.PreserveTransparency;
+            _jpegQuality = _settings.JpegQuality;
             OnPropertyChanged(nameof(OutputImageFormat));
             OnPropertyChanged(nameof(ResolutionMode));
             OnPropertyChanged(nameof(ResolutionValue));
             OnPropertyChanged(nameof(PreserveTransparency));
             OnPropertyChanged(nameof(IsTransparencySelectable));
+            OnPropertyChanged(nameof(JpegQuality));
+            OnPropertyChanged(nameof(IsJpegQualitySelectable));
             ClearValidationMessages();
         }
 
@@ -260,6 +289,7 @@ namespace PdfConverter.ViewModels
             _settings.ResolutionMode = _resolutionMode;
             _settings.ResolutionValue = _resolutionValue;
             _settings.PreserveTransparency = _preserveTransparency;
+            _settings.JpegQuality = _jpegQuality;
             _settings.Save();
         }
     }

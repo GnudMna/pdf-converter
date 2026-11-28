@@ -11,7 +11,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void Evaluate_MarksEqualVersionUpToDate()
         {
-            var response = new VersionApiResponse
+            var response = new GitHubRelease
             {
                 Tag = "v0.4.0",
                 Assets = new[] { Asset("PdfConverter-0.4.0-x64-setup.exe", 100) },
@@ -27,12 +27,12 @@ namespace PdfConverter.Tests.Services
         public void Evaluate_ReturnsAvailableWhenNewer()
         {
             string digest = "sha256:" + new string('b', 64);
-            var response = new VersionApiResponse
+            var response = new GitHubRelease
             {
                 Tag = "v0.5.0",
                 Assets = new[]
                 {
-                    new VersionApiAsset
+                    new GitHubReleaseAsset
                     {
                         Name = "PdfConverter-0.5.0-x64-setup.exe",
                         Size = 42,
@@ -54,12 +54,12 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void Evaluate_FailsWhenDigestMissing()
         {
-            var response = new VersionApiResponse
+            var response = new GitHubRelease
             {
                 Tag = "v0.5.0",
                 Assets = new[]
                 {
-                    new VersionApiAsset
+                    new GitHubReleaseAsset
                     {
                         Name = "PdfConverter-0.5.0-x64-setup.exe",
                         Size = 42,
@@ -77,7 +77,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void Evaluate_FailsWhenArchMissing()
         {
-            var response = new VersionApiResponse
+            var response = new GitHubRelease
             {
                 Tag = "v0.5.0",
                 Assets = new[] { Asset("PdfConverter-0.5.0-x86-setup.exe", 10) },
@@ -92,7 +92,7 @@ namespace PdfConverter.Tests.Services
         [Fact]
         public void Evaluate_FailsOnInvalidTag()
         {
-            var response = new VersionApiResponse
+            var response = new GitHubRelease
             {
                 Tag = "not-a-version",
                 Assets = new[] { Asset("PdfConverter-0.5.0-x64-setup.exe", 10) },
@@ -103,8 +103,50 @@ namespace PdfConverter.Tests.Services
             Assert.Equal(UpdateCheckKind.Failed, result.Kind);
         }
 
-        private static VersionApiAsset Asset(string name, long size) =>
-            new VersionApiAsset
+        /// <summary>
+        /// ポータブル版はプラットフォームに合う zip を選び、更新情報にポータブル版であることを記録することを検証する
+        /// </summary>
+        [Fact]
+        public void Evaluate_Portable_SelectsZip()
+        {
+            var response = new GitHubRelease
+            {
+                Tag = "v0.5.0",
+                Assets = new[]
+                {
+                    Asset("PdfConverter-0.5.0-x64-setup.exe", 10),
+                    Asset("PdfConverter-0.5.0-x64-portable.zip", 20),
+                },
+            };
+
+            UpdateCheckResult result = UpdateEvaluator.Evaluate("0.4.0", response, "x64", UpdatePackageKind.Portable);
+
+            Assert.Equal(UpdateCheckKind.Available, result.Kind);
+            Assert.Equal("PdfConverter-0.5.0-x64-portable.zip", result.Update.AssetName);
+            Assert.Equal(20, result.Update.Size);
+            Assert.Equal(UpdatePackageKind.Portable, result.Update.PackageKind);
+        }
+
+        /// <summary>
+        /// ポータブル版の zip が公開されていないときは、ポータブル版が見つからない旨で失敗することを検証する
+        /// </summary>
+        [Fact]
+        public void Evaluate_PortableZipMissing_Fails()
+        {
+            var response = new GitHubRelease
+            {
+                Tag = "v0.5.0",
+                Assets = new[] { Asset("PdfConverter-0.5.0-x64-setup.exe", 10) },
+            };
+
+            UpdateCheckResult result = UpdateEvaluator.Evaluate("0.4.0", response, "x64", UpdatePackageKind.Portable);
+
+            Assert.Equal(UpdateCheckKind.Failed, result.Kind);
+            Assert.Contains("ポータブル版", result.ErrorMessage);
+        }
+
+        private static GitHubReleaseAsset Asset(string name, long size) =>
+            new GitHubReleaseAsset
             {
                 Name = name,
                 Size = size,

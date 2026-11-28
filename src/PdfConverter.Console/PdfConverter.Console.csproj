@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>PdfConverter.ConsoleLauncher</RootNamespace>
+    <AssemblyName>pdfconv</AssemblyName>
+    <Nullable>enable</Nullable>
+    <NeutralLanguage>ja</NeutralLanguage>
+    <!-- 起動プログラムは版を持たないため、Directory.Build.props で無効にした AssemblyVersion の自動生成だけ有効に戻す (CA1016 対策) -->
+    <GenerateAssemblyVersionAttribute>true</GenerateAssemblyVersionAttribute>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+</Project>

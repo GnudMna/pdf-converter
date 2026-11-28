@@ -64,7 +64,7 @@ namespace PdfConverter.Services
         /// <summary>
         /// 宣言サイズがダウンロード可能な範囲か検証する
         /// </summary>
-        /// <param name="expectedSize">version API が報告するバイト数</param>
+        /// <param name="expectedSize">GitHub Release 情報が示すバイト数</param>
         /// <param name="errorMessage">失敗時のメッセージ</param>
         /// <returns>許容範囲なら <c>true</c></returns>
         public static bool TryValidateDeclaredSize(long expectedSize, [NotNullWhen(false)] out string? errorMessage)

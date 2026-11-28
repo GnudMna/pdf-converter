@@ -41,8 +41,20 @@ namespace PdfConverter.Infrastructure
         /// <summary>パスワードで保護された PDF を開くパスワード (<c>null</c> の場合は指定なし。すべての入力ファイルに使う)</summary>
         public string? Password { get; set; }
 
+        /// <summary>パスワードを読み取るファイルのパス (<c>--password-file</c>。<c>null</c> の場合は指定なし)</summary>
+        public string? PasswordFilePath { get; set; }
+
+        /// <summary>パスワードを読み取る環境変数の名前 (<c>--password-env</c>。<c>null</c> の場合は指定なし)</summary>
+        public string? PasswordEnvironmentVariable { get; set; }
+
+        /// <summary>パスワードを標準入力から読み取るかどうか (<c>--password-stdin</c>)</summary>
+        public bool PasswordFromStandardInput { get; set; }
+
         /// <summary>透明度を保持するかどうか (<c>null</c> の場合は保存済み設定を使用)</summary>
         public bool? PreserveTransparency { get; set; }
+
+        /// <summary>JPEG 品質 (1〜100。<c>null</c> の場合は保存済み設定を使用)</summary>
+        public int? JpegQuality { get; set; }
 
         /// <summary>変換対象の入力ファイル一覧</summary>
         public IList<string> InputFiles { get; } = new List<string>();

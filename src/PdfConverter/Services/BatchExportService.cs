@@ -190,6 +190,7 @@ namespace PdfConverter.Services
             string resolutionValue = options.ResolutionValue ?? _imageExportSettings.ResolutionValue;
             bool preserveTransparency = options.PreserveTransparency
                 ?? ImageExportSettings.ResolvePreserveTransparency(format, _imageExportSettings.PreserveTransparency);
+            int jpegQuality = options.JpegQuality ?? JpegQuality.Resolve(_imageExportSettings.JpegQuality);
 
             if (!ResolutionValueParser.TryParse(resolutionMode, resolutionValue, out double parsedResolution, out string? resolutionError))
             {
@@ -239,6 +240,7 @@ namespace PdfConverter.Services
                 parsedResolution,
                 format,
                 preserveTransparency,
+                jpegQuality,
                 progress,
                 cancellationToken);
 

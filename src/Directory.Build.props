@@ -18,8 +18,8 @@
   </PropertyGroup>
 
   <!--
-    両プロジェクト共通のビルド設定。
-    pdfium.dll がプラットフォーム固有のため x64 / x86 のみ対応し、出力先は bin\<Platform>\<Configuration>\ に揃える。
+    全プロジェクト共通のビルド設定。
+    pdfium.dll がプラットフォーム固有のため x64 / x86 のみ対応し、出力先は bin\<Platform>\<Configuration>\ に揃える (ターゲットフレームワーク名のフォルダーは付けない)。
     Release の DebugType はプロジェクトごとに異なるため各 csproj で指定する。
   -->
   <PropertyGroup>
@@ -34,7 +34,17 @@
     <SelfContained>true</SelfContained>
     <SatelliteResourceLanguages>ja;en</SatelliteResourceLanguages>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+  <!--
+    依存パッケージのロック。推移的な依存も packages.lock.json に固定し、復元のたびに解決し直されないようにする。
+    Platform ごとに RuntimeIdentifier が変わるため、両方の RID をまとめて復元し、x64 / x86 のどちらで復元してもロックファイルが同じになるようにする。
+    ロックファイルと食い違う復元は、scripts/build-and-test.ps1 と scripts/build-installer.ps1 が locked mode で検出する。
+  -->
+  <PropertyGroup>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
   </PropertyGroup>
   <!--
     コード解析。CI がないため、警告をエラーにしてローカルビルドで必ず検出する。

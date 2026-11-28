@@ -41,6 +41,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<double>(),
                 It.IsAny<OutputImageFormat>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
         }
@@ -97,9 +98,33 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<double>(),
                 It.IsAny<OutputImageFormat>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
             Directory.Delete(folder, recursive: true);
+        }
+
+        /// <summary>
+        /// ページ範囲の書式が不正な場合に、PDF の取得とフォルダー選択の前に停止することを検証する
+        /// </summary>
+        [Fact]
+        public async Task SaveAsync_MalformedPageRange_StopsBeforeConversionAndFolderDialog()
+        {
+            var coordinator = CreateCoordinator(out var pdf, out var dialog);
+            var host = new TestMainViewModelHost
+            {
+                FilePath = "C:\\sample.pdf",
+                PageCount = 2,
+                PageRange = "1--3",
+                ResolutionValue = "1080",
+            };
+
+            await coordinator.SaveAsync(host);
+
+            Assert.False(string.IsNullOrWhiteSpace(host.PageRangeValidationMessage));
+            Assert.Equal(StatusKind.Warning, host.StatusKind);
+            pdf.Verify(p => p.GetPdfPageCountAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            dialog.Verify(d => d.ShowFolderBrowserDialog(), Times.Never);
         }
 
         /// <summary>
@@ -135,6 +160,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<double>(),
                 It.IsAny<OutputImageFormat>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
             Directory.Delete(folder, recursive: true);
@@ -184,6 +210,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<double>(),
                 It.IsAny<OutputImageFormat>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Never);
             Directory.Delete(folder, recursive: true);
@@ -219,6 +246,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 It.IsAny<double>(),
                 It.IsAny<OutputImageFormat>(),
                 It.IsAny<bool>(),
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
             Directory.Delete(folder, recursive: true);
@@ -250,6 +278,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                     It.IsAny<double>(),
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Callback(() => host.Cancel())
@@ -289,6 +318,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                     1080,
                     host.OutputImageFormat,
                     true,
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
@@ -341,6 +371,7 @@ namespace PdfConverter.Tests.ViewModels.Coordinators
                 300,
                 OutputImageFormat.Png,
                 true,
+                It.IsAny<int>(),
                 It.IsAny<IProgress<SaveProgressReport>>(),
                 It.IsAny<CancellationToken>()), Times.Once);
             Directory.Delete(folder, recursive: true);

@@ -41,12 +41,16 @@ namespace PdfConverter.Services
         /// <summary>並列度を 2 に制限する PDF サイズの上限 (バイト)</summary>
         private const long MediumPdfThresholdBytes = 32L * 1024 * 1024;
 
-        /// <summary>64 ビットプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        /// <summary>64 ビットプロセスで、透明度を保持して保存するときに全ワーカーが同時に描画してよい画素数の合計</summary>
         /// <remarks>描画中は 1 ページにつき BGRA32 のビットマップが複数同時に存在するため、メモリピークは画素数の 10 数倍 (バイト) になる</remarks>
         private const long SaveRenderPixelBudgetX64 = 200_000_000;
 
-        /// <summary>32 ビットプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        /// <summary>32 ビットプロセスで、透明度を保持して保存するときに全ワーカーが同時に描画してよい画素数の合計</summary>
         private const long SaveRenderPixelBudgetX86 = 100_000_000;
+
+        /// <summary>白背景で保存するときの画素数の上限を、透明度を保持する場合の何倍にするか</summary>
+        /// <remarks>白背景は PDFium が BGR24 へ直接描画し、合成用のバッファーも不要なため、1 画素あたりのメモリが減る</remarks>
+        private const double OpaqueSaveRenderPixelBudgetFactor = 1.5;
 
         /// <summary>PDF ヘッダー (<c>%PDF</c>) を探索するファイル先頭からの最大オフセット (バイト)</summary>
         /// <remarks>PDF 仕様および PDFium と同じく、先頭 1024 バイト以内のヘッダーを許容する</remarks>
@@ -86,7 +90,7 @@ namespace PdfConverter.Services
         /********************************************************************************/
         /*                                  プロパティ                                  */
         /********************************************************************************/
-        /// <summary>実行中のプロセスで保存時に全ワーカーが同時に描画してよい画素数の合計</summary>
+        /// <summary>実行中のプロセスで、透明度を保持して保存するときに全ワーカーが同時に描画してよい画素数の合計</summary>
         private static long SaveRenderPixelBudget => Environment.Is64BitProcess ? SaveRenderPixelBudgetX64 : SaveRenderPixelBudgetX86;
 
 
@@ -175,8 +179,13 @@ namespace PdfConverter.Services
         }
 
         /// <inheritdoc/>
-        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default)
+        public async Task SavePdfPagesToImagesAsync(string filePath, IEnumerable<int>? pageIndexes, string folderPath, bool saveAllPages, ResolutionMode mode = ResolutionMode.Default, double value = 0, OutputImageFormat format = OutputImageFormat.Png, bool preserveTransparency = true, int jpegQuality = JpegQuality.Default, IProgress<SaveProgressReport>? progress = null, CancellationToken cancellationToken = default)
         {
+            if (format == OutputImageFormat.Jpeg && !JpegQuality.IsValid(jpegQuality))
+            {
+                throw new ArgumentOutOfRangeException(nameof(jpegQuality), jpegQuality, $"JPEG 品質は {JpegQuality.Min}〜{JpegQuality.Max} で指定してください。");
+            }
+
             if (!File.Exists(filePath))
             {
                 throw new FileNotFoundException("PDF ファイルが見つかりません。", filePath);
@@ -251,7 +260,7 @@ namespace PdfConverter.Services
                 // ワーカー内では 1 つの文書を担当ページすべてで再利用し、ページごとの読み込みコストを削減する
                 // 大容量 PDF では文書ごとのネイティブメモリが積み上がるため、ファイルサイズに応じて並列度を抑える
                 // 高解像度ではページごとのビットマップが大きくなるため、描画サイズに応じても並列度を抑える
-                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileSize, maxPagePixels, SaveRenderPixelBudget);
+                int maxParallelism = ResolveSaveParallelism(Environment.ProcessorCount, fileSize, maxPagePixels, IsTransparencyPreserved(format, preserveTransparency) ? SaveRenderPixelBudget : (long)(SaveRenderPixelBudget * OpaqueSaveRenderPixelBudgetFactor));
                 List<List<int>> partitions = PartitionPages(pagesToSave, maxParallelism);
 
                 // いずれかのワーカーが失敗したら残りのワーカーも打ち切り、結果が出ない描画を続けないようにする
@@ -271,7 +280,7 @@ namespace PdfConverter.Services
                                     {
                                         workerToken.ThrowIfCancellationRequested();
 
-                                        SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency);
+                                        SavePageToFile(document, pageIndex, renderScaleByPage[pageIndex], pageCount, stagingDirectory, format, preserveTransparency, jpegQuality);
 
                                         // 件数の加算から通知までを同じロックで行い、並列ワーカー間で進捗が逆戻りしないようにする
                                         lock (progressLock)
@@ -714,14 +723,20 @@ namespace PdfConverter.Services
         private static BitmapSource RenderPage(PdfiumDocument document, int pageIndex, double renderScale, bool preserveTransparency, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            BitmapSource source = document.RenderPage(pageIndex, renderScale);
-            BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, preserveTransparency);
-            if (processed.CanFreeze)
-            {
-                processed.Freeze();
-            }
 
-            return processed;
+            // 白背景は PDFium の描画時に塗りつぶすため、別バッファーへの合成は不要
+            return document.RenderPage(pageIndex, renderScale, opaqueWhiteBackground: !preserveTransparency);
+        }
+
+        /// <summary>
+        /// 保存時に透明度を保持するかどうかを返す (透明度に対応しない形式では常に <c>false</c>)
+        /// </summary>
+        /// <param name="format">出力画像形式</param>
+        /// <param name="preserveTransparency">透明度保持の指定</param>
+        /// <returns><c>true</c>: 透明度を保持する / <c>false</c>: 白背景にする</returns>
+        private static bool IsTransparencyPreserved(OutputImageFormat format, bool preserveTransparency)
+        {
+            return preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
         }
 
         /// <summary>
@@ -734,13 +749,13 @@ namespace PdfConverter.Services
         /// <param name="folderPath">保存先フォルダーのパス</param>
         /// <param name="format">出力画像形式</param>
         /// <param name="preserveTransparency"><c>true</c> の場合は透明度を保持する</param>
-        private static void SavePageToFile(PdfiumDocument document, int pageIndex, double renderScale, int pageCount, string folderPath, OutputImageFormat format, bool preserveTransparency)
+        /// <param name="jpegQuality">JPEG 品質 (1〜100。JPEG 以外の形式では無視する)</param>
+        private static void SavePageToFile(PdfiumDocument document, int pageIndex, double renderScale, int pageCount, string folderPath, OutputImageFormat format, bool preserveTransparency, int jpegQuality)
         {
-            BitmapSource source = document.RenderPage(pageIndex, renderScale);
-            bool effectivePreserveTransparency = preserveTransparency && ImageBitmapHelper.SupportsTransparency(format);
-            BitmapSource processed = ImageBitmapHelper.ApplyTransparency(source, effectivePreserveTransparency);
+            bool effectivePreserveTransparency = IsTransparencyPreserved(format, preserveTransparency);
+            BitmapSource processed = document.RenderPage(pageIndex, renderScale, opaqueWhiteBackground: !effectivePreserveTransparency);
             string outputPath = Path.Combine(folderPath, PageImageFileNameHelper.GetFileName(pageIndex, pageCount, format));
-            ImageBitmapHelper.SaveToFile(processed, outputPath, format);
+            ImageBitmapHelper.SaveToFile(processed, outputPath, format, jpegQuality);
         }
 
         /// <summary>

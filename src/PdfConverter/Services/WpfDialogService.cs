@@ -1,10 +1,12 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using Microsoft.Win32;
 using Ookii.Dialogs.Wpf;
 using PdfConverter.Infrastructure;
+using PdfConverter.Properties;
 using PdfConverter.Views;
 
 namespace PdfConverter.Services
@@ -57,7 +59,22 @@ namespace PdfConverter.Services
         public string? ShowFolderBrowserDialog()
         {
             var dialog = new VistaFolderBrowserDialog();
-            return dialog.ShowDialog() == true ? dialog.SelectedPath : null;
+
+            // 前回選んだフォルダーが残っている場合だけ初期位置に使う
+            string lastFolder = Settings.Default.LastSaveFolder;
+            if (!string.IsNullOrEmpty(lastFolder) && Directory.Exists(lastFolder))
+            {
+                dialog.SelectedPath = lastFolder.EndsWith('\\') ? lastFolder : lastFolder + '\\';
+            }
+
+            if (dialog.ShowDialog() != true)
+            {
+                return null;
+            }
+
+            Settings.Default.LastSaveFolder = dialog.SelectedPath;
+            Settings.Default.Save();
+            return dialog.SelectedPath;
         }
 
         /// <inheritdoc/>

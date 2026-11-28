@@ -28,6 +28,9 @@ namespace PdfConverter.ViewModels.Coordinators
         /// <summary>透明度を保持するかどうか</summary>
         bool PreserveTransparency { get; }
 
+        /// <summary>JPEG 品質 (1〜100)</summary>
+        int JpegQuality { get; }
+
         /// <summary>保存ページ範囲の入力エラーメッセージ</summary>
         string? PageRangeValidationMessage { get; set; }
     }

@@ -31,9 +31,9 @@
         },
         {
             "label": "build-and-test",
-            "detail": "installer/build-and-test.ps1 で復元・リビルド・テストを一括実行",
+            "detail": "scripts/build-and-test.ps1 で復元・リビルド・テストを一括実行",
             "type": "shell",
-            "command": "./installer/build-and-test.ps1 -Configuration ${input:configuration} -Platform ${input:platform} -NoPause",
+            "command": "./scripts/build-and-test.ps1 -Configuration ${input:configuration} -Platform ${input:platform} -NoPause",
             "problemMatcher": "$msCompile",
             "group": {
                 "kind": "test",
@@ -44,10 +44,28 @@
             }
         },
         {
+            "label": "format",
+            "detail": "scripts/format.ps1 で C# ファイルの書式を .editorconfig に合わせて直す",
+            "type": "shell",
+            "command": "./scripts/format.ps1 -NoPause",
+            "problemMatcher": []
+        },
+        {
+            "label": "coverage",
+            "detail": "scripts/build-and-test.ps1 -Coverage でカバレッジを計測し artifacts/coverage/report/ にレポートを出す",
+            "type": "shell",
+            "command": "./scripts/build-and-test.ps1 -Configuration Debug -Platform x64 -Coverage -NoPause",
+            "problemMatcher": "$msCompile",
+            "group": "test",
+            "presentation": {
+                "clear": true
+            }
+        },
+        {
             "label": "test",
             "detail": "ビルド済みのテスト実行ファイルを起動 (Debug / x64)",
             "type": "shell",
-            "command": "& ./src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe; exit $LASTEXITCODE",
+            "command": "& ./src/PdfConverter.Tests/bin/x64/Debug/PdfConverter.Tests.exe; exit $LASTEXITCODE",
             "dependsOn": "build",
             "problemMatcher": [],
             "group": "test"

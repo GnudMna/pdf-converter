@@ -175,5 +175,65 @@ namespace PdfConverter.Tests.Services
                 Assert.Throws<ArgumentException>(act);
             });
         }
+
+        /// <summary>
+        /// JPEG 品質が低いほどファイルサイズが小さくなることを検証する
+        /// </summary>
+        [Fact]
+        public void SaveToFile_JpegQuality_AffectsFileSize()
+        {
+            StaTestHelper.Run(() =>
+            {
+                BitmapSource source = CreateNoisyBitmap();
+                string lowPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.jpg");
+                string highPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.jpg");
+
+                try
+                {
+                    ImageBitmapHelper.SaveToFile(source, lowPath, OutputImageFormat.Jpeg, 10);
+                    ImageBitmapHelper.SaveToFile(source, highPath, OutputImageFormat.Jpeg, 100);
+
+                    Assert.True(new FileInfo(lowPath).Length < new FileInfo(highPath).Length);
+                }
+                finally
+                {
+                    File.Delete(lowPath);
+                    File.Delete(highPath);
+                }
+            });
+        }
+
+        /// <summary>
+        /// JPEG 品質が範囲外の場合に ArgumentOutOfRangeException がスローされることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData(0)]
+        [InlineData(101)]
+        public void SaveToFile_JpegQualityOutOfRange_ThrowsArgumentOutOfRangeException(int quality)
+        {
+            StaTestHelper.Run(() =>
+            {
+                var source = BitmapTestHelper.CreateBitmap();
+                string outputPath = Path.Combine(Path.GetTempPath(), $"pdf-converter-test-{Guid.NewGuid():N}.jpg");
+
+                Action act = () => ImageBitmapHelper.SaveToFile(source, outputPath, OutputImageFormat.Jpeg, quality);
+
+                Assert.Throws<ArgumentOutOfRangeException>(act);
+                Assert.False(File.Exists(outputPath));
+            });
+        }
+
+        /// <summary>
+        /// 品質の差が出るよう、ノイズ状のピクセルを持つビットマップを生成する
+        /// </summary>
+        private static BitmapSource CreateNoisyBitmap()
+        {
+            const int size = 64;
+            var pixels = new byte[size * size * 4];
+            new Random(1).NextBytes(pixels);
+            var bitmap = BitmapSource.Create(size, size, 96, 96, PixelFormats.Bgra32, null, pixels, size * 4);
+            bitmap.Freeze();
+            return bitmap;
+        }
     }
 }

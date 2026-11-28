@@ -74,6 +74,7 @@ namespace PdfConverter.Tests.Services
                     1080,
                     OutputImageFormat.Png,
                     false,
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);
@@ -144,6 +145,7 @@ namespace PdfConverter.Tests.Services
                     It.IsAny<double>(),
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);
@@ -381,10 +383,11 @@ namespace PdfConverter.Tests.Services
                     It.IsAny<double>(),
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
-                .Callback<string, IEnumerable<int>, string, bool, ResolutionMode, double, OutputImageFormat, bool, IProgress<SaveProgressReport>, CancellationToken>(
-                    (_, _, folder, _, _, _, _, _, _, _) => savedFolders.Add(folder))
+                .Callback<string, IEnumerable<int>, string, bool, ResolutionMode, double, OutputImageFormat, bool, int, IProgress<SaveProgressReport>, CancellationToken>(
+                    (_, _, folder, _, _, _, _, _, _, _, _) => savedFolders.Add(folder))
                 .Returns(Task.CompletedTask);
 
             var documentService = new Mock<IDocumentPdfSourceService>();
@@ -439,6 +442,7 @@ namespace PdfConverter.Tests.Services
                     It.IsAny<double>(),
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(() => Task.Delay(50));
@@ -564,6 +568,7 @@ namespace PdfConverter.Tests.Services
                     It.IsAny<double>(),
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()),
                 Times.Never);

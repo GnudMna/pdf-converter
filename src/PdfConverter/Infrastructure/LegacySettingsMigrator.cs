@@ -33,8 +33,14 @@ namespace PdfConverter.Infrastructure
         /// 現在の設定フォルダーに版フォルダーがなく、旧フォルダーに設定があれば引き継いで旧フォルダーを削除する
         /// </summary>
         /// <returns>旧フォルダーから複製したかどうか</returns>
+        /// <remarks>ポータブル版は旧フォルダーを使ったことがないため、何もしない</remarks>
         public static bool TryMigrate()
         {
+            if (PortableMode.IsEnabled)
+            {
+                return false;
+            }
+
             string? currentConfigFilePath = ResolveCurrentConfigFilePath();
             return currentConfigFilePath != null
                 && TryMigrate(currentConfigFilePath, LegacyCompanyDirectoryName);

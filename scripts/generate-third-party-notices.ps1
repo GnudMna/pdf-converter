@@ -260,7 +260,7 @@ foreach ($package in $packages) {
 }
 
 # PDFium のネイティブ DLL は NuGet パッケージにライセンスが含まれないため、
-# pdfium-binaries のリリースから取得したライセンスを installer\licenses\PDFium.txt に同梱している
+# pdfium-binaries のリリースから取得したライセンスを scripts\licenses\PDFium.txt に同梱している
 $pdfiumPackage = $packages | Where-Object { $_.id -eq 'bblanchon.PDFium.Win32' } | Select-Object -First 1
 if (-not $pdfiumPackage) {
     throw 'bblanchon.PDFium.Win32 パッケージが復元結果に見つかりません'
@@ -273,7 +273,7 @@ if (-not (Test-Path $pdfiumLicensePath)) {
 
 $pdfiumLicense = Get-Content -LiteralPath $pdfiumLicensePath -Raw
 if (-not $pdfiumLicense.StartsWith("PDFium $($pdfiumPackage.version) ")) {
-    throw "installer\licenses\PDFium.txt が PDFium $($pdfiumPackage.version) 向けではありません。pdfium-binaries の同じバージョンのリリースからライセンスを更新してください。"
+    throw "scripts\licenses\PDFium.txt が PDFium $($pdfiumPackage.version) 向けではありません。pdfium-binaries の同じバージョンのリリースからライセンスを更新してください。"
 }
 
 $sections += New-Section -Title "PDFium $($pdfiumPackage.version) (native library, shipped via bblanchon.PDFium.Win32)" -Body $pdfiumLicense
@@ -300,7 +300,7 @@ foreach ($runtimePack in $runtimePacks) {
 }
 
 # 利用者向けドキュメント (docs\。mdBook の HTML) に含まれる素材は NuGet の依存ではないため、
-# installer\licenses\user-docs-notices.txt の表示を末尾に追記する (版の一致は build-user-docs.ps1 が検証する)
+# scripts\licenses\user-docs-notices.txt の表示を末尾に追記する (版の一致は build-user-docs.ps1 が検証する)
 $userDocsNoticesPath = Join-Path $licensesFolder 'user-docs-notices.txt'
 if (-not (Test-Path $userDocsNoticesPath)) {
     throw "利用者向けドキュメントの素材表示が見つかりません: $userDocsNoticesPath"

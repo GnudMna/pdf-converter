@@ -223,9 +223,14 @@ namespace PdfConverter.Infrastructure
         }
 
         /// <summary>既定のログ出力先ディレクトリを返す</summary>
-        /// <returns>ログディレクトリの絶対パス</returns>
+        /// <returns>ログディレクトリの絶対パス (ポータブル版はアプリフォルダー内)</returns>
         private static string GetDefaultLogDirectory()
         {
+            if (PortableMode.IsEnabled)
+            {
+                return PortableMode.LogDirectory;
+            }
+
             string appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             return Path.Combine(appData, "PDF Converter", "logs");
         }

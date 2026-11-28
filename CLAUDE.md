@@ -16,31 +16,35 @@ PDF / Word 文書のページを画像 (PNG / JPEG / BMP) へ変換する Window
   - `Services/` — 変換・I/O・Word/LibreOffice 連携・バッチ変換
   - `Infrastructure/` — ログ・例外処理・DI 構成・設定初期化・CLI 解析
 - `src/PdfConverter.Tests/` — 単体テスト (本体と同じフォルダ構成)
-- `installer/` — Inno Setup スクリプトとビルド用 PowerShell。共通処理は `build-common.ps1`
+- `scripts/` — ビルド・テスト・リリース用 PowerShell と Inno Setup スクリプト。共通処理は `build-common.ps1`
 - `docs/user/` — 利用者向けドキュメント (mdBook の原稿。`changelog.md` は `CHANGELOG.md` を取り込むだけのため直接編集しない)
 - `docs/dev/` — 開発者向けドキュメント (構成・設計・テスト・インストーラー・リリース・開発の進め方)
 
 ## コマンド
 
-.NET SDK 10 以降 (dotnet CLI) でビルドする。ソリューションは `src/PdfConverter.slnx`。プラットフォームは `x64` / `x86` を必ず明示する (Any CPU は `pdfium.dll` がプラットフォーム固有のため非対応)。
+.NET SDK 11 以降 (dotnet CLI) でビルドする。最低版は `global.json` で固定している (`rollForward: latestMajor`)。ソリューションは `src/PdfConverter.slnx`。プラットフォームは `x64` / `x86` を必ず明示する (Any CPU は `pdfium.dll` がプラットフォーム固有のため非対応)。
 
 ```powershell
 # 復元・ビルド・単体テストの一括実行 (完了前の品質チェック。警告もビルドエラーになる)
-./installer/build-and-test.ps1 -NoPause
-./installer/build-and-test.ps1 -NoPause -Configuration Release -Platform x86
-./installer/build-and-test.ps1 -NoPause -SkipRestore   # 復元済みなら省略できる
+./scripts/build-and-test.ps1 -NoPause
+./scripts/build-and-test.ps1 -NoPause -Configuration Release -Platform x86
+./scripts/build-and-test.ps1 -NoPause -SkipRestore   # 復元済みなら省略できる
+./scripts/build-and-test.ps1 -NoPause -Coverage      # カバレッジも計測する (artifacts/coverage/report/index.html)
+./scripts/format.ps1 -NoPause                         # 書式チェック (dotnet format whitespace) の違反を直す
 
 # ビルドだけ
 dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64
 
 # テストだけ (ビルド後に実行ファイルを直接起動する。xUnit v3 の絞り込みオプションが使える)
-./src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe
-./src/PdfConverter.Tests/bin/x64/Debug/net10.0-windows/PdfConverter.Tests.exe -class "PdfConverter.Tests.Services.BatchExportServiceTests"
+./src/PdfConverter.Tests/bin/x64/Debug/PdfConverter.Tests.exe
+./src/PdfConverter.Tests/bin/x64/Debug/PdfConverter.Tests.exe -class "PdfConverter.Tests.Services.BatchExportServiceTests"
 ```
 
 `-NoPause` を付けないと、ダブルクリック起動と判定された場合に終了時のキー入力待ちで止まる。
 
-配布用出力は `installer/build-installer.ps1` が `dotnet publish` で `src/PdfConverter/bin/<Platform>/publish/` に作り、利用者向けドキュメントの HTML 化 (`build-user-docs.ps1`) とサードパーティ通知の生成 (`generate-third-party-notices.ps1`) も行う。
+復元は locked mode のため、`PackageReference` を変えたら `dotnet restore src/PdfConverter.slnx -p:Platform=x64` で `packages.lock.json` を更新し、同じ変更に含める。
+
+配布用出力は `scripts/build-installer.ps1` (インストーラー) と `scripts/build-portable.ps1` (ポータブル版の zip) が `dotnet publish` で `src/PdfConverter/bin/<Platform>/publish/` に作り、利用者向けドキュメントの HTML 化 (`build-user-docs.ps1`) とサードパーティ通知の生成 (`generate-third-party-notices.ps1`) も行う。共通処理は `publish-common.ps1`。ポータブル版の更新引数 (`--apply-portable-update`) は旧版が組み立てて新しい版が解釈するため、形式を変えない。
 
 ## ドキュメント同期
 
@@ -53,8 +57,8 @@ dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64
 | 既知の不具合・回避策 | `docs/user/troubleshooting.md` |
 | 利用者に見える挙動 | `CHANGELOG.md` の `[Unreleased]` (スキル `/changelog`) |
 | 構成・設計・ビルド手順・リリース手順 | `docs/dev/` の該当ページ |
-| mdBook の版 | `installer/licenses/user-docs-notices.txt` (出力に含まれる素材を確認する。不一致は `build-user-docs.ps1` がエラーにする) |
-| PDFiumCore の版 | `installer/licenses/PDFium.txt` を同じ版の pdfium-binaries リリースのライセンスに差し替える (不一致は `generate-third-party-notices.ps1` がエラーにする) |
+| mdBook の版 | `scripts/licenses/user-docs-notices.txt` (出力に含まれる素材を確認する。不一致は `build-user-docs.ps1` がエラーにする) |
+| PDFiumCore の版 | `scripts/licenses/PDFium.txt` を同じ版の pdfium-binaries リリースのライセンスに差し替える (不一致は `generate-third-party-notices.ps1` がエラーにする) |
 
 ## Git
 
@@ -63,7 +67,7 @@ dotnet build src/PdfConverter.slnx -c Debug -p:Platform=x64
 - worktree の自動命名ブランチ (`GnudMna/...` など) は、最初のコミットの前に `git branch -m` で規約の名前へ改める
 - コミットメッセージの件名は `<種別>: <日本語の要約>`。種別は `Feat` (新機能) / `Update` (既存機能の変更) / `Fix` / `Docs` / `Test` / `Refactor` / `Chore` / `Release`
 - 利用者に影響する変更は、`CHANGELOG.md` の追記を同じコミットに含める
-- リリース (`Release: vX.Y.Z`) では `Properties/AssemblyInfo.cs` のバージョン 3 属性・`CHANGELOG.md`・`README.md` を更新する。`release/vX.Y.Z` ブランチで `installer/release.ps1` を使うと、これらの更新・品質チェック・コミット・インストーラー作成を一括で行う。インストーラーの版は `build-installer.ps1` が `AssemblyInfo.cs` から取得する
+- リリース (`Release: vX.Y.Z`) では `Properties/AssemblyInfo.cs` のバージョン 3 属性と `CHANGELOG.md` を更新する (`README.md` のバッジは GitHub から版を取得するため触らない)。`release/vX.Y.Z` ブランチで `scripts/release.ps1` を使うと、これらの更新・品質チェック・コミット・インストーラー作成を一括で行う。インストーラーの版は `build-installer.ps1` が `AssemblyInfo.cs` から取得する
 
 ## コーディング規約
 

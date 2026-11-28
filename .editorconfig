@@ -36,7 +36,7 @@ trim_trailing_whitespace = true
 # XML documentation tags
 #   - Insert a space between a closing tag ("/>", "</c>") and following Japanese.
 #   - Insert a space between Japanese and a following tag (<see, <paramref, <c>).
-#   - Examples: <see cref="ICommand"/> を実行, Docnet.Core が依存
+#   - Examples: <see cref="ICommand"/> を実行, PDFiumCore が依存
 #
 # Enumeration separator (・)
 #   - Do not insert spaces before or after ・
@@ -45,7 +45,7 @@ trim_trailing_whitespace = true
 # Examples (correct)
 #   印刷向け (高品質)
 #   ファイル (PDF / Word)
-#   Docnet.Core (PDFium) を使用して PDF ページを画像に変換
+#   PDFiumCore (PDFium) を使用して PDF ページを画像に変換
 #   <see cref="ICommand"/> を UI イベントで実行する
 #   UI・ロジック / プレビュー生成・読み込み・ページ移動
 #

@@ -1,9 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,22 +12,33 @@ using PdfConverter.Infrastructure;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// gh-release-bridge 経由の更新確認・適用の実装
+    /// GitHub Release からの更新確認・適用の実装
     /// </summary>
     public sealed class UpdateService : IUpdateService, IDisposable
     {
         /********************************************************************************/
         /*                                     定数                                     */
         /********************************************************************************/
-        /// <summary>gh-release-bridge のベース URL</summary>
-        public const string DefaultBridgeBaseUrl =
-            "https://gh-release-bridge.gnudlemna-4656.workers.dev";
+        /// <summary>GitHub REST API のベース URL</summary>
+        public const string DefaultApiBaseUrl = "https://api.github.com";
+
+        /// <summary>GitHub Release のアセットをダウンロードするベース URL</summary>
+        public const string DefaultDownloadBaseUrl = "https://github.com";
 
         /// <summary>GitHub リポジトリ所有者</summary>
         public const string ReleaseOwner = "GnudMna";
 
         /// <summary>GitHub リポジトリ名</summary>
         public const string ReleaseRepo = "pdf-converter";
+
+        /// <summary>要求する GitHub REST API の版</summary>
+        private const string GitHubApiVersion = "2022-11-28";
+
+        /// <summary>インストーラーが作業フォルダーへ書き出すログのファイル名</summary>
+        internal const string SetupLogFileName = "setup.log";
+
+        /// <summary>ポータブル版の zip を展開する作業フォルダー内のフォルダー名</summary>
+        internal const string PortableStagingDirectoryName = "portable";
 
         /// <summary>HTTP リクエスト全体の既定のタイムアウト</summary>
         private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
@@ -54,20 +65,29 @@ namespace PdfConverter.Services
         /// <summary>プラットフォーム名 (<c>x64</c> / <c>x86</c>) を返す関数</summary>
         private readonly Func<string> _platformProvider;
 
-        /// <summary>アセットのダウンロード認証に使うリリースキーを返す関数</summary>
-        private readonly Func<string> _releaseKeyProvider;
-
         /// <summary>インストーラーの署名検証に使う公開鍵 (Base64) を返す関数</summary>
         private readonly Func<string> _signingPublicKeyProvider;
 
-        /// <summary>gh-release-bridge のベース URL (末尾の <c>/</c> なし)</summary>
-        private readonly string _bridgeBaseUrl;
+        /// <summary>GitHub REST API のベース URL (末尾の <c>/</c> なし)</summary>
+        private readonly string _apiBaseUrl;
+
+        /// <summary>アセットをダウンロードするベース URL (末尾の <c>/</c> なし)</summary>
+        private readonly string _downloadBaseUrl;
 
         /// <summary>インストーラーを起動する関数 (引数はインストーラーのパスと作業フォルダー、戻り値は起動できたかどうか)</summary>
         private readonly Func<string, string, bool> _processStarter;
 
         /// <summary>ダウンロード中にデータが届かないまま待ち続けてよい時間</summary>
         private readonly TimeSpan _downloadStallTimeout;
+
+        /// <summary>更新に使うパッケージの種類 (インストール版はインストーラー、ポータブル版は zip) を返す関数</summary>
+        private readonly Func<UpdatePackageKind> _packageKindProvider;
+
+        /// <summary>ポータブル版のアプリフォルダーを返す関数</summary>
+        private readonly Func<string> _appDirectoryProvider;
+
+        /// <summary>ポータブル版の更新処理を起動する関数 (引数は実行ファイルのパスと起動引数、戻り値は起動できたかどうか)</summary>
+        private readonly Func<string, IReadOnlyList<string>, bool> _portableUpdaterStarter;
 
         /// <summary>破棄済みかどうか</summary>
         private bool _disposed;
@@ -85,10 +105,13 @@ namespace PdfConverter.Services
                 ownsHttpClient: true,
                 () => ApplicationMetadata.Version,
                 UpdateAssetSelector.GetCurrentPlatform,
-                () => UpdateReleaseKey.Value,
                 () => UpdateSigningKey.PublicKey,
-                DefaultBridgeBaseUrl,
-                StartSetupProcess)
+                DefaultApiBaseUrl,
+                DefaultDownloadBaseUrl,
+                StartSetupProcess,
+                packageKindProvider: () => PortableMode.IsEnabled ? UpdatePackageKind.Portable : UpdatePackageKind.Installer,
+                appDirectoryProvider: () => PortableMode.AppDirectory,
+                portableUpdaterStarter: StartPortableUpdaterProcess)
         {
         }
 
@@ -100,11 +123,14 @@ namespace PdfConverter.Services
             bool ownsHttpClient,
             Func<string> currentVersionProvider,
             Func<string> platformProvider,
-            Func<string> releaseKeyProvider,
             Func<string> signingPublicKeyProvider,
-            string bridgeBaseUrl,
+            string apiBaseUrl,
+            string downloadBaseUrl,
             Func<string, string, bool> processStarter,
-            TimeSpan? downloadStallTimeout = null)
+            TimeSpan? downloadStallTimeout = null,
+            Func<UpdatePackageKind>? packageKindProvider = null,
+            Func<string>? appDirectoryProvider = null,
+            Func<string, IReadOnlyList<string>, bool>? portableUpdaterStarter = null)
         {
             _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             _ownsHttpClient = ownsHttpClient;
@@ -112,13 +138,15 @@ namespace PdfConverter.Services
                 ?? throw new ArgumentNullException(nameof(currentVersionProvider));
             _platformProvider = platformProvider
                 ?? throw new ArgumentNullException(nameof(platformProvider));
-            _releaseKeyProvider = releaseKeyProvider
-                ?? throw new ArgumentNullException(nameof(releaseKeyProvider));
             _signingPublicKeyProvider = signingPublicKeyProvider
                 ?? throw new ArgumentNullException(nameof(signingPublicKeyProvider));
-            _bridgeBaseUrl = (bridgeBaseUrl ?? DefaultBridgeBaseUrl).TrimEnd('/');
+            _apiBaseUrl = (apiBaseUrl ?? DefaultApiBaseUrl).TrimEnd('/');
+            _downloadBaseUrl = (downloadBaseUrl ?? DefaultDownloadBaseUrl).TrimEnd('/');
             _processStarter = processStarter ?? throw new ArgumentNullException(nameof(processStarter));
             _downloadStallTimeout = downloadStallTimeout ?? DefaultDownloadStallTimeout;
+            _packageKindProvider = packageKindProvider ?? (() => UpdatePackageKind.Installer);
+            _appDirectoryProvider = appDirectoryProvider ?? (() => PortableMode.AppDirectory);
+            _portableUpdaterStarter = portableUpdaterStarter ?? StartPortableUpdaterProcess;
         }
 
 
@@ -132,23 +160,29 @@ namespace PdfConverter.Services
             ThrowIfDisposed();
 
             string currentVersion = _currentVersionProvider() ?? "0.0.0";
-            string url = $"{_bridgeBaseUrl}/{ReleaseOwner}/{ReleaseRepo}/version";
+            // 下書き・プレリリースを除いた最新のリリースを照会する
+            string url = $"{_apiBaseUrl}/repos/{ReleaseOwner}/{ReleaseRepo}/releases/latest";
 
             try
             {
-                using (HttpResponseMessage response = await _httpClient
-                    .GetAsync(url, cancellationToken)
-                    .ConfigureAwait(false))
+                using (var request = new HttpRequestMessage(HttpMethod.Get, url))
                 {
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return UpdateCheckResult.Failed(
-                            $"最新版の照会に失敗しました。(HTTP {(int)response.StatusCode})");
-                    }
+                    request.Headers.Accept.ParseAdd("application/vnd.github+json");
+                    request.Headers.Add("X-GitHub-Api-Version", GitHubApiVersion);
 
-                    string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-                    VersionApiResponse parsed = VersionApiJsonParser.Parse(json);
-                    return UpdateEvaluator.Evaluate(currentVersion, parsed, _platformProvider());
+                    using (HttpResponseMessage response = await _httpClient
+                        .SendAsync(request, cancellationToken)
+                        .ConfigureAwait(false))
+                    {
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            return UpdateCheckResult.Failed(DescribeCheckFailure(response));
+                        }
+
+                        string json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        GitHubRelease parsed = GitHubReleaseJsonParser.Parse(json);
+                        return UpdateEvaluator.Evaluate(currentVersion, parsed, _platformProvider(), _packageKindProvider());
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -173,13 +207,6 @@ namespace PdfConverter.Services
                 return UpdateApplyResult.Failed("更新情報がありません。");
             }
 
-            string releaseKey = _releaseKeyProvider();
-            if (string.IsNullOrEmpty(releaseKey))
-            {
-                return UpdateApplyResult.Failed(
-                    "リリースキーが埋め込まれていません。UpdateReleaseKey.local.props または環境変数 PDF_CONVERTER_KEY を設定してビルドしてください。");
-            }
-
             // 署名を検証できないインストーラーは起動しないため、ダウンロードの前に確認する
             string signingPublicKey = _signingPublicKeyProvider();
             if (string.IsNullOrEmpty(signingPublicKey))
@@ -193,7 +220,7 @@ namespace PdfConverter.Services
                 return UpdateApplyResult.Failed(sizeError);
             }
 
-            // 更新サーバーの応答をパスに組み込むため、作業フォルダー外への書き込みを防ぐ
+            // GitHub の応答をパスに組み込むため、作業フォルダー外への書き込みを防ぐ
             string versionDirectoryName = update.LatestVersion ?? "unknown";
             if (!UpdateAssetSelector.IsSafeFileName(versionDirectoryName)
                 || !UpdateAssetSelector.IsSafeFileName(update.AssetName))
@@ -214,36 +241,26 @@ namespace PdfConverter.Services
 
             Directory.CreateDirectory(workDir);
             string downloadUrl =
-                $"{_bridgeBaseUrl}/{ReleaseOwner}/{ReleaseRepo}/{Uri.EscapeDataString(update.Tag)}/{Uri.EscapeDataString(update.AssetName)}";
+                $"{_downloadBaseUrl}/{ReleaseOwner}/{ReleaseRepo}/releases/download/{Uri.EscapeDataString(update.Tag)}/{Uri.EscapeDataString(update.AssetName)}";
 
             try
             {
-                using (var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl))
+                using (HttpResponseMessage response = await _httpClient
+                    .GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                    .ConfigureAwait(false))
                 {
-                    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", releaseKey);
-
-                    using (HttpResponseMessage response = await _httpClient
-                        .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                        .ConfigureAwait(false))
+                    if (!response.IsSuccessStatusCode)
                     {
-                        if (response.StatusCode == HttpStatusCode.Unauthorized)
-                        {
-                            return UpdateApplyResult.Failed("ダウンロード認証に失敗しました。");
-                        }
-
-                        if (!response.IsSuccessStatusCode)
-                        {
-                            return UpdateApplyResult.Failed(
-                                $"インストーラーのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
-                        }
-
-                        await DownloadToFileAsync(
-                                response,
-                                destinationPath,
-                                update.Size,
-                                cancellationToken)
-                            .ConfigureAwait(false);
+                        return UpdateApplyResult.Failed(
+                            $"更新ファイルのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
                     }
+
+                    await DownloadToFileAsync(
+                            response,
+                            destinationPath,
+                            update.Size,
+                            cancellationToken)
+                        .ConfigureAwait(false);
                 }
 
                 long actualSize = new FileInfo(destinationPath).Length;
@@ -261,10 +278,9 @@ namespace PdfConverter.Services
                     return UpdateApplyResult.Failed("ダウンロードファイルのハッシュが一致しません。");
                 }
 
-                // ハッシュは更新サーバーが返す値のため、サーバーとは独立に作った署名で真正性を確かめる
+                // ハッシュは GitHub が返す値のため、GitHub とは独立に作った署名で真正性を確かめる
                 (string? signatureText, string? downloadError) = await DownloadSignatureAsync(
                         $"{downloadUrl}.sig",
-                        releaseKey,
                         cancellationToken)
                     .ConfigureAwait(false);
                 if (signatureText == null)
@@ -284,6 +300,11 @@ namespace PdfConverter.Services
                 {
                     TryDelete(destinationPath);
                     return UpdateApplyResult.Failed(signatureError);
+                }
+
+                if (update.PackageKind == UpdatePackageKind.Portable)
+                {
+                    return StartPortableUpdate(destinationPath, workDir);
                 }
 
                 if (!_processStarter(destinationPath, workDir))
@@ -325,6 +346,84 @@ namespace PdfConverter.Services
         /*                             プライベートメソッド                             */
         /********************************************************************************/
         /// <summary>
+        /// 更新時にインストーラー (Inno Setup) へ渡す引数を組み立てる
+        /// </summary>
+        /// <remarks>
+        /// ウィザードのページは出さず、進捗ウィンドウとエラーのメッセージボックスだけを表示する。
+        /// <c>/RELAUNCH=1</c> はインストーラー側の独自引数で、インストール後にアプリを起動し直す
+        /// </remarks>
+        /// <param name="workingDirectory">ログを書き出す作業フォルダー</param>
+        /// <returns>インストーラーの引数 (1 要素が 1 引数)</returns>
+        internal static IReadOnlyList<string> BuildSetupArguments(string workingDirectory) =>
+            [
+                "/SILENT",
+                "/NORESTART",
+                "/CLOSEAPPLICATIONS",
+                "/RELAUNCH=1",
+                "/LOG=" + Path.Combine(workingDirectory, SetupLogFileName),
+            ];
+
+        /// <summary>
+        /// 検証済みのポータブル版の zip を展開し、展開した新しい版で更新処理を起動する
+        /// </summary>
+        /// <param name="zipPath">検証済みの zip のパス</param>
+        /// <param name="workDir">作業フォルダー</param>
+        /// <returns>適用結果</returns>
+        private UpdateApplyResult StartPortableUpdate(string zipPath, string workDir)
+        {
+            string stagingDir = Path.Combine(workDir, PortableStagingDirectoryName);
+            try
+            {
+                PortableUpdatePackage.Extract(zipPath, stagingDir);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException)
+            {
+                TryDeleteDirectory(stagingDir);
+                return UpdateApplyResult.Failed($"ポータブル版の展開に失敗しました。\n\n{ex.Message}");
+            }
+            finally
+            {
+                TryDelete(zipPath);
+            }
+
+            string updaterPath = Path.Combine(stagingDir, PortableUpdatePackage.AppExecutableFileName);
+            IReadOnlyList<string> arguments = PortableUpdateCommand.BuildArguments(
+                _appDirectoryProvider(),
+                Environment.ProcessId);
+            if (!_portableUpdaterStarter(updaterPath, arguments))
+            {
+                return UpdateApplyResult.Failed("ポータブル版の更新処理の起動に失敗しました。");
+            }
+
+            return UpdateApplyResult.SetupStarted(updaterPath);
+        }
+
+        /// <summary>
+        /// 展開した新しい版を、ポータブル版の更新処理として起動する
+        /// </summary>
+        /// <param name="updaterPath">展開した新しい版の実行ファイル</param>
+        /// <param name="arguments">起動引数</param>
+        /// <returns>プロセスを起動できた場合は <c>true</c></returns>
+        private static bool StartPortableUpdaterProcess(string updaterPath, IReadOnlyList<string> arguments)
+        {
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = updaterPath,
+                WorkingDirectory = Path.GetDirectoryName(updaterPath),
+                UseShellExecute = false,
+            };
+            foreach (string argument in arguments)
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
+
+            using (Process? process = Process.Start(startInfo))
+            {
+                return process != null;
+            }
+        }
+
+        /// <summary>
         /// 既定のタイムアウトと User-Agent を設定した HTTP クライアントを生成する
         /// </summary>
         /// <returns>HTTP クライアント</returns>
@@ -339,7 +438,32 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// インストーラーをシェル経由で起動する
+        /// 最新リリースの照会に失敗した応答から、利用者に示すメッセージを組み立てる
+        /// </summary>
+        /// <param name="response">失敗した応答</param>
+        /// <returns>エラーメッセージ</returns>
+        private static string DescribeCheckFailure(HttpResponseMessage response)
+        {
+            int statusCode = (int)response.StatusCode;
+            if (response.StatusCode == HttpStatusCode.NotFound)
+            {
+                return $"公開されているリリースが見つかりませんでした。(HTTP {statusCode})";
+            }
+
+            // 未認証の API 呼び出しは IP アドレスごとに回数が制限される
+            if (response.StatusCode == HttpStatusCode.TooManyRequests
+                || (response.StatusCode == HttpStatusCode.Forbidden
+                    && response.Headers.TryGetValues("X-RateLimit-Remaining", out var remaining)
+                    && string.Join(string.Empty, remaining) == "0"))
+            {
+                return $"GitHub への照会回数が上限に達しました。しばらく待ってから再度お試しください。(HTTP {statusCode})";
+            }
+
+            return $"最新版の照会に失敗しました。(HTTP {statusCode})";
+        }
+
+        /// <summary>
+        /// インストーラーをシェル経由で、ウィザードのページを出さずに起動する
         /// </summary>
         /// <param name="setupPath">インストーラーのパス</param>
         /// <param name="workingDirectory">作業フォルダー</param>
@@ -352,6 +476,10 @@ namespace PdfConverter.Services
                 WorkingDirectory = workingDirectory,
                 UseShellExecute = true,
             };
+            foreach (string argument in BuildSetupArguments(workingDirectory))
+            {
+                startInfo.ArgumentList.Add(argument);
+            }
 
             Process? process = Process.Start(startInfo);
             return process != null;
@@ -361,55 +489,48 @@ namespace PdfConverter.Services
         /// 署名ファイルをダウンロードして文字列として返す
         /// </summary>
         /// <param name="url">署名ファイルの URL</param>
-        /// <param name="releaseKey">ダウンロード認証に使うリリースキー</param>
         /// <param name="cancellationToken">キャンセルトークン</param>
         /// <returns>署名ファイルの内容。失敗した場合は <c>Text</c> が <c>null</c> で、<c>ErrorMessage</c> に理由を入れる</returns>
         private async Task<(string? Text, string? ErrorMessage)> DownloadSignatureAsync(
             string url,
-            string releaseKey,
             CancellationToken cancellationToken)
         {
-            using (var request = new HttpRequestMessage(HttpMethod.Get, url))
+            using (HttpResponseMessage response = await _httpClient
+                .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
+                .ConfigureAwait(false))
             {
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", releaseKey);
-
-                using (HttpResponseMessage response = await _httpClient
-                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
-                    .ConfigureAwait(false))
+                if (!response.IsSuccessStatusCode)
                 {
-                    if (!response.IsSuccessStatusCode)
-                    {
-                        return (null, $"署名ファイルのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
-                    }
-
-                    // 上限より 1 バイト多く読み、超過を検出する
-                    var buffer = new byte[UpdateSignatureVerifier.MaxSignatureFileBytes + 1];
-                    int total = 0;
-                    using (Stream source = await response.Content
-                        .ReadAsStreamAsync(cancellationToken)
-                        .ConfigureAwait(false))
-                    using (var stallCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-                    {
-                        int read;
-                        while (total < buffer.Length
-                            && (read = await ReadWithStallTimeoutAsync(
-                                    source,
-                                    buffer.AsMemory(total),
-                                    stallCts,
-                                    cancellationToken)
-                                .ConfigureAwait(false)) > 0)
-                        {
-                            total += read;
-                        }
-                    }
-
-                    if (total > UpdateSignatureVerifier.MaxSignatureFileBytes)
-                    {
-                        return (null, "署名ファイルのサイズが上限を超えています。");
-                    }
-
-                    return (Encoding.ASCII.GetString(buffer, 0, total), null);
+                    return (null, $"署名ファイルのダウンロードに失敗しました。(HTTP {(int)response.StatusCode})");
                 }
+
+                // 上限より 1 バイト多く読み、超過を検出する
+                var buffer = new byte[UpdateSignatureVerifier.MaxSignatureFileBytes + 1];
+                int total = 0;
+                using (Stream source = await response.Content
+                    .ReadAsStreamAsync(cancellationToken)
+                    .ConfigureAwait(false))
+                using (var stallCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    int read;
+                    while (total < buffer.Length
+                        && (read = await ReadWithStallTimeoutAsync(
+                                source,
+                                buffer.AsMemory(total),
+                                stallCts,
+                                cancellationToken)
+                            .ConfigureAwait(false)) > 0)
+                    {
+                        total += read;
+                    }
+                }
+
+                if (total > UpdateSignatureVerifier.MaxSignatureFileBytes)
+                {
+                    return (null, "署名ファイルのサイズが上限を超えています。");
+                }
+
+                return (Encoding.ASCII.GetString(buffer, 0, total), null);
             }
         }
 
@@ -435,7 +556,7 @@ namespace PdfConverter.Services
             }
             catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
             {
-                throw new TimeoutException("更新サーバーからの応答が一定時間ありませんでした。通信状況を確認してください。");
+                throw new TimeoutException("GitHub からの応答が一定時間ありませんでした。通信状況を確認してください。");
             }
         }
 
@@ -494,6 +615,25 @@ namespace PdfConverter.Services
                 if (File.Exists(path))
                 {
                     File.Delete(path);
+                }
+            }
+            catch
+            {
+                // ベストエフォート
+            }
+        }
+
+        /// <summary>
+        /// フォルダーを中身ごと削除する (削除できなくても例外は送出しない)
+        /// </summary>
+        /// <param name="path">削除するフォルダーのパス</param>
+        private static void TryDeleteDirectory(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
                 }
             }
             catch

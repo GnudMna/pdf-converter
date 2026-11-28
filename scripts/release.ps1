@@ -1,14 +1,13 @@
 # PDF Converter — リリース手順の一括実行スクリプト
 #
-# バージョン更新 (AssemblyInfo.cs / CHANGELOG.md / README.md)・品質チェック・Git コミット・インストーラー作成を順に行います。
+# バージョン更新 (AssemblyInfo.cs / CHANGELOG.md)・品質チェック・Git コミット・インストーラーとポータブル版の作成を順に行います。
 # Git タグの付与・push・Release へのアップロードは行いません (完了時に手順を表示します)。
 #
 # 必要環境:
 #   - Git
-#   - build-and-test.ps1 / build-installer.ps1 と同じ環境 (.NET SDK 10 以降・Inno Setup 6・mdBook)
-#   - 更新ダウンロード用キー (環境変数 PDF_CONVERTER_KEY または src\PdfConverter\UpdateReleaseKey.local.props)
+#   - build-and-test.ps1 / build-installer.ps1 / build-portable.ps1 と同じ環境 (.NET SDK 11 以降・Inno Setup 6・mdBook)
 #   - 更新の署名用の秘密鍵 (環境変数 PDF_CONVERTER_UPDATE_SIGNING_KEY に PEM のパス。new-update-signing-key.ps1 で作成)
-#   - PowerShell 7 以降 (pwsh)。インストーラー作成まで行うときは署名のために必要
+#   - PowerShell 7 以降 (pwsh)。インストーラー・ポータブル版の作成まで行うときは署名のために必要
 #
 # 前提:
 #   - release/v{version} ブランチ上で実行する (ブランチ名と新バージョンが一致しないとエラー)
@@ -25,10 +24,11 @@
 #   -Version x.y.z           新バージョンを明示指定 (-Bump と排他)
 #   -Bump Patch|Minor|Major  現在のバージョンから SemVer でインクリメント
 #   -Date yyyy-MM-dd         リリース日 (既定: 本日)
-#   -Platform x64|x86|all    品質チェックとインストーラーの対象 (既定: all)
+#   -Platform x64|x86|all    品質チェック・インストーラー・ポータブル版の対象 (既定: all)
 #   -DryRun                  更新予定を表示するだけでファイル・Git は変更しない
 #   -SkipCheck               品質チェック (build-and-test.ps1) を省略
 #   -SkipInstaller           インストーラー作成 (build-installer.ps1) を省略
+#   -SkipPortable            ポータブル版の作成 (build-portable.ps1) を省略
 #   -NoCommit                Git コミットを作成しない
 #   -AllowDirty              未コミットの変更があっても続行
 #   -NoPause                 完了後のキー入力待ちを省略 (ターミナル向け)
@@ -50,6 +50,8 @@ param(
     [switch] $SkipCheck,
 
     [switch] $SkipInstaller,
+
+    [switch] $SkipPortable,
 
     [switch] $NoCommit,
 
@@ -127,20 +129,18 @@ try {
         Assert-GitWorkingTreeClean -RepoRoot $repoRoot
     }
 
-    # キー・署名無しで作ると配布物が更新を適用できないため、ファイルを変える前に確認する
-    if (-not $SkipInstaller) {
-        Assert-UpdateReleaseKeyConfigured -RepoRoot $repoRoot
+    # 署名無しで作ると配布物が更新を適用できないため、ファイルを変える前に確認する
+    if (-not $SkipInstaller -or -not $SkipPortable) {
         Assert-UpdateSigningKeyConfigured -RepoRoot $repoRoot
     }
 
     Write-Host 'バージョン関連ファイルを更新しています...'
     Set-AssemblyInfoVersion -RepoRoot $repoRoot -NewVersion $newVersion -DryRun:$DryRun
     Update-ChangelogForRelease -RepoRoot $repoRoot -CurrentVersion $currentVersion -NewVersion $newVersion -ReleaseDate $Date -DryRun:$DryRun
-    Set-ReadmeVersionBadge -RepoRoot $repoRoot -NewVersion $newVersion -DryRun:$DryRun
     Write-Host ''
 
     if ($DryRun) {
-        Write-Host 'DryRun のため、品質チェック・Git コミット・インストーラー作成は行いません。'
+        Write-Host 'DryRun のため、品質チェック・Git コミット・インストーラーとポータブル版の作成は行いません。'
         return
     }
 
@@ -178,15 +178,28 @@ try {
         Write-Host ''
     }
 
+    if ($SkipPortable) {
+        Write-Host 'ポータブル版の作成を省略しました (-SkipPortable)'
+        Write-Host ''
+    }
+    else {
+        # インストーラーを作った直後なら publish 出力をそのまま使う
+        Write-Host 'ポータブル版を作成しています...'
+        Invoke-ChildScript -Name 'build-portable.ps1' -Arguments @{ Platform = $Platform; SkipBuild = (-not $SkipInstaller) }
+        Write-Host ''
+    }
+
     Write-Host 'リリース手順が完了しました。'
     Write-Host ''
     Write-Host '次の作業 (手動):'
     Write-Host "  - リモートへ push: git push -u origin $releaseBranch"
     Write-Host "  - PR で $releaseBranch を develop と main へマージする"
     Write-Host "  - Gitea 上で v$newVersion タグを付与する"
-    Write-Host '  - GitHub Release へインストーラーをアップロードする'
+    Write-Host '  - GitHub Release へインストーラーとポータブル版をアップロードする'
     Write-Host "      dist\PdfConverter-$newVersion-<platform>-setup.exe"
     Write-Host "      dist\PdfConverter-$newVersion-<platform>-setup.exe.sig (署名。これが無いと更新を適用できない)"
+    Write-Host "      dist\PdfConverter-$newVersion-<platform>-portable.zip"
+    Write-Host "      dist\PdfConverter-$newVersion-<platform>-portable.zip.sig (署名。これが無いとポータブル版を更新できない)"
 }
 catch {
     Write-Host ''

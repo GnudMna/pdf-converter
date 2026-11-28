@@ -13,7 +13,7 @@ namespace PdfConverter.Services
     /// 署名対象はインストーラー本体ではなく、版・アセット名・サイズ・SHA-256 をまとめた文字列 (<see cref="BuildMessage"/>)<br/>
     /// 更新サーバーが返す値とは独立に、リリース時の秘密鍵で署名することで、サーバー侵害時の差し替えと
     /// 古い署名済みインストーラーへの巻き戻しを防ぐ<br/>
-    /// 署名は <c>installer/sign-update.ps1</c> が作る (メッセージの組み立ては <c>installer/update-signing.ps1</c> と一致させる)
+    /// 署名は <c>scripts/sign-update.ps1</c> が作る (メッセージの組み立ては <c>scripts/update-signing.ps1</c> と一致させる)
     /// </remarks>
     public static class UpdateSignatureVerifier
     {

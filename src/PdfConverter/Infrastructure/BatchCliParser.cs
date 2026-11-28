@@ -106,14 +106,20 @@ namespace PdfConverter.Infrastructure
   --output, -o <path>       画像の出力先フォルダー、または PDF 出力先
 
 オプション:
-  --pages, -p <範囲>        出力ページ (例: 1-3,5)。省略時は全ページ
+  --pages, -p <範囲>        出力ページ (例: 1-3,5。8- で 8 ページ目から最終ページまで)。省略時は全ページ
   --format, -f <形式>       png / jpeg / bmp (省略時は保存済み設定)
   --resolution-mode <方式>  default / width / height / dpi (省略時は保存済み設定)
   --resolution, -r <数値>   解像度の数値 (省略時は保存済み設定)
   --transparent             透明度を保持 (PNG のみ有効)
   --no-transparent          白背景に合成して出力
+  --jpeg-quality <1-100>    JPEG の品質 (省略時は保存済み設定。JPEG のみ有効)
   --password <文字列>       パスワード付き PDF を開くパスワード (全入力ファイルに使用)
                             値は加工せず、次の引数を常にパスワードとして扱う
+                            コマンドラインは他のプロセスから見えるため、下の方式を推奨
+  --password-file <path>    パスワードをファイルから読み取る (UTF-8。末尾の改行は除く)
+  --password-env <変数名>   パスワードを環境変数から読み取る
+  --password-stdin          パスワードを標準入力の 1 行目から読み取る (パイプやリダイレクトで渡す)
+                            パスワード指定は --password / --password-file / --password-env / --password-stdin のうち 1 つだけ
   --overwrite               既存ファイルを確認せず上書き
   --export-pdf              Word を PDF として保存 (画像変換は行わない)
   --quiet, -q               進捗メッセージを抑制
@@ -124,6 +130,10 @@ namespace PdfConverter.Infrastructure
   ""PDF Converter.exe"" -o ""C:\out"" -f png -p 1-3 ""report.pdf""
   ""PDF Converter.exe"" --export-pdf -o ""C:\out"" ""proposal.docx""
   ""PDF Converter.exe"" -o ""C:\out"" -- ""C:\docs\a.pdf"" ""C:\docs\b.pdf""
+  pdfconv -o ""C:\out"" ""report.pdf""
+
+cmd や PowerShell から実行して終了を待ち、終了コードを受け取るには、同じフォルダーの pdfconv.exe を使います。
+pdfconv.exe はオプションをそのまま本体へ渡し、標準入出力も中継します (--password-stdin も使えます)。
 
 複数ファイルを同じ出力フォルダーへ保存する場合、各ファイルは
 <出力フォルダー>\<ファイル名>\page_1.png のようにサブフォルダーへ出力されます。
@@ -289,6 +299,20 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
 
                     options.Format = format;
                     return true;
+                case "jpeg-quality":
+                    if (!TryReadOptionValue(args, ref index, value, out string? qualityValue, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    if (!JpegQuality.TryParse(qualityValue, out int jpegQuality))
+                    {
+                        errorMessage = $"JPEG 品質は {JpegQuality.Min}〜{JpegQuality.Max} の整数で指定してください: {qualityValue}";
+                        return false;
+                    }
+
+                    options.JpegQuality = jpegQuality;
+                    return true;
                 case "password":
                     if (!TryReadPasswordValue(args, ref index, value, out string? password, out errorMessage))
                     {
@@ -296,6 +320,30 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                     }
 
                     options.Password = password;
+                    return true;
+                case "password-file":
+                    if (!TryReadOptionValue(args, ref index, value, out string? passwordFile, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PasswordFilePath = passwordFile;
+                    return true;
+                case "password-env":
+                    if (!TryReadOptionValue(args, ref index, value, out string? passwordEnv, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PasswordEnvironmentVariable = passwordEnv;
+                    return true;
+                case "password-stdin":
+                    if (!TryReadFlagValue(arg, value, out bool passwordStdin, out errorMessage))
+                    {
+                        return false;
+                    }
+
+                    options.PasswordFromStandardInput = passwordStdin;
                     return true;
                 case "resolution-mode":
                     if (!TryReadOptionValue(args, ref index, value, out string? modeValue, out errorMessage))
@@ -561,6 +609,16 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                 return false;
             }
 
+            int passwordSourceCount = (options.Password != null ? 1 : 0)
+                + (options.PasswordFilePath != null ? 1 : 0)
+                + (options.PasswordEnvironmentVariable != null ? 1 : 0)
+                + (options.PasswordFromStandardInput ? 1 : 0);
+            if (passwordSourceCount > 1)
+            {
+                errorMessage = "--password / --password-file / --password-env / --password-stdin は 1 つだけ指定できます。";
+                return false;
+            }
+
             if (options.ExportPdfOnly && !string.IsNullOrWhiteSpace(options.PageRange))
             {
                 errorMessage = "--export-pdf では --pages は使用できません。";
@@ -573,6 +631,15 @@ GUI モードでは従来どおり、引数にファイルパスを指定する�
                 && !ImageBitmapHelper.SupportsTransparency(options.Format.Value))
             {
                 errorMessage = "選択した出力形式では --transparent は使用できません。";
+                return false;
+            }
+
+            if (!options.ExportPdfOnly
+                && options.JpegQuality.HasValue
+                && options.Format.HasValue
+                && options.Format.Value != OutputImageFormat.Jpeg)
+            {
+                errorMessage = "--jpeg-quality は出力形式が JPEG の場合のみ使用できます。";
                 return false;
             }
 

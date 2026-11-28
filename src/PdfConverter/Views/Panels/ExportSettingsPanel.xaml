@@ -91,18 +91,37 @@
                             <TextBlock Text="ページ番号または範囲"
                                        x:Name="PageRangeLabel"
                                        Style="{StaticResource FieldLabel}"
-                                       ToolTip="例: 1,3-5" />
+                                       ToolTip="例: 1,3-5。8- で 8 ページ目から最終ページまで" />
                             <TextBox Margin="0,6,0,0"
-                                     ToolTip="例: 1,3-5"
+                                     ToolTip="例: 1,3-5。8- で 8 ページ目から最終ページまで"
                                      Text="{Binding PageRange, UpdateSourceTrigger=PropertyChanged}"
                                      AutomationProperties.LabeledBy="{Binding ElementName=PageRangeLabel}"
-                                     AutomationProperties.HelpText="保存するページ番号または範囲。例: 1,3-5" />
+                                     AutomationProperties.HelpText="保存するページ番号または範囲。例: 1,3-5。8- で 8 ページ目から最終ページまで" />
                             <TextBlock Text="{Binding PageRangeValidationMessage}"
                                        Style="{StaticResource ValidationMessage}"
                                        Visibility="{Binding PageRangeValidationMessage, Converter={StaticResource StringToVisibilityConverter}}" />
                         </StackPanel>
                     </StackPanel>
                 </Border>
+            </StackPanel>
+
+            <StackPanel Margin="0,14,0,0">
+                <TextBlock x:Name="JpegQualityLabel"
+                           Text="JPEG 品質"
+                           Style="{StaticResource FieldLabel}"
+                           ToolTip="1〜100 で指定します。大きいほど高画質でファイルサイズも大きくなります。JPEG 形式のときのみ有効です。" />
+                <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <TextBox Text="{Binding JpegQuality}"
+                             Width="80"
+                             IsEnabled="{Binding IsJpegQualitySelectable}"
+                             behaviors:TextBoxBehavior.UpdateSourceOnEnter="True"
+                             AutomationProperties.LabeledBy="{Binding ElementName=JpegQualityLabel}"
+                             AutomationProperties.HelpText="JPEG の品質を 1〜100 の数値で入力してください" />
+                    <TextBlock Text="(1〜100)"
+                               Margin="8,0,0,0"
+                               VerticalAlignment="Center"
+                               Style="{StaticResource MutedText}" />
+                </StackPanel>
             </StackPanel>
 
             <StackPanel Margin="0,14,0,0">

@@ -326,6 +326,7 @@ namespace PdfConverter.Tests.ViewModels
                     1080,
                     It.IsAny<OutputImageFormat>(),
                     It.IsAny<bool>(),
+                    It.IsAny<int>(),
                     It.IsAny<IProgress<Models.SaveProgressReport>>(),
                     It.IsAny<CancellationToken>()))
                 .Returns(Task.CompletedTask);

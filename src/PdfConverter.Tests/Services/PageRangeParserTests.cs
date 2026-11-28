@@ -86,6 +86,69 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 全角数字の指定が半角数字と同じ結果になることを検証する
+        /// </summary>
+        [Fact]
+        public void Parse_FullWidthDigits_ReturnsSameAsHalfWidth()
+        {
+            var result = PageRangeParser.Parse("１-３,５", 10);
+
+            Assert.Equal(new[] { 0, 1, 2, 4 }, result);
+        }
+
+        /// <summary>
+        /// 全角・日本語入力のハイフンとカンマが半角と同じ結果になることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("１－３，５")]
+        [InlineData("１ー３、５")]
+        [InlineData("1−3,5")]
+        public void Parse_FullWidthSeparators_ReturnsSameAsHalfWidth(string pageRange)
+        {
+            var result = PageRangeParser.Parse(pageRange, 10);
+
+            Assert.Equal(new[] { 0, 1, 2, 4 }, result);
+        }
+
+        /// <summary>
+        /// 全角のハイフンが重なる範囲指定で FormatException がスローされることを検証する
+        /// </summary>
+        [Fact]
+        public void Parse_DoubledFullWidthHyphen_ThrowsFormatException()
+        {
+            Action act = () => PageRangeParser.Parse("１－－３", 10);
+
+            Assert.Throws<FormatException>(act);
+        }
+
+        /// <summary>
+        /// 終わりを省いた範囲 "8-" が最終ページまでに展開されることを検証する
+        /// </summary>
+        [Fact]
+        public void Parse_OpenEndedRange_ExpandsToLastPage()
+        {
+            var result = PageRangeParser.Parse("8-", 10);
+
+            Assert.Equal(new[] { 7, 8, 9 }, result);
+        }
+
+        /// <summary>
+        /// 区切りが重複・不足した範囲指定で FormatException がスローされることを検証する
+        /// </summary>
+        [Theory]
+        [InlineData("1--3")]
+        [InlineData("1-3-")]
+        [InlineData("-3")]
+        [InlineData("-")]
+        [InlineData("11-")]
+        public void Parse_MalformedRange_ThrowsFormatException(string pageRange)
+        {
+            Action act = () => PageRangeParser.Parse(pageRange, 10);
+
+            Assert.Throws<FormatException>(act);
+        }
+
+        /// <summary>
         /// 数字以外のページ番号指定で FormatException がスローされることを検証する
         /// </summary>
         [Fact]

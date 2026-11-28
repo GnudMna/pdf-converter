@@ -6,60 +6,69 @@
 
 **PDF / Word 文書のページを高品質な画像へ変換する、シンプルな Windows アプリ**
 
-[![Version](https://img.shields.io/badge/Version-0.7.1-blue)](#)
-[![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows&logoColor=white)](#)
-[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](#)
-[![Language](https://img.shields.io/badge/Language-C%23-239120?logo=csharp&logoColor=white)](#)
-[![UI](https://img.shields.io/badge/UI-WPF%20(MVVM)-2C68C4?logo=windowsxp&logoColor=white)](#)
-[![Engine](https://img.shields.io/badge/Engine-PDFium%20(PDFiumCore)-FF5722)](#)
-[![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-F59E0B)](LICENSE)
+[![Version](https://img.shields.io/github/v/release/GnudMna/pdf-converter?label=Version&color=blue)](https://github.com/GnudMna/pdf-converter/releases/latest)
+[![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D6)](#動作環境)
+[![.NET](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
 </div>
 
----
+## 概要
 
-## ✨ 概要
+**PDF Converter** は、PDF または Word 文書の各ページを **PNG / JPEG / BMP** の画像として書き出すデスクトップアプリである。
+変換前にプレビューで確認しながら、解像度と出力するページを指定できる。Word 文書は Microsoft Word または LibreOffice で PDF に変換してから画像化する。
 
-**PDF Converter** は、PDF または Word 文書の各ページを **PNG / JPEG / BMP** の画像として書き出す WPF デスクトップアプリである。
-Word ファイルは Microsoft Word または LibreOffice で PDF に変換したうえで画像化する。レンダリングには [PDFium](https://pdfium.googlesource.com/pdfium/) ([PDFiumCore](https://github.com/Dtronix/PDFiumCore)) を使う。変換前にプレビューを確認しながら、解像度や出力範囲を細かく指定できる。
+## 主な機能
 
----
+**変換**
 
-## 🚀 主な機能
+| 機能 | 説明 |
+| :--- | :--- |
+| 画像形式 | PNG / JPEG / BMP。JPEG は品質 (1〜100) も指定できる |
+| 解像度 | 幅 (px)・高さ (px)・DPI のいずれかで出力サイズを指定 |
+| 出力範囲 | 単一ページ・ページ範囲 (例: `1-3,5`)・全ページ |
+| 透明度 | PNG で背景の透明度を保持 |
+| Word 文書 | `.doc` / `.docx` を Word または LibreOffice で PDF 化して画像へ変換。PDF としての保存も可能 |
+| 並列処理 | ページを並列に描画して高速に保存 |
 
-| | 機能 | 説明 |
-| :---: | :--- | :--- |
-| 🖼️ | **ページプレビュー** | 変換前に各ページを表示。前後移動・ページ番号ジャンプに対応 |
-| 🗂️ | **柔軟な出力範囲** | 単一ページ・ページ範囲 (例: `1-3,5`)・全ページの保存 |
-| 📐 | **解像度の指定** | 幅 (px) / 高さ (px) / DPI で出力サイズを指定 |
-| 🎨 | **複数の画像形式** | `PNG` / `JPEG` / `BMP` を選択可能 |
-| 🫧 | **透過の保持** | PNG 出力時に背景の透明度を保持 |
-| ⚡ | **並列処理** | ページを並列レンダリングして高速に保存 |
-| 📋 | **クリップボードコピー** | プレビュー中のページを出力解像度でコピー |
-| 📄 | **Word 対応** | `.doc` / `.docx` を Word または LibreOffice 経由で PDF 化し、画像へ変換。PDF としての保存も可能 |
-| 🖱️ | **ドラッグ&ドロップ** | PDF / Word をウィンドウへドロップするだけで読み込み |
-| ⚙️ | **コマンドライン** | 起動時のファイル指定と、ウィンドウを表示しないバッチ変換 |
-| 🌗 | **テーマ切替** | ライト / ダーク / システム設定に追従 |
-| 🛑 | **キャンセル対応** | 処理途中での中断が可能 |
-| ♿ | **アクセシビリティ** | スクリーンリーダー対応 (ラベル関連付け・Live Region によるステータス読み上げ) |
-| 🔄 | **更新確認** | バージョン情報から最新インストーラーを確認・ダウンロードして適用 |
+**操作**
 
----
+| 機能 | 説明 |
+| :--- | :--- |
+| プレビュー | 変換前に各ページを表示。前後移動・ページ番号での移動に対応 |
+| ファイルの読み込み | 参照・パスの入力・ドラッグ&ドロップ・起動時の引数で指定 |
+| クリップボード | 表示中のページを出力解像度でコピー |
+| キャンセル | 変換・保存を途中で中断 |
+| テーマ | ライト / ダーク / Windows の設定に追従 |
+| アクセシビリティ | スクリーンリーダーに対応 (ラベルの関連付け・ステータスの読み上げ) |
 
-## 📦 動作環境
+**自動化・そのほか**
+
+| 機能 | 説明 |
+| :--- | :--- |
+| バッチ変換 | ウィンドウを表示せずにコマンドラインで変換。複数ファイルの一括変換に対応 |
+| `pdfconv.exe` | コンソール用の起動プログラム。変換の終了を待ち、終了コードを返す |
+| 更新 | バージョン情報から最新版を確認し、そのまま更新 |
+
+## 動作環境
 
 - Windows 10 / 11 (x64 版・x86 版)
 - .NET ランタイムのインストールは不要 (アプリに同梱する self-contained 配布)
-- Word ファイルを変換する場合: **Microsoft Word** (デスクトップ版) または **LibreOffice** のいずれか
+- Word 文書を変換する場合: **Microsoft Word** (デスクトップ版) または **LibreOffice** のいずれか
   - LibreOffice は一般的なインストール先から `soffice.exe` を自動で探す (アプリ内でパスも指定できる)
 
-インストーラーは管理者権限を要求しないユーザー単位インストールで、`%LOCALAPPDATA%\Programs\PDF Converter` に入る。
+## インストール
 
----
+[GitHub Releases](https://github.com/GnudMna/pdf-converter/releases/latest) から、環境に合うインストーラー (`PdfConverter-<版>-x64-setup.exe` または `-x86-setup.exe`) をダウンロードして実行する。
 
-## 📖 使い方
+- 管理者権限は不要。ユーザー単位で `%LOCALAPPDATA%\Programs\PDF Converter` にインストールする
+- 以降の更新は、アプリのバージョン情報 (右上の **ⓘ** ボタン) の **更新を確認** から行える
 
-使い方・コマンドライン (バッチ変換)・トラブルシューティングは、利用者向けドキュメント [`docs/user/`](docs/user/introduction.md) にまとめている。
+インストールせずに使う場合は、ポータブル版 (`PdfConverter-<版>-x64-portable.zip` または `-x86-portable.zip`) を任意のフォルダーに展開し、`PDF Converter.exe` を実行する。設定とログは展開したフォルダーの `UserData\` に保存し、**更新を確認** からの更新にも対応する。違いは [インストール版とポータブル版](docs/user/introduction.md#インストール版とポータブル版) を参照する。
+
+## ドキュメント
+
+使い方は利用者向けドキュメント [`docs/user/`](docs/user/introduction.md) にまとめている。インストール版・ポータブル版とも HTML 版を同梱しており、アプリ右上の **?** ボタン・`F1` キー (インストール版はスタートメニューの **PDF Converter ドキュメント** も) から開ける。
 
 | ページ | 内容 |
 | :--- | :--- |
@@ -69,52 +78,39 @@ Word ファイルは Microsoft Word または LibreOffice で PDF に変換し�
 | [トラブルシューティング](docs/user/troubleshooting.md) | ログの場所・よくあるエラー・設定の初期化・アンインストール |
 | [変更履歴](CHANGELOG.md) | バージョンごとの変更内容 |
 
-インストール版には HTML 化したドキュメントが `docs\` に同梱され、スタートメニューの **PDF Converter ドキュメント**、アプリ右上の **?** ボタン、`F1` キーから開ける。
+## 開発
 
----
+| 項目 | 内容 |
+| :--- | :--- |
+| 言語・UI | C# / .NET 10 / WPF (MVVM)。画面の手順は Coordinator、変換・I/O は Service に分離 |
+| PDF レンダリング | [PDFium](https://pdfium.googlesource.com/pdfium/) ([PDFiumCore](https://github.com/Dtronix/PDFiumCore)。ネイティブ DLL は [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) のビルド) |
+| Word → PDF 変換 | Microsoft Word (COM) または LibreOffice (headless) を設定で切り替え |
+| DI | `Microsoft.Extensions.DependencyInjection` |
+| テスト | xUnit v3 + Moq |
 
-## 🛠️ 開発
-
-<div align="left">
-
-![C#](https://img.shields.io/badge/C%23-239120?style=for-the-badge&logo=csharp&logoColor=white)
-![.NET](https://img.shields.io/badge/.NET%2010-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
-![WPF](https://img.shields.io/badge/WPF-2C68C4?style=for-the-badge&logo=windowsxp&logoColor=white)
-![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
-
-</div>
-
-- **アーキテクチャ**: WPF / MVVM。画面の手順は Coordinator、変換・I/O は Service に分離
-- **DI コンテナ**: `Microsoft.Extensions.DependencyInjection`
-- **PDF レンダリング**: `PDFiumCore` (PDFium。[pdfium-binaries](https://github.com/bblanchon/pdfium-binaries) のビルドを同梱)
-- **Word → PDF 変換**: Microsoft Word COM または LibreOffice headless (設定で切り替え)
-- **テスト**: `xUnit v3` + `Moq`
-
-[.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0) 以降があればビルドできる。プラットフォームは `x64` / `x86` を明示する (Any CPU は非対応)。
+[.NET SDK 11](https://dotnet.microsoft.com/download/dotnet/11.0) 以降でビルドできる。プラットフォームは `x64` / `x86` を明示する (Any CPU は非対応)。
 
 ```powershell
 # 復元・ビルド・単体テストの一括実行
-./installer/build-and-test.ps1 -NoPause
+./scripts/build-and-test.ps1 -NoPause
 
 # ビルドだけ
 dotnet build src/PdfConverter.slnx -c Release -p:Platform=x64
 ```
 
-開発環境・設計・テスト・インストーラーの作成・リリース手順は、開発者向けドキュメント [`docs/dev/`](docs/dev/README.md) にまとめている。
+開発環境・設計・テスト・インストーラーとポータブル版の作成・リリース手順は、開発者向けドキュメント [`docs/dev/`](docs/dev/README.md) にまとめている。
 
 | ページ | 内容 |
 | :--- | :--- |
-| [開発環境とビルド](docs/dev/setup.md) | 必要なツール・ビルド・実行・更新ダウンロード用キー |
-| [アーキテクチャ](docs/dev/architecture.md) | 起動の流れ・DI・MVVM と Coordinator・各サービスの責務 |
+| [開発環境とビルド](docs/dev/setup.md) | 必要なツール・ビルド・実行・更新の取得先 |
+| [アーキテクチャ](docs/dev/architecture.md) | 起動の流れ・DI・MVVM と Coordinator・各サービスの責務・ファイルの置き場所 |
 | [テスト](docs/dev/testing.md) | 単体テストの実行と書き方 |
-| [インストーラーとリリース](docs/dev/release.md) | インストーラー作成・同梱ドキュメント・リリース手順 |
-| [開発の進め方](docs/dev/contributing.md) | ブランチ・コミット・コーディング規約・ドキュメント同期 |
+| [インストーラーとリリース](docs/dev/release.md) | インストーラー・ポータブル版の作成・同梱ドキュメント・サードパーティ通知・リリース手順 |
+| [開発の進め方](docs/dev/contributing.md) | ブランチ・コミット・コーディング規約・ドキュメント同期・依存パッケージの更新 |
 
----
+## ライセンス
 
-## 📜 ライセンス
-
-本ソフトウェアの著作権は著作者が保有する (All Rights Reserved)。利用には著作者の事前の許可が必要で、許可のない複製・改変・再配布・商用利用を禁止する。条件は [LICENSE](LICENSE) を参照する。
+本プロジェクトは [MIT License](LICENSE) の下で公開している。
 
 ### オープンソースソフトウェア
 
@@ -129,7 +125,7 @@ dotnet build src/PdfConverter.slnx -c Release -p:Platform=x64
 | Ookii.Dialogs.Wpf | 5.0.1 | BSD-3-Clause | フォルダー選択ダイアログ |
 | .NET Runtime / Windows Desktop Runtime | 10 | MIT | 実行ランタイム (self-contained で同梱) |
 
-インストール版には、各コンポーネントのライセンス全文を記載した `THIRD-PARTY-NOTICES.txt` を同梱する。同梱ドキュメント (mdBook の HTML) に含まれる素材 (mdBook テーマ・highlight.js・clipboard.js・Font Awesome) の表示も末尾に記載している。アプリ右上の **ⓘ** ボタン (バージョン情報) からも開ける。
+インストール版・ポータブル版には、各コンポーネントのライセンス全文を記載した `THIRD-PARTY-NOTICES.txt` を同梱する。同梱ドキュメント (mdBook の HTML) に含まれる素材 (mdBook テーマ・highlight.js・clipboard.js・Font Awesome) の表示も末尾に記載している。アプリのバージョン情報 (右上の **ⓘ** ボタン) からも開ける。
 
 ### 外部ソフトウェア
 

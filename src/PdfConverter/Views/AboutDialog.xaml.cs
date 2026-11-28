@@ -73,7 +73,7 @@ namespace PdfConverter.Views
             VersionText.Text = $"バージョン {ApplicationMetadata.Version}";
             CopyrightText.Text = ApplicationMetadata.Copyright;
             LicenseText.Text =
-                $"本アプリの著作権は著作者が保有しています ({ApplicationMetadata.ApplicationLicenseName})。利用には著作者の許可が必要です。";
+                $"本アプリは {ApplicationMetadata.ApplicationLicenseName} の下で公開されています。";
             OpenLicenseButton.IsEnabled = ApplicationMetadata.IsLicenseAvailable;
             BundledComponentsText.Text = ApplicationMetadata.BundledComponentsText;
             ExternalDependenciesText.Text = ApplicationMetadata.ExternalDependenciesText;
@@ -174,8 +174,11 @@ namespace PdfConverter.Views
                         return;
                     }
 
+                    string package = result.Update?.PackageKind == UpdatePackageKind.Portable
+                        ? "ポータブル版"
+                        : "インストーラー";
                     bool apply = _dialogService.ShowYesNo(
-                        $"新しいバージョン {result.LatestVersion} が見つかりました。\n\nインストーラーをダウンロードして更新しますか？\n(更新を開始するとアプリを終了します)",
+                        $"新しいバージョン {result.LatestVersion} が見つかりました。\n\n{package}をダウンロードして更新しますか？\n(更新中はアプリを終了し、完了後に自動で起動します)",
                         "更新の確認",
                         DialogIcon.Information,
                         "更新する",
@@ -214,7 +217,7 @@ namespace PdfConverter.Views
 
                     if (applyResult.Kind == UpdateApplyKind.SetupStarted)
                     {
-                        UpdateStatusText.Text = "インストーラーを起動しました。";
+                        UpdateStatusText.Text = "更新を適用しています。完了後に自動で起動します。";
                         Application.Current?.Shutdown();
                         return;
                     }
@@ -256,19 +259,43 @@ namespace PdfConverter.Views
         }
 
         /// <summary>
+        /// 本体が処理中なら、設定をリセットできない旨を通知する
+        /// </summary>
+        /// <returns>処理中でリセットを見送るとき <c>true</c></returns>
+        private bool NotifyIfBusyForReset()
+        {
+            if (!_isBusy())
+            {
+                return false;
+            }
+
+            UpdateStatusText.Text = "処理中のため設定をリセットできません。";
+            _dialogService.ShowMessage(
+                "画像の保存や文書の読み込みなどの処理中は、設定をリセットできません (処理中のデータが失われるため)。\n\n処理が完了してから、もう一度お試しください。",
+                "設定のリセット",
+                DialogIcon.Warning);
+            return true;
+        }
+
+        /// <summary>
         /// 確認のうえ、保存済みの設定をすべて既定値に戻す
         /// </summary>
         /// <param name="sender">イベントの送信元</param>
         /// <param name="e">イベントの引数</param>
         private void ResetSettingsButton_Click(object sender, RoutedEventArgs e)
         {
+            if (NotifyIfBusyForReset())
+            {
+                return;
+            }
+
             bool confirmed = _dialogService.ShowYesNo(
                 "テーマ・画像出力・Word 変換などの保存済み設定をすべて既定値に戻します。\n\nよろしいですか？",
                 "設定のリセット",
                 DialogIcon.Warning,
                 "リセット",
                 "キャンセル");
-            if (!confirmed)
+            if (!confirmed || NotifyIfBusyForReset())
             {
                 return;
             }

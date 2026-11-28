@@ -39,6 +39,9 @@ namespace PdfConverter.Tests.Helpers
 
         public bool PreserveTransparency { get; set; } = true;
 
+        /// <inheritdoc/>
+        public int JpegQuality { get; set; } = 90;
+
         public bool IsAllPagesSelected { get; set; }
 
         public OutputImageFormat OutputImageFormat { get; set; } = OutputImageFormat.Png;

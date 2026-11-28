@@ -1,7 +1,7 @@
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// version API レスポンスから更新の有無を判定する
+    /// GitHub Release 情報から更新の有無を判定する
     /// </summary>
     public static class UpdateEvaluator
     {
@@ -9,16 +9,18 @@ namespace PdfConverter.Services
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// version API レスポンスを評価する
+        /// GitHub Release 情報を評価する
         /// </summary>
         /// <param name="currentVersionRaw">現在バージョン (表示用)</param>
         /// <param name="response">API レスポンス</param>
         /// <param name="platform"><c>x64</c> / <c>x86</c></param>
+        /// <param name="packageKind">選ぶ更新パッケージの種類 (インストール版はインストーラー、ポータブル版は zip)</param>
         /// <returns>判定結果</returns>
         public static UpdateCheckResult Evaluate(
             string currentVersionRaw,
-            VersionApiResponse response,
-            string platform)
+            GitHubRelease response,
+            string platform,
+            UpdatePackageKind packageKind = UpdatePackageKind.Installer)
         {
             if (response == null || string.IsNullOrWhiteSpace(response.Tag))
             {
@@ -41,17 +43,18 @@ namespace PdfConverter.Services
                 return UpdateCheckResult.UpToDate(currentVersionRaw, latestRaw);
             }
 
-            VersionApiAsset? asset = UpdateAssetSelector.SelectInstaller(response.Assets, platform);
+            GitHubReleaseAsset? asset = UpdateAssetSelector.SelectPackage(response.Assets, platform, packageKind);
             if (asset == null)
             {
-                if (UpdateAssetSelector.HasAnyInstaller(response.Assets))
+                string packageName = packageKind == UpdatePackageKind.Portable ? "ポータブル版" : "インストーラー";
+                if (UpdateAssetSelector.HasAnyPackage(response.Assets, packageKind))
                 {
                     return UpdateCheckResult.Failed(
-                        $"この CPU ({platform}) 向けのインストーラーが見つかりませんでした。(タグ: {response.Tag})");
+                        $"この CPU ({platform}) 向けの{packageName}が見つかりませんでした。(タグ: {response.Tag})");
                 }
 
                 return UpdateCheckResult.Failed(
-                    $"インストーラーアセットが見つかりませんでした。(タグ: {response.Tag})");
+                    $"{packageName}のアセットが見つかりませんでした。(タグ: {response.Tag})");
             }
 
             if (string.IsNullOrWhiteSpace(asset.Digest))
@@ -75,6 +78,7 @@ namespace PdfConverter.Services
                 LatestVersion = latestRaw,
                 Tag = response.Tag,
                 AssetName = asset.Name,
+                PackageKind = packageKind,
                 Size = asset.Size,
                 Sha256 = sha256,
             });

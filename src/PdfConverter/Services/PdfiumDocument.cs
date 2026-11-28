@@ -32,6 +32,12 @@ namespace PdfConverter.Services
         /// <summary>PDFium のビットマップ形式: BGRA 32 ビット (<c>FPDFBitmap_BGRA</c>)</summary>
         private const int PdfiumBitmapFormatBgra = 4;
 
+        /// <summary>PDFium のビットマップ形式: BGR 24 ビット (<c>FPDFBitmap_BGR</c>)</summary>
+        private const int PdfiumBitmapFormatBgr = 2;
+
+        /// <summary>白背景の塗り色 (ARGB、不透明な白)</summary>
+        private const ulong OpaqueWhiteColor = 0xFFFFFFFF;
+
         /// <summary>PDFium が scale 1.0 で描画するネイティブ DPI</summary>
         internal const double NativeDpi = 72.0;
 
@@ -267,16 +273,21 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 指定ページを透過背景の BGRA32 ビットマップとして描画する
+        /// 指定ページをビットマップとして描画する
         /// </summary>
+        /// <remarks>
+        /// <paramref name="opaqueWhiteBackground"/> が <c>false</c> の場合は透過背景の BGRA32、<c>true</c> の場合は白背景の BGR24 で描画する<br/>
+        /// 白背景は PDFium の塗りつぶしで行うため、別途の合成処理やバッファーは不要で、メモリ使用量も 25% 少ない
+        /// </remarks>
         /// <param name="pageIndex">ページインデックス (0 始まり)</param>
         /// <param name="scale">描画倍率 (1.0 = 72 DPI)</param>
+        /// <param name="opaqueWhiteBackground"><c>true</c> の場合は白背景の不透明な BGR24 で描画する</param>
         /// <returns>凍結済みのビットマップ</returns>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="pageIndex"/> が範囲外の場合</exception>
         /// <exception cref="InvalidDataException">ページを読み込めない、または描画サイズが 0 以下の場合</exception>
         /// <exception cref="InvalidOperationException">描画サイズが <see cref="MaxRenderPixels"/> を超える場合</exception>
         /// <exception cref="InsufficientMemoryException">描画用ビットマップを確保できない場合</exception>
-        public BitmapSource RenderPage(int pageIndex, double scale)
+        public BitmapSource RenderPage(int pageIndex, double scale, bool opaqueWhiteBackground = false)
         {
             ValidatePageIndex(pageIndex);
 
@@ -304,8 +315,8 @@ namespace PdfConverter.Services
                         fpdfview.FPDF_GetPageWidth(page) * scale,
                         fpdfview.FPDF_GetPageHeight(page) * scale,
                         MaxRenderPixels);
-                    result = CreateBitmap(width, height, dpi);
-                    RenderPageToBitmap(page, _formHandle, result, scale);
+                    result = CreateBitmap(width, height, dpi, opaqueWhiteBackground);
+                    RenderPageToBitmap(page, _formHandle, result, scale, opaqueWhiteBackground);
                 }
                 finally
                 {
@@ -559,18 +570,19 @@ namespace PdfConverter.Services
         }
 
         /// <summary>
-        /// 描画先の BGRA32 ビットマップを確保する
+        /// 描画先のビットマップ (BGRA32、白背景の場合は BGR24) を確保する
         /// </summary>
         /// <param name="width">幅 (ピクセル)</param>
         /// <param name="height">高さ (ピクセル)</param>
         /// <param name="dpi">DPI メタデータ</param>
+        /// <param name="opaque"><c>true</c> の場合は BGR24 で確保する</param>
         /// <returns>未凍結のビットマップ</returns>
         /// <exception cref="InsufficientMemoryException">描画用ビットマップを確保できない場合</exception>
-        private static WriteableBitmap CreateBitmap(int width, int height, double dpi)
+        private static WriteableBitmap CreateBitmap(int width, int height, double dpi, bool opaque)
         {
             try
             {
-                return new WriteableBitmap(width, height, dpi, dpi, PixelFormats.Bgra32, null);
+                return new WriteableBitmap(width, height, dpi, dpi, opaque ? PixelFormats.Bgr24 : PixelFormats.Bgra32, null);
             }
             catch (OutOfMemoryException ex)
             {
@@ -587,10 +599,11 @@ namespace PdfConverter.Services
         /// </remarks>
         /// <param name="page">ページハンドル</param>
         /// <param name="formHandle">フォーム環境のハンドル (<c>null</c> の場合はフォームフィールドを描画しない)</param>
-        /// <param name="target">描画先 (BGRA32、未凍結で、呼び出しスレッドが作成したもの)</param>
+        /// <param name="target">描画先 (<paramref name="opaque"/> に応じた形式、未凍結で、呼び出しスレッドが作成したもの)</param>
         /// <param name="scale">描画倍率</param>
+        /// <param name="opaque"><c>true</c> の場合は白で塗りつぶして BGR24 として描画する (<c>false</c> の場合は透明で塗りつぶして BGRA32)</param>
         /// <exception cref="InsufficientMemoryException">PDFium の描画用ビットマップを作成できない場合</exception>
-        private static void RenderPageToBitmap(FpdfPageT page, FpdfFormHandleT? formHandle, WriteableBitmap target, double scale)
+        private static void RenderPageToBitmap(FpdfPageT page, FpdfFormHandleT? formHandle, WriteableBitmap target, double scale, bool opaque)
         {
             int width = target.PixelWidth;
             int height = target.PixelHeight;
@@ -599,7 +612,7 @@ namespace PdfConverter.Services
             try
             {
                 // 外部バッファーを包むだけなので、バックバッファーの寿命は PDFium のビットマップより長い
-                FpdfBitmapT? bitmap = fpdfview.FPDFBitmapCreateEx(width, height, PdfiumBitmapFormatBgra, target.BackBuffer, target.BackBufferStride);
+                FpdfBitmapT? bitmap = fpdfview.FPDFBitmapCreateEx(width, height, opaque ? PdfiumBitmapFormatBgr : PdfiumBitmapFormatBgra, target.BackBuffer, target.BackBufferStride);
                 if (bitmap == null || bitmap.__Instance == IntPtr.Zero)
                 {
                     throw new InsufficientMemoryException($"描画用ビットマップを確保できませんでした ({width}x{height})。");
@@ -607,8 +620,8 @@ namespace PdfConverter.Services
 
                 try
                 {
-                    // 外部バッファーは初期化されないため、透明 (全 0) で塗りつぶす
-                    fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, 0);
+                    // 外部バッファーは初期化されないため、白背景なら白、そうでなければ透明 (全 0) で塗りつぶす
+                    fpdfview.FPDFBitmapFillRect(bitmap, 0, 0, width, height, opaque ? OpaqueWhiteColor : 0);
 
                     using (var matrix = new FS_MATRIX_())
                     using (var clipping = new FS_RECTF_())

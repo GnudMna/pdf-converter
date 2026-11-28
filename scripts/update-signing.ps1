@@ -1,4 +1,4 @@
-# 更新インストーラーの署名 (ECDSA P-256 / SHA-256) に使う共通関数
+# 更新用の配布物 (インストーラー・ポータブル版の zip) の署名 (ECDSA P-256 / SHA-256) に使う共通関数
 #
 # sign-update.ps1 / new-update-signing-key.ps1 / release-version.ps1 から dot-source して使う。
 # 単体では実行しない。
@@ -123,7 +123,7 @@ function Assert-UpdateSigningKeyConfigured {
         throw @"
 更新の署名用の秘密鍵が指定されていません。
 環境変数 $($script:UpdateSigningKeyEnvName) に秘密鍵 (PEM) のパスを設定してください。
-鍵が無い場合は installer\new-update-signing-key.ps1 で作成します。
+鍵が無い場合は scripts\new-update-signing-key.ps1 で作成します。
 (署名の無いインストーラーは、公開後に更新を適用できません)
 "@
     }
@@ -132,7 +132,7 @@ function Assert-UpdateSigningKeyConfigured {
     if ([string]::IsNullOrEmpty($embedded)) {
         throw @"
 アプリに署名検証用の公開鍵が埋め込まれていません。
-installer\new-update-signing-key.ps1 が出力する公開鍵を $($script:UpdateSigningKeySourceRelativePath) の PublicKey に設定してください。
+scripts\new-update-signing-key.ps1 が出力する公開鍵を $($script:UpdateSigningKeySourceRelativePath) の PublicKey に設定してください。
 "@
     }
 

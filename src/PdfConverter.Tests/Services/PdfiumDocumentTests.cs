@@ -90,6 +90,26 @@ namespace PdfConverter.Tests.Services
         }
 
         /// <summary>
+        /// 白背景を指定すると BGR24 で描画され、何も描かない領域が白になることを検証する
+        /// </summary>
+        [Fact]
+        public void RenderPage_OpaqueWhiteBackground_ReturnsBgrBitmapWithWhiteBackground()
+        {
+            byte[] pdf = BuildPdf(new[] { (200, 100) }, "1 0 0 rg 0 0 100 100 re f");
+
+            using (var document = new PdfiumDocument(pdf))
+            {
+                BitmapSource bitmap = document.RenderPage(0, 1.0, opaqueWhiteBackground: true);
+
+                Assert.Equal(PixelFormats.Bgr24, bitmap.Format);
+                Assert.True(bitmap.IsFrozen);
+                Assert.Equal(new byte[] { 0, 0, 255 }, ReadPixel(bitmap, 50, 50)[..3]);
+                Assert.Equal(new byte[] { 255, 255, 255 }, ReadPixel(bitmap, 150, 50)[..3]);
+                Assert.Equal(new byte[] { 255, 255, 255 }, ReadPixel(bitmap, 199, 99)[..3]);
+            }
+        }
+
+        /// <summary>
         /// 外観ストリームを持つ注釈 (矩形注釈) が描画されることを検証する
         /// </summary>
         [Fact]

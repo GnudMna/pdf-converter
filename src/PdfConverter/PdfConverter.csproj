@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="UpdateReleaseKey.local.props" Condition="Exists('UpdateReleaseKey.local.props')" />
   <PropertyGroup>
     <TargetFramework>net10.0-windows</TargetFramework>
     <OutputType>WinExe</OutputType>
@@ -7,10 +6,8 @@
     <RootNamespace>PdfConverter</RootNamespace>
     <AssemblyName>PDF Converter</AssemblyName>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Nullable>enable</Nullable>
     <NeutralLanguage>ja</NeutralLanguage>
-    <PdfConverterReleaseKey Condition="'$(PdfConverterReleaseKey)' == ''">$(PDF_CONVERTER_KEY)</PdfConverterReleaseKey>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebugType>none</DebugType>
@@ -19,6 +16,10 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
     <PackageReference Include="Ookii.Dialogs.Wpf" Version="5.0.1" />
     <PackageReference Include="PDFiumCore" Version="157.0.8100" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- コンソール用の起動プログラム (pdfconv.exe)。publish 出力へ本体と同じ場所に含める -->
+    <ProjectReference Include="..\PdfConverter.Console\PdfConverter.Console.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Resources.Designer.cs">
@@ -45,27 +46,5 @@
   <Target Name="ValidateSupportedPlatform" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(Platform)' != 'x86' AND '$(Platform)' != 'x64'"
            Text="PdfConverter は x86 または x64 プラットフォームでのみビルドできます。Any CPU はサポートされていません。(Platform=$(Platform))" />
-  </Target>
-  <Target Name="GenerateUpdateReleaseKey" BeforeTargets="BeforeCompile;CoreCompile">
-    <PropertyGroup>
-      <_UpdateReleaseKeyFile>$(IntermediateOutputPath)UpdateReleaseKey.g.cs</_UpdateReleaseKeyFile>
-      <_UpdateReleaseKeyEscaped>$([System.String]::Copy('$(PdfConverterReleaseKey)').Replace('\','\\').Replace('"','\"'))</_UpdateReleaseKeyEscaped>
-      <!-- %22 / %3b で属性・WriteLinesToFile の区切り文字問題を避ける -->
-      <_UpdateReleaseKeyValueLine>        internal const string Value = %22$(_UpdateReleaseKeyEscaped)%22%3b</_UpdateReleaseKeyValueLine>
-    </PropertyGroup>
-    <ItemGroup>
-      <_UpdateReleaseKeyLines Include="namespace PdfConverter.Infrastructure" />
-      <_UpdateReleaseKeyLines Include="{" />
-      <_UpdateReleaseKeyLines Include="    internal static partial class UpdateReleaseKey" />
-      <_UpdateReleaseKeyLines Include="    {" />
-      <_UpdateReleaseKeyLines Include="$(_UpdateReleaseKeyValueLine)" />
-      <_UpdateReleaseKeyLines Include="    }" />
-      <_UpdateReleaseKeyLines Include="}" />
-    </ItemGroup>
-    <WriteLinesToFile File="$(_UpdateReleaseKeyFile)" Lines="@(_UpdateReleaseKeyLines)" Overwrite="true" Encoding="UTF-8" />
-    <ItemGroup>
-      <Compile Include="$(_UpdateReleaseKeyFile)" KeepDuplicates="false" />
-      <FileWrites Include="$(_UpdateReleaseKeyFile)" />
-    </ItemGroup>
   </Target>
 </Project>

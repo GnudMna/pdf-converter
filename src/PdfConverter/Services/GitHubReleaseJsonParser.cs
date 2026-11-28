@@ -8,46 +8,46 @@ using System.Text;
 namespace PdfConverter.Services
 {
     /// <summary>
-    /// gh-release-bridge の <c>/version</c> JSON を解析する
+    /// GitHub Releases API の最新リリース (<c>/repos/{owner}/{repo}/releases/latest</c>) の JSON を解析する
     /// </summary>
-    public static class VersionApiJsonParser
+    public static class GitHubReleaseJsonParser
     {
         /********************************************************************************/
         /*                              パブリックメソッド                              */
         /********************************************************************************/
         /// <summary>
-        /// JSON 文字列を <see cref="VersionApiResponse"/> に変換する
+        /// JSON 文字列を <see cref="GitHubRelease"/> に変換する
         /// </summary>
         /// <param name="json">レスポンス本文</param>
         /// <returns>解析結果</returns>
         /// <exception cref="InvalidDataException">形式が不正な場合</exception>
-        public static VersionApiResponse Parse(string json)
+        public static GitHubRelease Parse(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
             {
-                throw new InvalidDataException("version API の応答が空です。");
+                throw new InvalidDataException("GitHub Release 情報の応答が空です。");
             }
 
-            var serializer = new DataContractJsonSerializer(typeof(VersionApiDto));
+            var serializer = new DataContractJsonSerializer(typeof(GitHubReleaseDto));
             using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(json)))
             {
                 object? parsed = serializer.ReadObject(stream);
-                if (!(parsed is VersionApiDto dto) || string.IsNullOrWhiteSpace(dto.Tag))
+                if (!(parsed is GitHubReleaseDto dto) || string.IsNullOrWhiteSpace(dto.Tag))
                 {
-                    throw new InvalidDataException("version API の応答形式が不正です。");
+                    throw new InvalidDataException("GitHub Release 情報の応答形式が不正です。");
                 }
 
-                var assets = new List<VersionApiAsset>();
+                var assets = new List<GitHubReleaseAsset>();
                 if (dto.Assets != null)
                 {
-                    foreach (VersionApiAssetDto asset in dto.Assets)
+                    foreach (GitHubReleaseAssetDto asset in dto.Assets)
                     {
                         if (asset == null || string.IsNullOrWhiteSpace(asset.Name))
                         {
                             continue;
                         }
 
-                        assets.Add(new VersionApiAsset
+                        assets.Add(new GitHubReleaseAsset
                         {
                             Name = asset.Name,
                             Size = asset.Size,
@@ -56,7 +56,7 @@ namespace PdfConverter.Services
                     }
                 }
 
-                return new VersionApiResponse
+                return new GitHubRelease
                 {
                     Tag = dto.Tag,
                     Assets = assets.ToArray(),
@@ -69,19 +69,19 @@ namespace PdfConverter.Services
         /*                                   ネスト型                                   */
         /********************************************************************************/
         [DataContract]
-        private sealed class VersionApiDto
+        private sealed class GitHubReleaseDto
         {
             /// <summary>リリースタグ</summary>
-            [DataMember(Name = "tag")]
+            [DataMember(Name = "tag_name")]
             public string? Tag { get; set; }
 
             /// <summary>アセット一覧</summary>
             [DataMember(Name = "assets")]
-            public VersionApiAssetDto[]? Assets { get; set; }
+            public GitHubReleaseAssetDto[]? Assets { get; set; }
         }
 
         [DataContract]
-        private sealed class VersionApiAssetDto
+        private sealed class GitHubReleaseAssetDto
         {
             /// <summary>アセット名</summary>
             [DataMember(Name = "name")]

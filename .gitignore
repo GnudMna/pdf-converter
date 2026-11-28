@@ -11,9 +11,6 @@
 *.sln.docstates
 *.env
 
-# Embedded gh-release-bridge download key (local only)
-**/UpdateReleaseKey.local.props
-
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
@@ -177,6 +174,7 @@ _TeamCity*
 # Coverlet is a free, cross platform Code Coverage Tool
 coverage*.json
 coverage*.xml
+!scripts/coverage.settings.xml
 coverage*.info
 
 # Visual Studio code coverage results

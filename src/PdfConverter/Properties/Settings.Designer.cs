@@ -194,6 +194,36 @@ namespace PdfConverter.Properties
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string LastSaveFolder
+        {
+            get
+            {
+                return ((string)(this["LastSaveFolder"]));
+            }
+            set
+            {
+                this["LastSaveFolder"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("90")]
+        public int JpegQuality
+        {
+            get
+            {
+                return ((int)(this["JpegQuality"]));
+            }
+            set
+            {
+                this["JpegQuality"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("True")]
         public bool UpgradeRequired
         {

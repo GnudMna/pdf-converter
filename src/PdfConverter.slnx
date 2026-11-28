@@ -7,6 +7,10 @@
     <Platform Solution="*|x86" Project="x86" />
     <Platform Solution="*|x64" Project="x64" />
   </Project>
+  <Project Path="PdfConverter.Console/PdfConverter.Console.csproj">
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="*|x64" Project="x64" />
+  </Project>
   <Project Path="PdfConverter.Tests/PdfConverter.Tests.csproj" Id="a8f3e2b1-4c5d-6e7f-8091-a2b3c4d5e6f7">
     <Platform Solution="*|x86" Project="x86" />
     <Platform Solution="*|x64" Project="x64" />

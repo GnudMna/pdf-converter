@@ -39,7 +39,7 @@
 
 利用者に影響する変更は、`CHANGELOG.md` の `[Unreleased]` への追記を同じコミットに含める。書き方は `CHANGELOG.md` 冒頭の規約に従う。
 
-コミット・PR の前に `./installer/build-and-test.ps1 -NoPause` を通す。CI がないため、このローカルの品質チェックが唯一の検査である。
+コミット・PR の前に `./scripts/build-and-test.ps1 -NoPause` を通す。CI がないため、このローカルの品質チェックが唯一の検査である。
 
 ## コーディング規約
 
@@ -71,8 +71,8 @@
 | 既知の不具合・回避策 | `docs/user/troubleshooting.md` |
 | 利用者に見える挙動 | `CHANGELOG.md` の `[Unreleased]` |
 | 構成・設計・ビルド手順・リリース手順 | `docs/dev/` の該当ページ |
-| mdBook の版 | `installer/licenses/user-docs-notices.txt` |
-| PDFiumCore の版 | `installer/licenses/PDFium.txt` |
+| mdBook の版 | `scripts/licenses/user-docs-notices.txt` |
+| PDFiumCore の版 | `scripts/licenses/PDFium.txt` |
 
 `docs/user/` はインストーラーに同梱してオフラインで読むため、`docs/user/` の外へ相対リンクしない。`docs/user/changelog.md` は `CHANGELOG.md` を取り込むだけのため編集しない。
 
@@ -80,8 +80,11 @@
 
 | パッケージ | 注意点 |
 | :--- | :--- |
-| PDFiumCore | ネイティブ DLL は [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) のビルド。`installer/licenses/PDFium.txt` を同じ版のリリースに含まれるライセンスに差し替える。不一致は `generate-third-party-notices.ps1` がエラーにする |
+| PDFiumCore | ネイティブ DLL は [pdfium-binaries](https://github.com/bblanchon/pdfium-binaries/releases) のビルド。`scripts/licenses/PDFium.txt` を同じ版のリリースに含まれるライセンスに差し替える。不一致は `generate-third-party-notices.ps1` がエラーにする |
 | そのほかの NuGet パッケージ | 更新後に `README.md` のオープンソース一覧の版を合わせる。ライセンスが変わっていないか確かめる |
-| .NET SDK | コード解析のレベル (`AnalysisLevel`) は SDK の版に固定している。SDK を上げるときは `src/Directory.Build.props` の値と、増えたルールの警告を確かめる |
+| dotnet ローカルツール | `dotnet-tools.json` (カバレッジの計測・レポート生成)。`dotnet tool update <パッケージ名>` で更新する |
+| .NET SDK | 最低版は `global.json` で固定している。コード解析のレベル (`AnalysisLevel`) は SDK の版に固定しているため、SDK を上げるときは `src/Directory.Build.props` の値と、増えたルールの警告を確かめる |
+
+NuGet パッケージを変えたら、`dotnet restore src/PdfConverter.slnx -p:Platform=x64` で `packages.lock.json` を更新し、同じ変更に含める ([依存パッケージのロック](setup.md#依存パッケージのロック) を参照)。
 
 依存を更新したら、x64 と x86 の両方でビルドとテストを通し、インストーラーを作って `THIRD-PARTY-NOTICES.txt` を確かめる。
